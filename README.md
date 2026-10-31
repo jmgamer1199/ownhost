@@ -1,13 +1,13 @@
 # Ownhost
 
-Monta tus propios servidores de **Minecraft Java** (Vanilla, Paper, Fabric, Forge, NeoForge), **Minecraft Bedrock** y **Hytale** en tus propios equipos: tu PC, un portátil viejo o un homelab. Con la app (Windows y Linux) los creas, enciendes, apagas, actualizas y haces copias de seguridad desde cualquier PC de tu red local o de tu Tailscale. Sin alquilar nada ni depender de servicios de terceros.
+Monta tus propios servidores de **Minecraft Java** (Vanilla, Paper, Fabric, Forge, NeoForge), **Minecraft Bedrock** y **Hytale** en tus propios equipos: tu PC, un portátil que no uses o un servidor casero. Con la app (Windows y Linux) los creas, enciendes, apagas, actualizas y haces copias de seguridad desde cualquier PC de tu red local o de tu Tailscale. Sin alquilar nada ni depender de servicios de terceros.
 
 ## Cómo funciona
 
 ```
  ┌──────────────┐        HTTP + WebSocket (puerto 8765)       ┌─────────────────────┐
- │  App (GUI)   │ ──────────────────────────────────────────▶ │ Agente  (este PC)   │──▶ java (Minecraft)
- │  PySide6     │ ──────────────────────────────────────────▶ │ Agente  (homelab)   │──▶ java (Hytale)
+ │  App (GUI)   │ ──────────────────────────────────────────▶ │ Agente  (equipo A)  │──▶ servidores
+ │  PySide6     │ ──────────────────────────────────────────▶ │ Agente  (equipo B)  │──▶ servidores
  └──────────────┘                                             └─────────────────────┘
 ```
 
@@ -18,55 +18,40 @@ Cada agente genera un **token** la primera vez que arranca. La app lo necesita p
 
 ## Instalación
 
-### Windows: `Ownhost.exe`
+Descarga la última versión desde [Releases](https://github.com/jmgamer1199/ownhost/releases). No hace falta instalar Python ni nada más.
 
-Todo va en un solo archivo, `dist\Ownhost.exe`, que no necesita Python. Cópialo donde quieras y ábrelo:
+### Windows
 
-- **Para hospedar servidores en ese PC**, pulsa **«Usar este PC como servidor»**. El mismo exe arranca en segundo plano como agente (`Ownhost.exe --agent`).
-- **Para gestionar otro equipo**, pulsa **«Conectar a un equipo por IP»** e introduce su IP, puerto y token. En el otro PC, el botón **«Copiar token»** de la ficha «Este PC» te da el token.
+Descarga `Ownhost.exe`, guárdalo donde quieras y ábrelo:
 
-Para regenerar el exe después de cambiar el código:
+- **Para hospedar servidores en ese PC**, pulsa **«Usar este PC como servidor»**. El mismo programa se queda en segundo plano como agente.
+- **Para gestionar otro equipo**, pulsa **«Conectar a un equipo por IP»** e introduce su IP, puerto y token. En el otro equipo, el botón **«Copiar token»** de su ficha te da el token.
 
-```powershell
-powershell -ExecutionPolicy Bypass -File scripts\crear-exe.ps1
-```
+Si Windows pregunta por el cortafuegos, permite el acceso en redes privadas para que los demás equipos y los jugadores puedan conectarse.
 
-`scripts\instalar-windows.ps1` sigue disponible si prefieres ejecutarlo con Python (modo desarrollo).
+### Linux con escritorio
 
-### Linux: `dist/linux/`
+Descarga `Ownhost-x86_64.AppImage`, dale permiso de ejecución (`chmod +x Ownhost-x86_64.AppImage`) y ábrelo con doble clic. Con `instalar-app-linux.sh` (en la misma página) se copia a `~/Applications` y se añade al menú con su icono.
 
-`scripts\crear-exe.ps1` también genera la versión para Linux. La compila dentro de un contenedor Ubuntu 22.04 con Docker; si Docker Desktop está cerrado, lo arranca. Genera dos archivos:
+Funciona en casi cualquier distribución actual: Debian 10+, Ubuntu 20.04+, Fedora, Arch, openSUSE, RHEL/Rocky/Alma 8+ y derivadas (no en las que usan musl, como Alpine). Si la ventana no abre, faltan bibliotecas gráficas; en Debian/Ubuntu: `sudo apt install libgl1 libegl1 libxcb-cursor0`.
 
-- **`Ownhost-x86_64.AppImage`**: para escritorio. Dale permiso de ejecución y ábrelo con doble clic. También puedes ejecutar `bash instalar-app-linux.sh` para copiarlo a `~/Applications` y añadirlo al menú con su icono.
-- **`Ownhost`**: binario simple, útil en servidores sin escritorio como agente (`Ownhost --agent`).
+### Linux sin escritorio (solo el agente)
 
-Al terminar, `scripts\comprobar_privacidad.py` revisa el exe y el binario de Linux. Si encuentra datos de quien compila (usuario, nombre del equipo, carpeta personal o IPs), avisa y el script termina con error. Toda la información de cada usuario (IPs, Tailscale, equipos de la red, carpetas de Minecraft, Java) la detecta la app en su propio equipo.
-
-Funcionan en Ubuntu 22.04 o posterior, Debian 12 o posterior, Proxmox 8 o posterior y derivadas. Si la ventana no abre, instala `sudo apt install libgl1 libegl1 libxcb-cursor0`. El icono de la app se genera con `scripts/generar_icono.py`.
-
-### En un portátil, el homelab u otro equipo Linux (solo el agente)
-
-Copia `dist/linux/Ownhost` y `dist/linux/instalar-agente-servicio.sh` a ese equipo y ejecuta en la misma carpeta:
+Para un equipo que solo hospeda servidores, descarga `Ownhost` e `instalar-agente-servicio.sh` en una misma carpeta y ejecuta:
 
 ```bash
 sudo bash instalar-agente-servicio.sh
 ```
 
-El script instala el agente como servicio `systemd` (arranca solo con el equipo, aunque nadie inicie sesión), abre los puertos en `ufw` si está activo y al final muestra la IP y el token. En la app del otro PC, pulsa **«Conectar a un equipo»**, elige el equipo en «Detectados» y pega el token.
+El script instala el agente como servicio `systemd` (arranca solo con el equipo, aunque nadie inicie sesión), abre los puertos en `ufw` si está activo y al final muestra la IP y el token. En la app de otro equipo, pulsa **«Conectar a un equipo»**, elígelo en «Detectados» y pega el token.
 
-En un portátil, para que los servidores sigan funcionando con la tapa cerrada, pon `HandleLidSwitch=ignore` (y `HandleLidSwitchExternalPower=ignore`) en `/etc/systemd/logind.conf` y ejecuta `sudo systemctl restart systemd-logind`.
-
-(`scripts/instalar-agente-linux.sh` hace lo mismo desde el código fuente, con Python.)
-
-### Otro PC con Windows que solo hospeda
-
-Instálalo igual que en este PC y ejecuta `python -m ownhost.agent` (o abre la app y pulsa «Usar este PC»). Abre el puerto 8765/TCP en el firewall.
+Si es un portátil y quieres que los servidores sigan funcionando con la tapa cerrada, pon `HandleLidSwitch=ignore` (y `HandleLidSwitchExternalPower=ignore`) en `/etc/systemd/logind.conf` y ejecuta `sudo systemctl restart systemd-logind`.
 
 ## Equipos detectados automáticamente
 
 Cada 30 segundos la app busca otros equipos con Ownhost, en la red local (por difusión UDP) y en Tailscale (preguntando a cada dispositivo conectado).
 
-- **Tailscale, misma cuenta:** si el otro equipo está en tu Tailscale con tu misma cuenta, la app **lo añade sola y sin token**. Lo gestionas igual que «Este PC», también desde fuera de casa. El agente pregunta a Tailscale de quién es cada conexión (`tailscale whois`) y solo deja pasar dispositivos de su misma cuenta que lleguen por la interfaz de Tailscale.
+- **Tailscale, misma cuenta:** si el otro equipo está en tu Tailscale con tu misma cuenta, la app **lo añade sola y sin token**. Lo gestionas como cualquier otro equipo tuyo, también desde fuera de casa. El agente pregunta a Tailscale de quién es cada conexión (`tailscale whois`) y solo deja pasar dispositivos de su misma cuenta que lleguen por la interfaz de Tailscale.
 - **Resto de equipos** (solo red local, o Tailscale de otra persona): aparecen en **«Detectados en tu red»**. Al pulsar uno, la app pide su token **una vez**.
 - Si quitas un equipo de la lista, no se vuelve a añadir solo; sigue apareciendo en «Detectados».
 - Para desactivar el acceso sin token por Tailscale en un equipo, pon `"trust_tailscale": false` en su `agent.json`.
@@ -77,7 +62,7 @@ Si un equipo tiene Tailscale activo, la app lo detecta:
 
 - **Al conectar a un equipo**, el diálogo muestra una lista con los ordenadores de tu red Tailscale. Al elegir uno se rellenan su nombre y su IP.
 - **En la ficha de cada servidor**, «Conectar a» muestra la IP de la red local y la de Tailscale. Los amigos que estén en tu tailnet pueden entrar desde fuera de casa sin abrir puertos en el router.
-- **En la ficha «Este PC»**, aparece también su IP de Tailscale, para gestionarlo desde fuera de casa.
+- **En la ficha de cada equipo** aparece también su IP de Tailscale, para gestionarlo desde fuera de casa.
 
 ## Puertos
 
@@ -125,17 +110,15 @@ En la ficha del servidor, el botón **Mundo** tiene tres opciones:
   - Antes de sustituir el mundo actual se hace una copia de seguridad.
   - Si el mundo viene de una instancia con mods, la app ofrece copiar también sus mods y su carpeta `config`. Los mods de Fabric marcados como «solo cliente» (shaders, minimapas...) se descartan.
   - El servidor tiene que ser de la misma versión de Minecraft y del mismo loader que la instancia.
-- **Abrir carpeta del servidor**: solo si el servidor está en este PC. Sirve para editar archivos a mano.
-- **Descargar una copia...**: lleva a «Copias de seguridad», donde «Descargar...» guarda la copia en este PC. Así puedes editar el mundo con programas como [Amulet](https://www.amuletmc.com/) aunque el servidor esté en el homelab, y volver a subirlo con «Importar un mundo».
+- **Abrir carpeta del servidor**: solo si el servidor está en el mismo PC que la app. Sirve para editar archivos a mano.
+- **Descargar una copia...**: lleva a «Copias de seguridad», donde «Descargar...» guarda la copia en tu PC. Así puedes editar el mundo con programas como [Amulet](https://www.amuletmc.com/) aunque el servidor esté en otro equipo, y volver a subirlo con «Importar un mundo».
 
 ## Mods y plugins
 
 La pestaña **Plugins** (en servidores Paper) o **Mods** (en servidores Fabric, Forge y NeoForge) busca en **Modrinth** y **CurseForge**. Solo muestra lo que es compatible con la versión del servidor e instala solas las dependencias obligatorias. Desde la misma pestaña puedes activar, desactivar o eliminar lo instalado.
 
 - Modrinth no necesita configuración.
-- CurseForge necesita una clave de API gratuita de [console.curseforge.com](https://console.curseforge.com/). Hay dos formas de usarla:
-  - **Incluida en el exe:** guárdala en un archivo `curseforge.key` en la raíz del proyecto (o en la variable `CURSEFORGE_API_KEY`) y ejecuta `scripts\crear-exe.ps1`. Se mete ofuscada solo al compilar, no queda en el código fuente y está en `.gitignore`. Es ofuscación, no cifrado: alguien con tiempo podría sacarla del exe, así que no repartas el exe públicamente.
-  - **Por usuario:** se pone en **Ajustes** de la app y tiene prioridad sobre la incluida.
+- CurseForge necesita una clave de API gratuita: consíguela en [console.curseforge.com](https://console.curseforge.com/) y ponla en **Ajustes** de la app.
 - Algunos autores de CurseForge bloquean las descargas desde apps externas. En ese caso, la app te da el enlace para descargarlo desde la web.
 - Los servidores Vanilla no admiten mods.
 
@@ -210,9 +193,9 @@ Cada servidor tiene la opción **«Actualizar automáticamente al encender»** e
 
 ## Actualizar Ownhost
 
-Al abrirse, la app mira si hay una versión nueva en las [Releases](https://github.com/jmgamer1199/ownhost/releases) del proyecto (se puede desactivar en **Ajustes**, donde también está **Buscar ahora**). Si la hay, la descarga, se cierra y se abre ya actualizada; los servidores siguen encendidos y el agente de este PC se actualiza solo. Los agentes de otros equipos (un portátil, el homelab) se actualizan desde su ficha con **Actualizar agente**: apagan los servidores guardando el mundo, se reinician con la versión nueva y los vuelven a encender. Solo se actualizan solos el `.exe` y el AppImage o binario de Linux; si instalaste el agente con pip, actualízalo con pip.
+Al abrirse, la app mira si hay una versión nueva en las [Releases](https://github.com/jmgamer1199/ownhost/releases) del proyecto (se puede desactivar en **Ajustes**, donde también está **Buscar ahora**). Si la hay, la descarga, se cierra y se abre ya actualizada; los servidores siguen encendidos y el agente del mismo PC se actualiza solo. Los agentes de otros equipos se actualizan desde su ficha con **Actualizar agente**: apagan los servidores guardando el mundo, se reinician con la versión nueva y los vuelven a encender. Solo se actualizan solos el `.exe` y el AppImage o binario de Linux; si instalaste el agente con pip, actualízalo con pip.
 
-Para publicar una versión: compila con `scripts\crear-exe.ps1` y crea una Release con la etiqueta `v` + la compilación (la que muestra la app, p. ej. `v20261031150000`) adjuntando `Ownhost.exe`, `Ownhost-x86_64.AppImage` y `Ownhost` de `dist/`.
+Para publicar versiones, ver [Publicar una versión](#publicar-una-versión).
 
 ## Notas por juego
 
@@ -247,7 +230,7 @@ Solo para hospedar servidores (sin ventana) basta con `pip install -e .`: la int
 
 Opciones del agente:
 - `--data-dir`, o la variable `OWNHOST_DATA_DIR`: carpeta de datos. Por defecto, `%LOCALAPPDATA%\Ownhost\agent` en Windows y `~/.local/share/ownhost` en Linux.
-- `--port 8765`, `--bind 0.0.0.0`, `--name "Homelab"`, `--show-token`.
+- `--port 8765`, `--bind 0.0.0.0`, `--name "Servidor"`, `--show-token`.
 
 La API del agente se documenta sola en `http://<ip>:8765/docs`.
 
@@ -263,7 +246,7 @@ powershell -ExecutionPolicy Bypass -File scripts\crear-exe.ps1
 |---|---|
 | `dist/Ownhost.exe` | Windows: app y agente en un solo archivo, sin instalar Python |
 | `dist/linux/Ownhost-x86_64.AppImage` | Linux con escritorio (doble clic) |
-| `dist/linux/Ownhost` | Linux sin escritorio (homelab): el mismo programa en un binario; con `--agent` es el agente |
+| `dist/linux/Ownhost` | Linux sin escritorio: el mismo programa en un binario; con `--agent` es el agente |
 | `dist/linux/instalar-*.sh` | Instaladores de la app y del agente como servicio en Linux |
 
 Qué hace el script:
@@ -275,16 +258,18 @@ Qué hace el script:
 
 Si Ownhost está abierto, el `.exe` en uso se aparta como `.old` y se borra en la siguiente compilación.
 
-**Clave de CurseForge (opcional):** si pones tu clave en un archivo `curseforge.key` en la raíz (o en la variable `CURSEFORGE_API_KEY`), se incluye ofuscada en los binarios y los usuarios no tienen que conseguir la suya. Ese archivo está en `.gitignore`: no lo subas nunca.
+**Clave de CurseForge (opcional):** si pones tu clave en un archivo `curseforge.key` en la raíz (o en la variable `CURSEFORGE_API_KEY`), se incluye ofuscada en los binarios y los usuarios no tienen que conseguir la suya. Es ofuscación, no cifrado: alguien con tiempo podría sacarla, así que no la incluyas en binarios que vayas a publicar. Ese archivo está en `.gitignore`: no lo subas nunca.
+
+Otros scripts: `scripts\instalar-windows.ps1` instala el entorno para ejecutar desde el código en Windows, `scripts/instalar-agente-linux.sh` instala el agente como servicio en Linux usando Python, y `scripts/generar_icono.py` vuelve a dibujar el icono y los gráficos del tema.
 
 ### Publicar una versión
 
 1. Compila con `scripts\crear-exe.ps1`. Al principio muestra la etiqueta, por ejemplo `v20261031143350`.
 2. Sube el código (`git push`).
-3. Crea la Release con esa etiqueta y los tres binarios:
+3. Crea la Release con esa etiqueta, los tres binarios y los dos instaladores de Linux:
 
 ```bash
-gh release create v20261031143350 dist/Ownhost.exe dist/linux/Ownhost-x86_64.AppImage dist/linux/Ownhost --title "Ownhost dd/mm/aaaa" --notes "Novedades..."
+gh release create v20261031143350 dist/Ownhost.exe dist/linux/Ownhost-x86_64.AppImage dist/linux/Ownhost dist/linux/instalar-app-linux.sh dist/linux/instalar-agente-servicio.sh --title "Ownhost dd/mm/aaaa" --notes "Novedades..."
 ```
 
 Las apps y los agentes comparan su compilación con la de la última Release y se ofrecen a actualizarse (ver [Actualizar Ownhost](#actualizar-ownhost)). Para probar las actualizaciones sin publicar nada, la variable `OWNHOST_RELEASES_API` apunta la comprobación a otra dirección con el mismo formato que la API de GitHub.
