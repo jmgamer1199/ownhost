@@ -26,25 +26,33 @@
 * { box-sizing: border-box; }
 html, body { margin: 0; background: var(--bg); color: var(--ink);
   font: 16px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; -webkit-text-size-adjust: 100%; }
-main { max-width: 720px; margin: 0 auto; padding: 16px 16px calc(24px + env(safe-area-inset-bottom)); }
+main { max-width: 760px; margin: 0 auto; padding: 16px 16px calc(24px + env(safe-area-inset-bottom)); }
 header { display: flex; align-items: center; gap: 12px; margin: 4px 0 16px; }
 header h1 { font-size: 1.25rem; margin: 0; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 header .who { color: var(--ink-3); font-size: .85rem; }
+h2 { font-size: 1.05rem; margin: 0 0 10px; }
+h3 { font-size: .95rem; margin: 14px 0 6px; color: var(--ink-2); }
 button { font: inherit; border: 1px solid var(--line); background: var(--surface); color: var(--ink);
   border-radius: 10px; padding: 10px 16px; min-height: 44px; cursor: pointer; }
 button:disabled { opacity: .45; cursor: default; }
 button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 600; }
 button.danger { color: var(--bad); }
 button.link { border: 0; background: none; color: var(--accent); padding: 8px 4px; min-height: 40px; }
-button:focus-visible, input:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
-input { font: inherit; width: 100%; padding: 12px 14px; min-height: 48px; border: 1px solid var(--line);
+button.small { min-height: 36px; padding: 6px 12px; font-size: .9rem; }
+button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+input, select { font: inherit; width: 100%; padding: 10px 12px; min-height: 44px; border: 1px solid var(--line);
   border-radius: 10px; background: var(--surface); color: var(--ink); }
+input[type=checkbox] { width: 22px; height: 22px; min-height: 0; margin: 0; accent-color: var(--accent); }
+label.check { display: flex; align-items: center; gap: 10px; padding: 6px 0; }
+.field { display: grid; gap: 4px; margin-bottom: 10px; }
+.field span { font-size: .9rem; color: var(--ink-2); }
 .card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; margin-bottom: 12px; }
 .login { margin-top: 12vh; }
 .login h1 { font-size: 1.6rem; margin: 0 0 4px; }
 .login p { color: var(--ink-2); margin: 0 0 16px; }
 .login form { display: grid; gap: 12px; }
 .msg { color: var(--bad); min-height: 1.4em; margin: 4px 0 0; font-size: .95rem; }
+.ok-msg { color: var(--good); }
 .server-head { display: flex; align-items: flex-start; gap: 12px; }
 .server-head .name { font-weight: 650; font-size: 1.08rem; overflow-wrap: anywhere; }
 .server-head .meta { color: var(--ink-3); font-size: .85rem; }
@@ -54,17 +62,27 @@ input { font: inherit; width: 100%; padding: 12px 14px; min-height: 48px; border
 .pill::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
 .s-running { color: var(--good); } .s-stopped { color: var(--ink-3); } .s-crashed { color: var(--bad); }
 .s-starting, .s-stopping { color: var(--warn); } .s-busy { color: var(--busy); }
-.players { margin: 10px 0 0; color: var(--ink-2); font-size: .92rem; overflow-wrap: anywhere; }
-.address { margin: 4px 0 0; color: var(--ink-2); font-size: .92rem; }
+.muted { color: var(--ink-2); font-size: .92rem; overflow-wrap: anywhere; }
 .address b { color: var(--ink); user-select: all; }
 .error { margin: 10px 0 0; color: var(--bad); font-size: .92rem; overflow-wrap: anywhere; }
 .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
 .actions button { flex: 1 1 30%; }
-.console { margin-top: 14px; }
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 12px; }
+.tabs button { flex: 1 1 auto; min-height: 40px; padding: 8px 12px; }
+.tabs button[aria-selected=true] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
 .console pre { background: var(--console-bg); color: var(--console-ink); border-radius: 10px; padding: 12px;
-  height: 46vh; overflow: auto; margin: 0 0 8px; font: 12.5px/1.4 ui-monospace, Consolas, monospace;
+  height: 52vh; overflow: auto; margin: 0 0 8px; font: 12.5px/1.4 ui-monospace, Consolas, monospace;
   white-space: pre-wrap; word-break: break-word; }
-.empty { color: var(--ink-2); text-align: center; padding: 32px 8px; }
+.list { list-style: none; padding: 0; margin: 0; }
+.list li { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-top: 1px solid var(--line); overflow-wrap: anywhere; }
+.list li:first-child { border-top: 0; }
+.list li .grow { flex: 1; min-width: 0; }
+.table { width: 100%; border-collapse: collapse; font-size: .92rem; }
+.table th { text-align: left; color: var(--ink-3); font-weight: 600; padding: 6px 4px; }
+.table td { padding: 6px 4px; border-top: 1px solid var(--line); overflow-wrap: anywhere; }
+.row { display: flex; gap: 8px; flex-wrap: wrap; }
+.row > * { flex: 1 1 140px; }
+.empty { color: var(--ink-2); text-align: center; padding: 24px 8px; }
 .hidden { display: none !important; }
 </style>
 </head>
@@ -83,12 +101,14 @@ input { font: inherit; width: 100%; padding: 12px 14px; min-height: 48px; border
 
   <section id="app" class="hidden">
     <header>
+      <button class="link hidden" id="back" type="button">← Servidores</button>
       <h1 id="host-name">Ownhost</h1>
       <span class="who" id="who"></span>
       <button class="link" id="logout" type="button">Salir</button>
     </header>
     <p class="msg" id="app-msg" role="alert"></p>
     <div id="servers"></div>
+    <div id="detail" class="hidden"></div>
   </section>
 </main>
 
@@ -100,11 +120,12 @@ const STATUS = {
   importing: "Importando", "installing-mod": "Instalando mods", cloning: "Clonando",
 };
 const ROLES = { owner: "Dueño", play: "Encender y apagar", moderate: "Moderar", manage: "Gestionar" };
-const PLAY = 1, MODERATE = 2;
+const PLAY = 1, MODERATE = 2, MANAGE = 3;
 
 let token = "";
 try { token = localStorage.getItem("ownhost-token") || ""; } catch (e) {}
-let level = 0, info = null, openConsole = null, timer = null, typed = false;
+let level = 0, info = null, timer = null, typed = false;
+let servers = [], openSid = null, tab = "resumen", ws = null, tabData = {};
 const $ = (id) => document.getElementById(id);
 
 async function api(method, path, body) {
@@ -117,9 +138,33 @@ async function api(method, path, body) {
   return data;
 }
 
+function el(tag, attrs, ...children) {
+  const e = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs || {})) {
+    if (v === false || v == null) continue;
+    if (k === "class") e.className = v;
+    else if (k.startsWith("on")) e.addEventListener(k.slice(2), v);
+    else if (k === "value") e.value = v;
+    else if (k === "checked") e.checked = !!v;
+    else e.setAttribute(k, v === true ? "" : v);
+  }
+  for (const c of children) if (c != null && c !== false) e.append(c);
+  return e;
+}
+
+// Como replaceChildren, pero sin los huecos (null) de las partes que no tocan.
+function put(node, ...children) {
+  node.replaceChildren(...children.filter((c) => c != null && c !== false));
+}
+
 function show(which) {
   $("login").classList.toggle("hidden", which !== "login");
   $("app").classList.toggle("hidden", which !== "app");
+}
+
+function say(text, ok) {
+  $("app-msg").textContent = text || "";
+  $("app-msg").classList.toggle("ok-msg", !!ok);
 }
 
 async function start() {
@@ -155,134 +200,335 @@ $("login-form").addEventListener("submit", (ev) => {
 $("logout").addEventListener("click", () => {
   token = "";
   try { localStorage.removeItem("ownhost-token"); } catch (e) {}
-  closeConsole();
+  closeServer();
   clearInterval(timer);
+  say("");
   $("token").value = "";
   show("login");
 });
 
+$("back").addEventListener("click", () => { closeServer(); refresh(); });
+
+// La dirección del navegador: si se abrió por Tailscale, los jugadores también pueden usar esa.
 function addresses(s) {
   const out = [];
-  if (info.lan_ip) out.push(info.lan_ip + ":" + s.port);
-  if (info.tailscale_ip) out.push(info.tailscale_ip + ":" + s.port);
-  return out;
+  if (info.lan_ip) out.push(info.lan_ip);
+  if (info.tailscale_ip) out.push(info.tailscale_ip);
+  return out.map((ip) => ip + ":" + s.port);
 }
 
-function statusClass(s) {
-  if (s.task) return "s-busy";
-  return "s-" + s.state;
+function mapUrl(s) {
+  return s.map ? `http://${location.hostname}:${s.map.port}/` : null;
 }
 
-function el(tag, attrs, ...children) {
-  const e = document.createElement(tag);
-  for (const [k, v] of Object.entries(attrs || {})) {
-    if (k === "class") e.className = v;
-    else if (k.startsWith("on")) e.addEventListener(k.slice(2), v);
-    else e.setAttribute(k, v);
-  }
-  for (const c of children) if (c != null) e.append(c);
-  return e;
+function statusPill(s) {
+  return el("span", { class: "pill " + (s.task ? "s-busy" : "s-" + s.state) }, STATUS[s.status] || s.status);
 }
 
 async function act(sid, action, button) {
-  button.disabled = true;
-  try {
-    await api("POST", `/servers/${sid}/${action}`);
-    $("app-msg").textContent = "";
-  } catch (e) {
-    $("app-msg").textContent = e.message;
-  }
+  if (button) button.disabled = true;
+  try { await api("POST", `/servers/${sid}/${action}`); say(""); } catch (e) { say(e.message); }
   refresh();
 }
 
-function render(servers) {
+function powerButtons(s) {
+  const busy = !!s.task, on = ["starting", "running", "stopping"].includes(s.state);
+  return el("div", { class: "actions" },
+    el("button", { class: "primary", type: "button", disabled: busy || on, onclick: (e) => act(s.id, "start", e.currentTarget) }, "Encender"),
+    el("button", { type: "button", disabled: !["starting", "running"].includes(s.state), onclick: (e) => act(s.id, "stop", e.currentTarget) }, "Apagar"),
+    el("button", { type: "button", disabled: busy || s.state !== "running", onclick: (e) => act(s.id, "restart", e.currentTarget) }, "Reiniciar"));
+}
+
+// ---------- lista de servidores ----------
+
+function renderList() {
   const box = $("servers");
   if (!servers.length) {
     box.replaceChildren(el("p", { class: "empty" }, "No tienes ningún servidor en este equipo."));
     return;
   }
-  const consoleOpen = openConsole && servers.some((s) => s.id === openConsole.sid);
-  if (openConsole && !consoleOpen) closeConsole();
-  // La consola abierta no se vuelve a crear (perdería lo escrito y el desplazamiento).
-  const keep = consoleOpen ? openConsole.node : null;
-  box.replaceChildren(...servers.map((s) => {
-    const busy = !!s.task, on = ["starting", "running", "stopping"].includes(s.state);
-    const label = STATUS[s.status] || s.status;
-    const card = el("article", { class: "card" },
-      el("div", { class: "server-head" },
-        el("div", { class: "grow" },
-          el("div", { class: "name" }, s.name),
-          el("div", { class: "meta" }, `${s.game_name} · ${s.flavor_name || s.flavor} ${s.version}`)),
-        el("span", { class: "pill " + statusClass(s) }, label)),
-      el("p", { class: "address" }, "Conectar a: ",
-        ...addresses(s).flatMap((a, i) => (i ? [" · ", el("b", {}, a)] : [el("b", {}, a)]))),
-      s.state === "running" ? el("p", { class: "players" }, s.players_online.length
-        ? `Jugando (${s.players_online.length}): ${s.players_online.join(", ")}` : "No hay nadie jugando.") : null,
-      s.error ? el("p", { class: "error" }, s.error) : null);
-    const actions = el("div", { class: "actions" });
-    if (level >= PLAY) {
-      actions.append(
-        el("button", { class: "primary", type: "button", onclick: (e) => act(s.id, "start", e.currentTarget),
-                       ...(busy || on ? { disabled: "" } : {}) }, "Encender"),
-        el("button", { type: "button", onclick: (e) => act(s.id, "stop", e.currentTarget),
-                       ...(["starting", "running"].includes(s.state) ? {} : { disabled: "" }) }, "Apagar"),
-        el("button", { type: "button", onclick: (e) => act(s.id, "restart", e.currentTarget),
-                       ...(!busy && s.state === "running" ? {} : { disabled: "" }) }, "Reiniciar"));
-    }
-    if (level >= MODERATE) {
-      const isOpen = consoleOpen && openConsole.sid === s.id;
-      actions.append(el("button", { type: "button", onclick: () => (isOpen ? closeConsole() : showConsole(s)) },
-                        isOpen ? "Ocultar consola" : "Consola"));
-    }
-    card.append(actions);
-    if (keep && openConsole.sid === s.id) card.append(keep);
-    return card;
-  }));
+  box.replaceChildren(...servers.map((s) => el("article", { class: "card" },
+    el("div", { class: "server-head" },
+      el("div", { class: "grow" },
+        el("div", { class: "name" }, s.name),
+        el("div", { class: "meta" }, `${s.game_name} · ${s.flavor_name || s.flavor} ${s.version === "latest" ? (s.build || "") : s.version}`)),
+      statusPill(s)),
+    el("p", { class: "muted address" }, "Conectar a: ", ...addresses(s).flatMap((a, i) => (i ? [" · ", el("b", {}, a)] : [el("b", {}, a)]))),
+    s.state === "running" ? el("p", { class: "muted" }, s.players_online.length
+      ? `Jugando (${s.players_online.length}): ${s.players_online.join(", ")}` : "No hay nadie jugando.") : null,
+    s.error ? el("p", { class: "error" }, s.error) : null,
+    powerButtons(s),
+    el("div", { class: "actions" }, el("button", { type: "button", onclick: () => openServer(s.id) }, "Abrir")))));
 }
 
-async function refresh() {
-  try {
-    render(await api("GET", "/servers"));
-  } catch (e) {
-    if (e.auth) return start();
-    $("app-msg").textContent = "Sin conexión con el equipo. Reintentando...";
-    return;
+// ---------- un servidor ----------
+
+const TABS = [
+  ["resumen", "Resumen", PLAY], ["jugadores", "Jugadores", PLAY], ["consola", "Consola", MODERATE],
+  ["copias", "Copias", MODERATE], ["ajustes", "Ajustes", MANAGE],
+];
+
+function openServer(sid) {
+  openSid = sid; tab = "resumen"; tabData = {};
+  $("servers").classList.add("hidden");
+  $("detail").classList.remove("hidden");
+  $("back").classList.remove("hidden");
+  renderDetail(true);
+  window.scrollTo(0, 0);
+}
+
+function closeServer() {
+  openSid = null;
+  if (ws) { ws.close(); ws = null; }
+  $("servers").classList.remove("hidden");
+  $("detail").classList.add("hidden");
+  $("back").classList.add("hidden");
+}
+
+function setTab(name) {
+  if (ws && name !== "consola") { ws.close(); ws = null; }
+  say("");
+  tab = name; tabData = {};
+  renderDetail(true);
+}
+
+function renderDetail(full) {
+  const s = servers.find((x) => x.id === openSid);
+  if (!s) { closeServer(); return; }
+  const detail = $("detail");
+  if (full || !detail.firstChild) {
+    put(detail, 
+      el("div", { class: "card", id: "head" }),
+      el("nav", { class: "tabs", role: "tablist" }, ...TABS.filter(([, , need]) => level >= need)
+        .filter(([key]) => key !== "jugadores" || ["minecraft", "bedrock"].includes(s.game))
+        .map(([key, label]) => el("button", { type: "button", role: "tab", "aria-selected": String(key === tab), onclick: () => setTab(key) }, label))),
+      el("div", { id: "pane" }));
+    loadTab(s);
   }
-  if ($("app-msg").textContent.startsWith("Sin conexión")) $("app-msg").textContent = "";
+  // La cabecera se actualiza con cada sondeo; el contenido de la pestaña, solo al cambiar.
+  put($("head"), 
+    el("div", { class: "server-head" },
+      el("div", { class: "grow" }, el("div", { class: "name" }, s.name),
+        el("div", { class: "meta" }, `${s.game_name} · ${s.flavor_name || s.flavor} ${s.version === "latest" ? (s.build || "") : s.version}`)),
+      statusPill(s)),
+    s.error ? el("p", { class: "error" }, s.error) : null,
+    powerButtons(s));
+  if (tab === "resumen") renderSummary(s);
 }
 
-function showConsole(s) {
-  closeConsole();
+function renderSummary(s) {
+  const st = s.stats || {};
+  const url = mapUrl(s);
+  const p = s.pregen;
+  put($("pane"), el("div", { class: "card" },
+    el("p", { class: "muted address" }, "Conectar a: ", ...addresses(s).flatMap((a, i) => (i ? [" · ", el("b", {}, a)] : [el("b", {}, a)]))),
+    s.crossplay ? el("p", { class: "muted" }, `Bedrock: puerto ${s.crossplay.bedrock_port}`) : null,
+    s.state === "running" ? el("p", { class: "muted" }, s.players_online.length
+      ? `Jugando (${s.players_online.length}): ${s.players_online.join(", ")}` : "No hay nadie jugando.") : null,
+    st.cpu_percent != null ? el("p", { class: "muted" }, `CPU ${st.cpu_percent} % · RAM ${st.memory_mb} MB`) : null,
+    url ? el("p", {}, el("a", { href: url, target: "_blank", rel: "noopener" }, "🗺 Abrir el mapa del mundo")) : null,
+    p && p.state === "running" ? el("p", { class: "muted" }, `Generando el mundo: ${Math.round(p.percent)} %`) : null));
+}
+
+async function loadTab(s) {
+  const pane = $("pane");
+  if (tab === "resumen") return renderSummary(s);
+  if (tab === "consola") return openConsole(s);
+  pane.replaceChildren(el("p", { class: "muted" }, "Cargando..."));
+  try {
+    if (tab === "jugadores") {
+      const [players, stats] = await Promise.all([api("GET", `/servers/${s.id}/players`), api("GET", `/servers/${s.id}/stats`)]);
+      renderPlayers(s, players, stats);
+    } else if (tab === "copias") {
+      renderBackups(s, await api("GET", `/servers/${s.id}/backups`));
+    } else if (tab === "ajustes") {
+      let props = {};
+      if (["minecraft", "bedrock"].includes(s.game)) props = await api("GET", `/servers/${s.id}/properties`).catch(() => ({}));
+      renderSettings(s, props);
+    }
+  } catch (e) {
+    pane.replaceChildren(el("p", { class: "error" }, e.message));
+  }
+}
+
+// ---------- jugadores ----------
+
+function hours(sec) {
+  const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60);
+  return h ? `${h} h ${m} min` : `${m} min`;
+}
+
+function when(ts, online) {
+  if (online) return "Jugando ahora";
+  const d = new Date(ts * 1000), today = new Date();
+  const time = d.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" });
+  if (d.toDateString() === today.toDateString()) return "Hoy, " + time;
+  const y = new Date(today); y.setDate(today.getDate() - 1);
+  if (d.toDateString() === y.toDateString()) return "Ayer, " + time;
+  return d.toLocaleDateString("es-ES");
+}
+
+async function playerAction(s, action, name) {
+  try {
+    await api("POST", `/servers/${s.id}/players`, { action, name });
+    say(s.state === "running" ? "Hecho." : "Se aplicará al encender el servidor.", true);
+    setTimeout(() => tab === "jugadores" && loadTab(s), 1200);
+  } catch (e) { say(e.message); }
+}
+
+function renderPlayers(s, data, stats) {
+  const canEdit = level >= MODERATE;
+  const list = (title, names, buttons) => el("div", { class: "card" }, el("h2", {}, title),
+    names.length ? el("ul", { class: "list" }, ...names.map((n) => el("li", {}, el("span", { class: "grow" }, n),
+      ...(canEdit ? buttons(n) : [])))) : el("p", { class: "muted" }, "Nadie."));
+  const name = el("input", { placeholder: "Nombre del jugador", autocomplete: "off", autocapitalize: "off" });
+  const withName = (action) => () => name.value.trim() && playerAction(s, action, name.value.trim());
+  const bans = (data.supports || []).includes("ban");
+  put($("pane"), 
+    canEdit ? el("div", { class: "card" }, el("h2", {}, "Añadir"), name,
+      el("div", { class: "actions" },
+        el("button", { type: "button", onclick: withName("op") }, "Hacer operador"),
+        el("button", { type: "button", onclick: withName("whitelist_add") }, "A la lista blanca"),
+        bans ? el("button", { class: "danger", type: "button", onclick: withName("ban") }, "Banear") : null)) : null,
+    list("Conectados ahora", data.online || [], (n) => [
+      el("button", { class: "small", type: "button", onclick: () => playerAction(s, "kick", n) }, "Echar")]),
+    list("Operadores", data.ops || [], (n) => [
+      el("button", { class: "small", type: "button", onclick: () => playerAction(s, "deop", n) }, "Quitar")]),
+    el("div", { class: "card" }, el("h2", {}, "Lista blanca"),
+      el("label", { class: "check" }, el("input", { type: "checkbox", checked: data.whitelist_enabled, disabled: !canEdit,
+        onchange: (e) => playerAction(s, e.target.checked ? "whitelist_on" : "whitelist_off", "") }),
+        "Solo pueden entrar los de la lista blanca"),
+      (data.whitelist || []).length ? el("ul", { class: "list" }, ...data.whitelist.map((n) => el("li", {},
+        el("span", { class: "grow" }, n), canEdit ? el("button", { class: "small", type: "button", onclick: () => playerAction(s, "whitelist_remove", n) }, "Quitar") : null)))
+        : el("p", { class: "muted" }, "Vacía.")),
+    bans ? list("Baneados", data.banned || [], (n) => [
+      el("button", { class: "small", type: "button", onclick: () => playerAction(s, "pardon", n) }, "Perdonar")]) : null,
+    el("div", { class: "card" }, el("h2", {}, "Estadísticas"),
+      stats.length ? el("table", { class: "table" },
+        el("thead", {}, el("tr", {}, el("th", {}, "Jugador"), el("th", {}, "Tiempo"), el("th", {}, "Veces"), el("th", {}, "Última vez"))),
+        el("tbody", {}, ...stats.map((r) => el("tr", {}, el("td", {}, r.name), el("td", {}, hours(r.seconds)),
+          el("td", {}, String(r.sessions)), el("td", {}, when(r.last_seen, r.online))))))
+        : el("p", { class: "muted" }, "Todavía no ha entrado nadie.")));
+}
+
+// ---------- consola ----------
+
+function openConsole(s) {
   const pre = el("pre", { "aria-live": "off" });
   const input = el("input", { placeholder: s.game === "minecraft" ? "Comando (p. ej. say hola)" : "Comando",
                               autocomplete: "off", autocapitalize: "off", spellcheck: "false" });
-  const node = el("div", { class: "console" }, pre, input);
+  put($("pane"), el("div", { class: "card console" }, pre, input));
   const proto = location.protocol === "https:" ? "wss" : "ws";
-  const ws = new WebSocket(`${proto}://${location.host}/api/servers/${s.id}/console?token=${encodeURIComponent(token)}`);
+  if (ws) ws.close();
+  ws = new WebSocket(`${proto}://${location.host}/api/servers/${s.id}/console?token=${encodeURIComponent(token)}`);
+  const mine = ws;
   ws.onmessage = (ev) => {
     const atBottom = pre.scrollTop + pre.clientHeight >= pre.scrollHeight - 8;
     pre.textContent += (pre.textContent ? "\n" : "") + ev.data;
     if (pre.textContent.length > 200000) pre.textContent = pre.textContent.slice(-150000);
     if (atBottom) pre.scrollTop = pre.scrollHeight;
   };
-  ws.onclose = () => { if (openConsole && openConsole.ws === ws) pre.textContent += "\n[Conexión cerrada]"; };
+  ws.onclose = () => { if (ws === mine) pre.textContent += "\n[Conexión cerrada]"; };
   input.addEventListener("keydown", (ev) => {
     if (ev.key !== "Enter" || !input.value.trim()) return;
     const text = input.value.trim();
-    ws.send(s.game === "minecraft" ? text.replace(/^\//, "") : text);
+    mine.send(s.game === "minecraft" ? text.replace(/^\//, "") : text);
     input.value = "";
   });
-  openConsole = { sid: s.id, ws, node };
-  refresh();
 }
 
-function closeConsole() {
-  if (!openConsole) return;
-  const c = openConsole;
-  openConsole = null;
-  c.ws.close();
-  c.node.remove();
-  refresh();
+// ---------- copias ----------
+
+function renderBackups(s, backups) {
+  const canRestore = level >= MANAGE;
+  put($("pane"), el("div", { class: "card" },
+    el("div", { class: "row" }, el("h2", {}, "Copias de seguridad"),
+      el("button", { class: "primary", type: "button", disabled: !!s.task, onclick: async (e) => {
+        e.currentTarget.disabled = true;
+        try { await api("POST", `/servers/${s.id}/backup`); say("Haciendo la copia...", true); } catch (err) { say(err.message); }
+        setTimeout(() => tab === "copias" && loadTab(s), 4000);
+      } }, "Crear copia ahora")),
+    backups.length ? el("ul", { class: "list" }, ...backups.map((b) => el("li", {},
+      el("span", { class: "grow" }, new Date(b.created).toLocaleString("es-ES"), el("br"),
+        el("span", { class: "muted" }, `${String(b.size_mb).replace(".", ",")} MB${b.name.includes("-auto") ? " · automática" : ""}`)),
+      canRestore ? el("button", { class: "small danger", type: "button", disabled: s.state !== "stopped" && s.state !== "crashed",
+        title: "Apaga el servidor primero", onclick: async () => {
+          if (!confirm("¿Volver a esta copia? Se pierde lo que se haya jugado después.")) return;
+          try { await api("POST", `/servers/${s.id}/backups/${encodeURIComponent(b.name)}/restore`); say("Restaurando...", true); }
+          catch (err) { say(err.message); }
+        } }, "Restaurar") : null)))
+      : el("p", { class: "muted" }, "Todavía no hay copias.")));
+}
+
+// ---------- ajustes ----------
+
+function renderSettings(s, props) {
+  const sched = s.schedule || {};
+  const java = s.game === "minecraft";
+  const f = {
+    name: el("input", { value: s.name }),
+    motd: el("input", { value: props.motd || "" }),
+    players: el("input", { type: "number", min: 1, max: 1000, value: props["max-players"] || 20 }),
+    memory: el("input", { type: "number", min: 512, step: 512, value: s.memory_mb }),
+    autostart: el("input", { type: "checkbox", checked: s.auto_start }),
+    autoupdate: el("input", { type: "checkbox", checked: s.auto_update }),
+    autorestart: el("input", { type: "checkbox", checked: s.auto_restart }),
+    backup: el("input", { type: "number", min: 0, max: 168, value: sched.backup_hours || 0 }),
+    keep: el("input", { type: "number", min: 1, max: 100, value: sched.keep_backups || 7 }),
+    restart: el("input", { type: "time", value: sched.restart_at || "" }),
+    idle: el("input", { type: "number", min: 0, max: 1440, step: 5, value: sched.idle_stop_minutes || 0 }),
+  };
+  const field = (label, input) => el("label", { class: "field" }, el("span", {}, label), input);
+  const check = (label, input) => el("label", { class: "check" }, input, label);
+  const save = el("button", { class: "primary", type: "button", onclick: async () => {
+    save.disabled = true;
+    try {
+      await api("PATCH", `/servers/${s.id}`, {
+        name: f.name.value.trim() || s.name, memory_mb: Number(f.memory.value), auto_start: f.autostart.checked,
+        auto_update: f.autoupdate.checked, auto_restart: f.autorestart.checked,
+        schedule: { backup_hours: Number(f.backup.value), keep_backups: Number(f.keep.value),
+                    restart_at: f.restart.value || null, idle_stop_minutes: Number(f.idle.value) } });
+      if (props && Object.keys(props).length) {
+        const changes = { "max-players": String(f.players.value) };
+        if (java) changes.motd = f.motd.value;
+        await api("PUT", `/servers/${s.id}/properties`, changes);
+      }
+      say("Guardado. Algunos cambios se aplican al reiniciar el servidor.", true);
+    } catch (e) { say(e.message); }
+    save.disabled = false;
+  } }, "Guardar");
+  const url = mapUrl(s);
+  put($("pane"), el("div", { class: "card" },
+    field("Nombre", f.name),
+    java && Object.keys(props).length ? field("Descripción (lo que se ve en la lista de servidores)", f.motd) : null,
+    Object.keys(props).length ? field("Jugadores máximos", f.players) : null,
+    s.game !== "bedrock" ? field("Memoria máxima (MB)", f.memory) : null,
+    check("Encender automáticamente cuando arranque el equipo", f.autostart),
+    check("Actualizar automáticamente al encender", f.autoupdate),
+    check("Volver a encenderlo si se cae", f.autorestart),
+    el("h3", {}, "Tareas automáticas"),
+    el("div", { class: "row" }, field("Copia cada (horas, 0 = nunca)", f.backup), field("Copias a guardar", f.keep)),
+    el("div", { class: "row" }, field("Reiniciar cada día a las (vacío = no)", f.restart),
+      ["minecraft", "bedrock"].includes(s.game) ? field("Apagar si nadie juega (minutos, 0 = nunca)", f.idle) : null),
+    el("div", { class: "actions" }, save)),
+    url ? el("div", { class: "card" }, el("h2", {}, "Mapa del mundo"),
+      el("p", {}, el("a", { href: url, target: "_blank", rel: "noopener" }, url))) : null,
+    el("p", { class: "muted" }, "Mods, plugins, archivos, multiplataforma y mapa se gestionan desde la app Ownhost."));
+}
+
+// ---------- sondeo ----------
+
+async function refresh() {
+  try {
+    servers = await api("GET", "/servers");
+  } catch (e) {
+    if (e.auth) return start();
+    say("Sin conexión con el equipo. Reintentando...");
+    return;
+  }
+  if ($("app-msg").textContent.startsWith("Sin conexión")) say("");
+  if (openSid) renderDetail(false);
+  else renderList();
 }
 
 start();

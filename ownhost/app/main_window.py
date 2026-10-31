@@ -227,7 +227,8 @@ class MainWindow(QMainWindow):
         self.host_title = QLabel()
         self.host_info = QLabel()
         self.host_info.setWordWrap(True)
-        self.host_info.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+        self.host_info.setTextInteractionFlags(Qt.TextInteractionFlag.TextBrowserInteraction)
+        self.host_info.setOpenExternalLinks(True)
         self.host_title.setObjectName("title")
         self.btn_host_new = QPushButton("Nuevo servidor en este equipo")
         self.btn_host_new.setProperty("kind", "primary")
@@ -406,6 +407,14 @@ class MainWindow(QMainWindow):
         self._show_host_page(host_id)
         self.stack.setCurrentWidget(self.host_page)
 
+    def _web_url(self, host_id: str) -> str | None:
+        """El panel web del agente, con una dirección que sirva también desde otros dispositivos."""
+        host = self._host(host_id)
+        if not host:
+            return None
+        ip = self._addresses(host_id)[0][0] if host.is_local else host.address
+        return f"http://{ip}:{host.port}/"
+
     def _level(self, host_id: str) -> int:
         return access_level(self.state.get(host_id, {}).get("info"))
 
@@ -479,7 +488,9 @@ class MainWindow(QMainWindow):
                 + (f" · Tailscale: {info['tailscale_ip']}" if info.get("tailscale_ip") else "") + "<br>"
                 f"CPU: {info['cpu_count']} hilos, {info['cpu_percent']}% en uso<br>"
                 f"RAM: {used / 1024:.1f} / {info['memory_total_mb'] / 1024:.1f} GB en uso<br>"
-                f"Servidores: {len(st['servers'])} ({running} encendidos)"
+                f"Servidores: {len(st['servers'])} ({running} encendidos)<br>"
+                + (f"Panel web (también desde el móvil): <a href='{url}'>{url}</a>"
+                   if (url := self._web_url(host_id)) else "")
                 + (f"<br><br>Entras con el acceso de <b>{access['name']}</b>: "
                    f"<b>{ROLE_NAMES.get(access['role'], access['role'])}</b>."
                    if (access := info.get("access")) and access.get("level", OWNER) < OWNER else ""))
