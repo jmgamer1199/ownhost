@@ -1,0 +1,291 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0b7fc0">
+<title>Ownhost</title>
+<style>
+:root {
+  --bg: #e8f4fb; --surface: #ffffff; --surface-2: #f2f8fc; --line: #d3e4ef;
+  --ink: #0f2a3a; --ink-2: #44606f; --ink-3: #6f8794;
+  --accent: #0b7fc0; --accent-ink: #ffffff;
+  --good: #1e8e4e; --warn: #b26a00; --bad: #c0392b; --busy: #2470a8;
+  --console-bg: #0f2333; --console-ink: #d6e6f0;
+  --radius: 14px;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0d1b24; --surface: #142836; --surface-2: #1a3242; --line: #24404f;
+    --ink: #e4f0f6; --ink-2: #a9c2cf; --ink-3: #7f99a6;
+    --accent: #3aa6e0; --accent-ink: #06202e;
+    --good: #4cc27f; --warn: #e6a23c; --bad: #ef6b5c; --busy: #6cb4e6;
+    --console-bg: #08141c; --console-ink: #cfe0ea;
+  }
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--ink);
+  font: 16px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; -webkit-text-size-adjust: 100%; }
+main { max-width: 720px; margin: 0 auto; padding: 16px 16px calc(24px + env(safe-area-inset-bottom)); }
+header { display: flex; align-items: center; gap: 12px; margin: 4px 0 16px; }
+header h1 { font-size: 1.25rem; margin: 0; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+header .who { color: var(--ink-3); font-size: .85rem; }
+button { font: inherit; border: 1px solid var(--line); background: var(--surface); color: var(--ink);
+  border-radius: 10px; padding: 10px 16px; min-height: 44px; cursor: pointer; }
+button:disabled { opacity: .45; cursor: default; }
+button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 600; }
+button.danger { color: var(--bad); }
+button.link { border: 0; background: none; color: var(--accent); padding: 8px 4px; min-height: 40px; }
+button:focus-visible, input:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+input { font: inherit; width: 100%; padding: 12px 14px; min-height: 48px; border: 1px solid var(--line);
+  border-radius: 10px; background: var(--surface); color: var(--ink); }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; margin-bottom: 12px; }
+.login { margin-top: 12vh; }
+.login h1 { font-size: 1.6rem; margin: 0 0 4px; }
+.login p { color: var(--ink-2); margin: 0 0 16px; }
+.login form { display: grid; gap: 12px; }
+.msg { color: var(--bad); min-height: 1.4em; margin: 4px 0 0; font-size: .95rem; }
+.server-head { display: flex; align-items: flex-start; gap: 12px; }
+.server-head .name { font-weight: 650; font-size: 1.08rem; overflow-wrap: anywhere; }
+.server-head .meta { color: var(--ink-3); font-size: .85rem; }
+.server-head .grow { flex: 1; min-width: 0; }
+.pill { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 99px;
+  font-size: .82rem; font-weight: 600; background: var(--surface-2); white-space: nowrap; }
+.pill::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+.s-running { color: var(--good); } .s-stopped { color: var(--ink-3); } .s-crashed { color: var(--bad); }
+.s-starting, .s-stopping { color: var(--warn); } .s-busy { color: var(--busy); }
+.players { margin: 10px 0 0; color: var(--ink-2); font-size: .92rem; overflow-wrap: anywhere; }
+.address { margin: 4px 0 0; color: var(--ink-2); font-size: .92rem; }
+.address b { color: var(--ink); user-select: all; }
+.error { margin: 10px 0 0; color: var(--bad); font-size: .92rem; overflow-wrap: anywhere; }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.actions button { flex: 1 1 30%; }
+.console { margin-top: 14px; }
+.console pre { background: var(--console-bg); color: var(--console-ink); border-radius: 10px; padding: 12px;
+  height: 46vh; overflow: auto; margin: 0 0 8px; font: 12.5px/1.4 ui-monospace, Consolas, monospace;
+  white-space: pre-wrap; word-break: break-word; }
+.empty { color: var(--ink-2); text-align: center; padding: 32px 8px; }
+.hidden { display: none !important; }
+</style>
+</head>
+<body>
+<main>
+  <section id="login" class="login hidden">
+    <h1>Ownhost</h1>
+    <p>Escribe el código de acceso que te dio el dueño del equipo (o el token del agente si es tuyo).</p>
+    <form id="login-form">
+      <label for="token" class="hidden">Código de acceso</label>
+      <input id="token" type="password" autocomplete="current-password" placeholder="Código de acceso" required>
+      <button class="primary" type="submit">Entrar</button>
+      <p class="msg" id="login-msg" role="alert"></p>
+    </form>
+  </section>
+
+  <section id="app" class="hidden">
+    <header>
+      <h1 id="host-name">Ownhost</h1>
+      <span class="who" id="who"></span>
+      <button class="link" id="logout" type="button">Salir</button>
+    </header>
+    <p class="msg" id="app-msg" role="alert"></p>
+    <div id="servers"></div>
+  </section>
+</main>
+
+<script>
+"use strict";
+const STATUS = {
+  stopped: "Apagado", starting: "Arrancando", running: "Encendido", stopping: "Apagando", crashed: "Caído",
+  installing: "Instalando", updating: "Actualizando", "backing-up": "Haciendo copia", restoring: "Restaurando",
+  importing: "Importando", "installing-mod": "Instalando mods", cloning: "Clonando",
+};
+const ROLES = { owner: "Dueño", play: "Encender y apagar", moderate: "Moderar", manage: "Gestionar" };
+const PLAY = 1, MODERATE = 2;
+
+let token = "";
+try { token = localStorage.getItem("ownhost-token") || ""; } catch (e) {}
+let level = 0, info = null, openConsole = null, timer = null, typed = false;
+const $ = (id) => document.getElementById(id);
+
+async function api(method, path, body) {
+  const headers = token ? { Authorization: "Bearer " + token } : {};
+  if (body !== undefined) headers["Content-Type"] = "application/json";
+  const r = await fetch("/api" + path, { method, headers, body: body === undefined ? undefined : JSON.stringify(body) });
+  if (r.status === 401) throw Object.assign(new Error("Código incorrecto"), { auth: true });
+  const data = r.status === 204 ? null : await r.json().catch(() => null);
+  if (!r.ok) throw new Error((data && data.detail) || ("Error " + r.status));
+  return data;
+}
+
+function show(which) {
+  $("login").classList.toggle("hidden", which !== "login");
+  $("app").classList.toggle("hidden", which !== "app");
+}
+
+async function start() {
+  try {
+    info = await api("GET", "/info");
+  } catch (e) {
+    clearInterval(timer);
+    show("login");
+    if (token && !e.auth) $("login-msg").textContent = e.message;
+    else if (token) $("login-msg").textContent = typed ? "Código incorrecto. Revísalo, o pide otro al dueño del equipo."
+      : "Ese código ya no vale. Pide uno nuevo al dueño del equipo.";
+    return;
+  }
+  level = info.access.level;
+  $("host-name").textContent = info.name;
+  $("who").textContent = info.access.name ? info.access.name + " · " + ROLES[info.access.role] : ROLES[info.access.role] || "";
+  $("logout").classList.toggle("hidden", !token);
+  show("app");
+  await refresh();
+  clearInterval(timer);
+  timer = setInterval(refresh, 3000);
+}
+
+$("login-form").addEventListener("submit", (ev) => {
+  ev.preventDefault();
+  token = $("token").value.trim();
+  typed = true;
+  $("login-msg").textContent = "";
+  try { localStorage.setItem("ownhost-token", token); } catch (e) {}
+  start();
+});
+
+$("logout").addEventListener("click", () => {
+  token = "";
+  try { localStorage.removeItem("ownhost-token"); } catch (e) {}
+  closeConsole();
+  clearInterval(timer);
+  $("token").value = "";
+  show("login");
+});
+
+function addresses(s) {
+  const out = [];
+  if (info.lan_ip) out.push(info.lan_ip + ":" + s.port);
+  if (info.tailscale_ip) out.push(info.tailscale_ip + ":" + s.port);
+  return out;
+}
+
+function statusClass(s) {
+  if (s.task) return "s-busy";
+  return "s-" + s.state;
+}
+
+function el(tag, attrs, ...children) {
+  const e = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs || {})) {
+    if (k === "class") e.className = v;
+    else if (k.startsWith("on")) e.addEventListener(k.slice(2), v);
+    else e.setAttribute(k, v);
+  }
+  for (const c of children) if (c != null) e.append(c);
+  return e;
+}
+
+async function act(sid, action, button) {
+  button.disabled = true;
+  try {
+    await api("POST", `/servers/${sid}/${action}`);
+    $("app-msg").textContent = "";
+  } catch (e) {
+    $("app-msg").textContent = e.message;
+  }
+  refresh();
+}
+
+function render(servers) {
+  const box = $("servers");
+  if (!servers.length) {
+    box.replaceChildren(el("p", { class: "empty" }, "No tienes ningún servidor en este equipo."));
+    return;
+  }
+  const consoleOpen = openConsole && servers.some((s) => s.id === openConsole.sid);
+  if (openConsole && !consoleOpen) closeConsole();
+  // La consola abierta no se vuelve a crear (perdería lo escrito y el desplazamiento).
+  const keep = consoleOpen ? openConsole.node : null;
+  box.replaceChildren(...servers.map((s) => {
+    const busy = !!s.task, on = ["starting", "running", "stopping"].includes(s.state);
+    const label = STATUS[s.status] || s.status;
+    const card = el("article", { class: "card" },
+      el("div", { class: "server-head" },
+        el("div", { class: "grow" },
+          el("div", { class: "name" }, s.name),
+          el("div", { class: "meta" }, `${s.game_name} · ${s.flavor_name || s.flavor} ${s.version}`)),
+        el("span", { class: "pill " + statusClass(s) }, label)),
+      el("p", { class: "address" }, "Conectar a: ",
+        ...addresses(s).flatMap((a, i) => (i ? [" · ", el("b", {}, a)] : [el("b", {}, a)]))),
+      s.state === "running" ? el("p", { class: "players" }, s.players_online.length
+        ? `Jugando (${s.players_online.length}): ${s.players_online.join(", ")}` : "No hay nadie jugando.") : null,
+      s.error ? el("p", { class: "error" }, s.error) : null);
+    const actions = el("div", { class: "actions" });
+    if (level >= PLAY) {
+      actions.append(
+        el("button", { class: "primary", type: "button", onclick: (e) => act(s.id, "start", e.currentTarget),
+                       ...(busy || on ? { disabled: "" } : {}) }, "Encender"),
+        el("button", { type: "button", onclick: (e) => act(s.id, "stop", e.currentTarget),
+                       ...(["starting", "running"].includes(s.state) ? {} : { disabled: "" }) }, "Apagar"),
+        el("button", { type: "button", onclick: (e) => act(s.id, "restart", e.currentTarget),
+                       ...(!busy && s.state === "running" ? {} : { disabled: "" }) }, "Reiniciar"));
+    }
+    if (level >= MODERATE) {
+      const isOpen = consoleOpen && openConsole.sid === s.id;
+      actions.append(el("button", { type: "button", onclick: () => (isOpen ? closeConsole() : showConsole(s)) },
+                        isOpen ? "Ocultar consola" : "Consola"));
+    }
+    card.append(actions);
+    if (keep && openConsole.sid === s.id) card.append(keep);
+    return card;
+  }));
+}
+
+async function refresh() {
+  try {
+    render(await api("GET", "/servers"));
+  } catch (e) {
+    if (e.auth) return start();
+    $("app-msg").textContent = "Sin conexión con el equipo. Reintentando...";
+    return;
+  }
+  if ($("app-msg").textContent.startsWith("Sin conexión")) $("app-msg").textContent = "";
+}
+
+function showConsole(s) {
+  closeConsole();
+  const pre = el("pre", { "aria-live": "off" });
+  const input = el("input", { placeholder: s.game === "minecraft" ? "Comando (p. ej. say hola)" : "Comando",
+                              autocomplete: "off", autocapitalize: "off", spellcheck: "false" });
+  const node = el("div", { class: "console" }, pre, input);
+  const proto = location.protocol === "https:" ? "wss" : "ws";
+  const ws = new WebSocket(`${proto}://${location.host}/api/servers/${s.id}/console?token=${encodeURIComponent(token)}`);
+  ws.onmessage = (ev) => {
+    const atBottom = pre.scrollTop + pre.clientHeight >= pre.scrollHeight - 8;
+    pre.textContent += (pre.textContent ? "\n" : "") + ev.data;
+    if (pre.textContent.length > 200000) pre.textContent = pre.textContent.slice(-150000);
+    if (atBottom) pre.scrollTop = pre.scrollHeight;
+  };
+  ws.onclose = () => { if (openConsole && openConsole.ws === ws) pre.textContent += "\n[Conexión cerrada]"; };
+  input.addEventListener("keydown", (ev) => {
+    if (ev.key !== "Enter" || !input.value.trim()) return;
+    const text = input.value.trim();
+    ws.send(s.game === "minecraft" ? text.replace(/^\//, "") : text);
+    input.value = "";
+  });
+  openConsole = { sid: s.id, ws, node };
+  refresh();
+}
+
+function closeConsole() {
+  if (!openConsole) return;
+  const c = openConsole;
+  openConsole = null;
+  c.ws.close();
+  c.node.remove();
+  refresh();
+}
+
+start();
+</script>
+</body>
+</html>

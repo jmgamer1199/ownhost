@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ownhost"
+version = "0.1.0"
+description = "Crea y gestiona tus propios servidores de Minecraft y Hytale en tus equipos"
+license = "GPL-3.0-or-later"
+license-files = ["LICENSE"]
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn>=0.30",
+    "websockets>=12",
+    "httpx>=0.27",
+    "psutil>=5.9",
+]
+
+[project.optional-dependencies]
+# La interfaz gráfica solo hace falta en los PCs desde los que gestionas,
+# no en los que solo hospedan servidores (p. ej. el homelab).
+app = ["PySide6>=6.7"]
+
+[project.scripts]
+ownhost-agent = "ownhost.agent.__main__:main"
+
+[project.gui-scripts]
+ownhost = "ownhost.app.__main__:main"
+
+[tool.setuptools.packages.find]
+include = ["ownhost*"]
+
+[tool.setuptools.package-data]
+"ownhost.app" = ["assets/*"]
+"ownhost.agent" = ["web/*"]

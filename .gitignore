@@ -1,0 +1,10 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+build/
+dist/
+# Clave de CurseForge: nunca en el repositorio
+curseforge.key
+ownhost/_embedded.py
+ownhost/_build.py

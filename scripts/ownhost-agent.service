@@ -1,0 +1,17 @@
+[Unit]
+Description=Ownhost - agente
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=ownhost
+Environment=OWNHOST_DATA_DIR=/var/lib/ownhost
+ExecStart=/opt/ownhost/venv/bin/python -m ownhost.agent
+# Solo el agente recibe SIGTERM: él apaga cada servidor con "stop" para que guarde el mundo.
+KillMode=mixed
+TimeoutStopSec=120
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
