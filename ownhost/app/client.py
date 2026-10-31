@@ -185,6 +185,13 @@ class AgentClient:
     def delete_guest(self, guest_id: str):
         return self._req("DELETE", f"/guests/{guest_id}")
 
+    def set_addon(self, sid: str, key: str, enabled: bool):
+        # Descarga de Modrinth: puede tardar un poco
+        return self._req("PUT", f"/servers/{sid}/addons/{key}", json={"enabled": enabled}, timeout=120)
+
+    def pregenerate(self, sid: str, action: str, radius: int = 0):
+        return self._req("POST", f"/servers/{sid}/pregen", json={"action": action, "radius": radius})
+
     def player_stats(self, sid: str):
         return self._req("GET", f"/servers/{sid}/stats")
 

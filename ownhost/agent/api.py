@@ -82,6 +82,11 @@ class CrossplayRequest(BaseModel):
     floodgate: bool = True
 
 
+class Pregen(BaseModel):
+    action: str
+    radius: int = 0
+
+
 class CreateGuest(BaseModel):
     name: str
     role: str = "play"
@@ -372,6 +377,16 @@ def create_app(config: AgentConfig, manager: ServerManager) -> FastAPI:
     @app.delete("/api/servers/{sid}/crossplay", dependencies=need_server(MANAGE))
     def disable_crossplay(sid: str):
         manager.disable_crossplay(sid)
+        return manager.get(sid).to_dict()
+
+    @app.put("/api/servers/{sid}/addons/{key}", dependencies=need_server(MANAGE))
+    def set_addon(sid: str, key: str, body: ToggleMod):
+        manager.set_addon(sid, key, body.enabled)
+        return manager.get(sid).to_dict()
+
+    @app.post("/api/servers/{sid}/pregen", dependencies=need_server(MANAGE))
+    def pregenerate(sid: str, body: Pregen):
+        manager.pregenerate(sid, body.action, body.radius)
         return manager.get(sid).to_dict()
 
     @app.get("/api/servers/{sid}/metrics", dependencies=need_server(PLAY))

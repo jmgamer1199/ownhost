@@ -17,7 +17,7 @@ from typing import Callable
 
 import psutil
 
-from ownhost.agent import crossplay, modpacks, mods, players
+from ownhost.agent import addons, crossplay, modpacks, mods, players
 from ownhost.agent.metrics import Metrics
 from ownhost.agent.scheduler import Scheduler, schedule_of
 from ownhost.agent.stats import PlayerStats
@@ -74,6 +74,7 @@ class Server:
         self.online: set[str] = set()  # jugadores conectados ahora mismo
         self.player_stats = PlayerStats(root / "player-stats.json")
         self.empty_since: float | None = None  # para apagarlo si se queda vacío (ver scheduler)
+        self.pregen: dict | None = None  # progreso de Chunky (último mensaje)
         self.events: deque[dict] = deque(maxlen=30)  # avisos para la app (caídas, copias...)
         self.crash_times: deque[float] = deque(maxlen=5)
 
@@ -103,6 +104,8 @@ class Server:
                 self.player_stats.joined(name)
             for name in before - self.online:
                 self.player_stats.left(name)
+        if "Processed:" in line and (progress := addons.parse_chunky(line)):
+            self.pregen = progress
         for q in list(self.subscribers):
             self.loop.call_soon_threadsafe(q.put_nowait, line)
         if self.auth_watcher:
@@ -197,6 +200,10 @@ class Server:
             "players_online": sorted(self.online, key=str.lower),
             "schedule": schedule_of(self.meta),
             "events": list(self.events)[-10:],
+            "map": self.meta.extra.get("map"),
+            "pregen_installed": bool(self.meta.extra.get("pregen")),
+            "pregen": self.pregen,
+            "addons_supported": self.meta.flavor in addons.SUPPORTED,
             "icon_supported": self.meta.game == "minecraft",
             "icon_version": self.icon_version(),
         }
@@ -342,6 +349,8 @@ class ServerManager:
             used |= {s.meta.port, *s.game.extra_ports(s.meta)}
             if cp := s.meta.extra.get("crossplay"):
                 used |= {cp["bedrock_port"], cp["bedrock_port"] + 1}  # RakNet/señalización + NetherNet
+            if web_map := s.meta.extra.get("map"):
+                used.add(web_map["port"])
         return used
 
     def _free_bedrock_port(self, exclude: str | None = None) -> int:
@@ -537,6 +546,8 @@ class ServerManager:
             crossplay.set_bedrock_port(s.server_dir, s.meta.flavor, cp["bedrock_port"])
             # Nombre del servidor para Bedrock = el de la app (si no, Geyser enseña «Geyser»).
             self._sync_geyser(s)
+        if web_map := s.meta.extra.get("map"):
+            addons.configure_map(s.server_dir, s.meta.flavor, web_map["port"])
         cmd = s.game.command(s.meta, s.server_dir, java)
         if s.game.uses_java:
             # Fuerza UTF-8 en la salida de Java para que los acentos se vean bien.
@@ -674,6 +685,57 @@ class ServerManager:
                 time.sleep(0.5)
             self._launch_safe(s)
         threading.Thread(target=run, daemon=True).start()
+
+    # ---------- complementos: mapa web (BlueMap) y pregeneración (Chunky) ----------
+
+    def set_addon(self, server_id: str, key: str, enabled: bool) -> None:
+        s = self.get(server_id)
+        if key not in ("map", "pregen"):
+            raise UserError(f"Complemento desconocido: {key}")
+        addons.check_supported(s.meta.flavor)
+        self._require_idle(s, need_stopped=False)
+        target = s.game.mod_target(s.meta)
+        folder = s.server_dir / target.folder
+        current = s.meta.extra.get(key)
+        if enabled and not current:
+            project = addons.MAP_PROJECT if key == "map" else addons.PREGEN_PROJECT
+            files = mods.install("modrinth", project, target, s.meta.version, folder, None, s.log)
+            info = {"files": files}
+            if key == "map":
+                info["port"] = self._free_port(addons.DEFAULT_MAP_PORT)
+            s.meta.extra[key] = info
+            s.save()
+            s.log(("Mapa web (BlueMap) instalado." if key == "map" else "Chunky instalado.")
+                  + (" Reinicia el servidor para activarlo." if s.running else ""))
+        elif not enabled and current:
+            for filename in current.get("files", []):
+                mods.remove(folder, filename)
+            s.meta.extra.pop(key, None)
+            s.save()
+            s.log("Mapa web quitado." if key == "map" else "Chunky quitado.")
+
+    def pregenerate(self, server_id: str, action: str, radius: int = 0) -> None:
+        """Genera el mundo por adelantado con Chunky (menos tirones al explorar)."""
+        s = self.get(server_id)
+        if not s.meta.extra.get("pregen"):
+            raise UserError("Instala primero Chunky")
+        if s.state != "running":
+            raise UserError("Enciende el servidor para generar el mundo")
+        if action == "start":
+            if not 100 <= radius <= 100_000:
+                raise UserError("El radio tiene que estar entre 100 y 100.000 bloques")
+            s.pregen = {"state": "running", "percent": 0.0, "chunks": 0, "eta": None, "world": ""}
+            for cmd in ("chunky center 0 0", f"chunky radius {radius}", "chunky start"):
+                s.send(cmd)
+        elif action == "pause":
+            s.send("chunky pause")
+        elif action == "continue":
+            s.send("chunky continue")
+        elif action == "cancel":
+            s.send("chunky cancel")
+            s.pregen = None
+        else:
+            raise UserError(f"Acción desconocida: {action}")
 
     # ---------- jugadores ----------
 

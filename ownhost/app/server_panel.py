@@ -259,6 +259,43 @@ class ServerPanel(QWidget):
         form.addRow(note)
         form.addRow(save)
 
+        # --- Mapa web y pregeneración ---
+        self.addons_title = QLabel("<br><b>Mapa y mundo</b>")
+        self.addons_note = QLabel("Solo en servidores Paper, Fabric, Forge o NeoForge.")
+        self.addons_note.setObjectName("muted")
+        self.map_box = QCheckBox("Mapa del mundo en el navegador (BlueMap)")
+        self.map_box.setToolTip("Un mapa en 3D del mundo que se abre en el navegador, también desde el móvil.\n"
+                                "Se dibuja poco a poco mientras el servidor está encendido.")
+        self.map_box.toggled.connect(lambda on: self._toggle_addon("map", on))
+        self.map_link = QLabel()
+        self.map_link.setOpenExternalLinks(True)
+        self.map_link.setTextInteractionFlags(Qt.TextInteractionFlag.TextBrowserInteraction)
+        self.pregen_box = QCheckBox("Generar el mundo por adelantado (Chunky)")
+        self.pregen_box.setToolTip("Crea de antemano el terreno alrededor del centro del mundo: así no hay "
+                                   "tirones cuando los jugadores exploran zonas nuevas.")
+        self.pregen_box.toggled.connect(lambda on: self._toggle_addon("pregen", on))
+        self.pregen_radius = QSpinBox(minimum=100, maximum=100_000, singleStep=500, value=3000, suffix=" bloques")
+        self.pregen_radius.setToolTip("Distancia desde el centro (0, 0). 3000 bloques tarda unos minutos; "
+                                      "10 000 puede tardar horas y ocupar varios GB.")
+        self.pregen_start = QPushButton("Generar")
+        self.pregen_start.clicked.connect(lambda: self._pregen("start"))
+        self.pregen_cancel = QPushButton("Cancelar")
+        self.pregen_cancel.clicked.connect(lambda: self._pregen("cancel"))
+        pregen_row = QHBoxLayout()
+        pregen_row.addWidget(QLabel("Radio"))
+        pregen_row.addWidget(self.pregen_radius)
+        pregen_row.addWidget(self.pregen_start)
+        pregen_row.addWidget(self.pregen_cancel)
+        pregen_row.addStretch()
+        self.pregen_row = QWidget()
+        self.pregen_row.setLayout(pregen_row)
+        self.pregen_status = QLabel()
+        self.pregen_status.setObjectName("muted")
+        self.pregen_status.setWordWrap(True)
+        for row in (self.addons_title, self.addons_note, self.map_box, self.map_link, self.pregen_box,
+                    self.pregen_row, self.pregen_status):
+            form.addRow(row)
+
         # --- Multiplataforma (Geyser) ---
         self.crossplay_title = QLabel("<br><b>Multiplataforma (Geyser)</b>")
         self.crossplay_status = QLabel()
@@ -437,6 +474,7 @@ class ServerPanel(QWidget):
             text += f"<br>Bedrock: <b>{ip}</b> puerto <b>{cp['bedrock_port']}</b>"
         self.address.setText(text)
         self._refresh_crossplay()
+        self._refresh_addons()
         self.status.setText(f"● {label}")
         self.status.setStyleSheet(theme.pill_style(s["status"]))
         st = s.get("stats") or {}
@@ -468,6 +506,68 @@ class ServerPanel(QWidget):
         self.btn_login.setVisible(bool(s.get("device_auth")) and self.level >= MANAGE)
         self.btn_login.setEnabled(state in ("starting", "running") and not s.get("auth"))
         self.command.setEnabled(state in ("starting", "running"))
+
+    def _refresh_addons(self) -> None:
+        s = self.server
+        java = s["game"] == "minecraft"
+        supported = bool(s.get("addons_supported"))
+        for w in (self.addons_title, self.addons_note):
+            w.setVisible(java)
+        self.addons_note.setVisible(java and not supported)
+        web_map, pregen_on = s.get("map"), bool(s.get("pregen_installed"))
+        for box, on in ((self.map_box, bool(web_map)), (self.pregen_box, pregen_on)):
+            box.setVisible(java and supported)
+            box.blockSignals(True)
+            box.setChecked(on)
+            box.blockSignals(False)
+            box.setEnabled(not s.get("task"))
+        running = s["state"] == "running"
+        if web_map and self.addresses:
+            url = f"http://{self.addresses[0][0]}:{web_map['port']}/"
+            self.map_link.setText(f"Abrir el mapa: <a href='{url}'>{url}</a>" if running else
+                                  f"El mapa estará en <b>{url}</b> cuando el servidor esté encendido.")
+        self.map_link.setVisible(java and supported and bool(web_map))
+        progress = s.get("pregen") or {}
+        busy = progress.get("state") == "running"
+        self.pregen_row.setVisible(java and supported and pregen_on)
+        self.pregen_status.setVisible(java and supported and pregen_on)
+        self.pregen_start.setEnabled(running and not busy)
+        self.pregen_cancel.setEnabled(running and busy)
+        if busy:
+            eta = f", quedan {progress['eta']}" if progress.get("eta") else ""
+            text = f"Generando: {progress['percent']:.0f} % ({progress['chunks']:,} chunks{eta})".replace(",", ".")
+        elif progress.get("state") == "finished":
+            text = f"Mundo generado: {progress['chunks']:,} chunks.".replace(",", ".")
+        elif not running:
+            text = "Enciende el servidor para generar el mundo (si acabas de instalar Chunky, reinícialo)."
+        else:
+            text = "Pulsa «Generar». Los jugadores pueden seguir jugando mientras tanto."
+        self.pregen_status.setText(text)
+
+    def _toggle_addon(self, key: str, enabled: bool) -> None:
+        sid, client = self.server["id"], self.client
+        if enabled:
+            self.statusBar_message("Descargando " + ("BlueMap..." if key == "map" else "Chunky..."))
+
+        def done(server: dict):
+            self.update_server(server)
+            if enabled and server["state"] == "running":
+                QMessageBox.information(self, "Reinicia el servidor",
+                                        "Instalado. Reinicia el servidor para que empiece a funcionar.")
+
+        def failed(msg: str):
+            self._error(msg)
+            self._refresh_addons()
+
+        run_async(lambda: client.set_addon(sid, key, enabled), done, failed)
+
+    def _pregen(self, action: str) -> None:
+        sid, client, radius = self.server["id"], self.client, self.pregen_radius.value()
+        self._call(lambda: client.pregenerate(sid, action, radius), self.update_server)
+
+    def statusBar_message(self, text: str) -> None:
+        if (bar := getattr(self.window(), "statusBar", None)) is not None:
+            bar().showMessage(text, 8000)
 
     def _refresh_crossplay(self) -> None:
         s = self.server

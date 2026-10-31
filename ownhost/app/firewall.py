@@ -11,10 +11,10 @@ import sys
 
 from ownhost.sysenv import clean_env
 
-# Agente (TCP + UDP para que lo encuentren), Minecraft Java, Bedrock/Geyser y Hytale.
-UFW_RULES = ["8765", "25565:25575/tcp", "19132:19140/udp", "19132:19140/tcp", "5520:5530/udp"]
+# Agente (TCP + UDP para que lo encuentren), Minecraft Java, Bedrock/Geyser, Hytale y el mapa web (BlueMap).
+UFW_RULES = ["8765", "25565:25575/tcp", "19132:19140/udp", "19132:19140/tcp", "5520:5530/udp", "8100:8110/tcp"]
 FIREWALLD_PORTS = ["8765/tcp", "8765/udp", "25565-25575/tcp", "19132-19140/udp", "19132-19140/tcp",
-                   "5520-5530/udp"]
+                   "5520-5530/udp", "8100-8110/tcp"]
 
 
 def _active(service: str) -> bool:

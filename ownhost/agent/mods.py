@@ -185,7 +185,9 @@ def _modrinth_file(project_id: str, target: ModTarget, game_version: str) -> dic
                     loaders=json.dumps(target.modrinth_loaders), game_versions=json.dumps([game_version]))
     if not versions:
         raise UserError(f"No hay una versión de este proyecto para {game_version}")
-    version = next((v for v in versions if v["version_type"] == "release"), versions[0])
+    # Si hay versión para el loader exacto (p. ej. la de Paper y no la de Spigot), esa primero.
+    preferred = [v for v in versions if target.modrinth_loaders[0] in v.get("loaders", [])] or versions
+    version = next((v for v in preferred if v["version_type"] == "release"), preferred[0])
     file = next((f for f in version["files"] if f["primary"]), version["files"][0])
     project = _get(f"{MODRINTH}/project/{project_id}")
     return {
