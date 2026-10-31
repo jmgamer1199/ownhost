@@ -185,6 +185,15 @@ class AgentClient:
     def delete_guest(self, guest_id: str):
         return self._req("DELETE", f"/guests/{guest_id}")
 
+    def files(self, sid: str, path: str = ""):
+        return self._req("GET", f"/servers/{sid}/files", params={"path": path})
+
+    def read_file(self, sid: str, path: str) -> str:
+        return self._req("GET", f"/servers/{sid}/file", params={"path": path})["content"]
+
+    def write_file(self, sid: str, path: str, content: str):
+        return self._req("PUT", f"/servers/{sid}/file", json={"path": path, "content": content})
+
     def set_addon(self, sid: str, key: str, enabled: bool):
         # Descarga de Modrinth: puede tardar un poco
         return self._req("PUT", f"/servers/{sid}/addons/{key}", json={"enabled": enabled}, timeout=120)

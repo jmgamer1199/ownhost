@@ -13,6 +13,7 @@ from PySide6.QtWidgets import (
 from ownhost.app.client import AgentClient
 from ownhost.app.dialogs import ImportWorldDialog, MoveDialog, ask_version
 from ownhost.app.guests import MANAGE, MODERATE, OWNER, PLAY
+from ownhost.app.files_tab import FilesTab
 from ownhost.app.mods_tab import ModsTab
 from ownhost.app.metrics_tab import MetricsTab
 from ownhost.app.players_tab import PlayersTab
@@ -131,8 +132,10 @@ class ServerPanel(QWidget):
         self.tabs.addTab(settings_scroll, "Ajustes")
         self.properties_tab = self._build_properties()
         self.tabs.addTab(self.properties_tab, "Propiedades")
+        self.files_tab = FilesTab()
+        self.tabs.addTab(self.files_tab, "Archivos")
         self.backups_tab = self._build_backups()
-        self.tabs.addTab(self.backups_tab, "Copias de seguridad")
+        self.tabs.addTab(self.backups_tab, "Copias")
         self.tabs.currentChanged.connect(self._tab_changed)
 
         header = QHBoxLayout()
@@ -411,6 +414,7 @@ class ServerPanel(QWidget):
                 self.mods_tab.set_server(client, server)
             self.players_tab.set_server(client, server)
             self.metrics_tab.set_server(client, server)
+            self.files_tab.set_server(client, server)
             self.tabs.setTabEnabled(self.tabs.indexOf(self.players_tab), server["game"] in ("minecraft", "bedrock"))
             self._apply_level()
             if not self.tabs.isTabEnabled(self.tabs.currentIndex()) or not self.tabs.isTabVisible(
@@ -423,7 +427,8 @@ class ServerPanel(QWidget):
         """Con el acceso de un amigo solo se ve lo que su permiso deja hacer."""
         level = self.level
         tabs = {self.console_tab: MODERATE, self.players_tab: PLAY, self.metrics_tab: PLAY, self.mods_tab: MANAGE,
-                self.settings_tab: MANAGE, self.properties_tab: MANAGE, self.backups_tab: MODERATE}
+                self.settings_tab: MANAGE, self.properties_tab: MANAGE, self.files_tab: MANAGE,
+                self.backups_tab: MODERATE}
         for widget, needed in tabs.items():
             self.tabs.setTabVisible(self.tabs.indexOf(widget), level >= needed)
         for widget, needed in ((self.btn_kill, MODERATE), (self.btn_backup, MODERATE), (self.btn_update, MANAGE),
@@ -704,6 +709,8 @@ class ServerPanel(QWidget):
             self.mods_tab.activate()
         elif widget is self.players_tab:
             self.players_tab.reload()
+        elif widget is self.files_tab:
+            self.files_tab.activate()
         if widget is self.metrics_tab:
             self.metrics_tab.activate()
         else:
@@ -955,7 +962,7 @@ class ServerPanel(QWidget):
             bar.close()
             QMessageBox.information(self, "Mundo importado",
                                     "Mundo importado. Enciende el servidor para cargarlo.\n"
-                                    "El mundo anterior está en «Copias de seguridad».")
+                                    "El mundo anterior está en la pestaña «Copias».")
 
         def failed(msg: str):
             bar.close()

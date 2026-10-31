@@ -16,6 +16,7 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from pydantic import BaseModel, Field
 
 from ownhost import BUILD, __version__, discovery, updates
+from ownhost.agent import files
 from ownhost.agent.access import MANAGE, MODERATE, OWNER, OWNER_PRINCIPAL, PLAY, GuestStore, Principal
 from ownhost.agent.config import AgentConfig
 from ownhost.agent.errors import UserError
@@ -80,6 +81,11 @@ class PlayerAction(BaseModel):
 
 class CrossplayRequest(BaseModel):
     floodgate: bool = True
+
+
+class FileContent(BaseModel):
+    path: str
+    content: str
 
 
 class Pregen(BaseModel):
@@ -378,6 +384,18 @@ def create_app(config: AgentConfig, manager: ServerManager) -> FastAPI:
     def disable_crossplay(sid: str):
         manager.disable_crossplay(sid)
         return manager.get(sid).to_dict()
+
+    @app.get("/api/servers/{sid}/files", dependencies=need_server(MANAGE))
+    def list_files(sid: str, path: str = ""):
+        return files.listing(manager.get(sid).server_dir, path)
+
+    @app.get("/api/servers/{sid}/file", dependencies=need_server(MANAGE))
+    def read_file(sid: str, path: str):
+        return {"path": path, "content": files.read(manager.get(sid).server_dir, path)}
+
+    @app.put("/api/servers/{sid}/file", dependencies=need_server(MANAGE), status_code=204)
+    def write_file(sid: str, body: FileContent):
+        files.write(manager.get(sid).server_dir, body.path, body.content)
 
     @app.put("/api/servers/{sid}/addons/{key}", dependencies=need_server(MANAGE))
     def set_addon(sid: str, key: str, body: ToggleMod):

@@ -119,7 +119,7 @@ En la ficha del servidor, el botón **Mundo** tiene tres opciones:
   - Si el mundo viene de una instancia con mods, la app ofrece copiar también sus mods y su carpeta `config`. Los mods de Fabric marcados como «solo cliente» (shaders, minimapas...) se descartan.
   - El servidor tiene que ser de la misma versión de Minecraft y del mismo loader que la instancia.
 - **Abrir carpeta del servidor**: solo si el servidor está en el mismo PC que la app. Sirve para editar archivos a mano.
-- **Descargar una copia...**: lleva a «Copias de seguridad», donde «Descargar...» guarda la copia en tu PC. Así puedes editar el mundo con programas como [Amulet](https://www.amuletmc.com/) aunque el servidor esté en otro equipo, y volver a subirlo con «Importar un mundo».
+- **Descargar una copia...**: lleva a la pestaña «Copias», donde «Descargar...» guarda la copia en tu PC. Así puedes editar el mundo con programas como [Amulet](https://www.amuletmc.com/) aunque el servidor esté en otro equipo, y volver a subirlo con «Importar un mundo».
 
 ## Mods y plugins
 
