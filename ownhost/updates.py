@@ -125,5 +125,8 @@ def relaunch(binary: Path, args: list[str]) -> None:
         kwargs["start_new_session"] = True
     # Without this version's libraries and without reusing its temp folder (PyInstaller onefile).
     env = clean_env({"PYINSTALLER_RESET_ENVIRONMENT": "1"})
+    if os.environ.get("APPDIR", "").startswith("/tmp/appimage_extracted_"):
+        # Started with --appimage-extract-and-run (systems without FUSE): the new one must start the same way.
+        env["APPIMAGE_EXTRACT_AND_RUN"] = "1"
     subprocess.Popen([str(binary), *args], stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
                      stderr=subprocess.DEVNULL, close_fds=True, env=env, **kwargs)
