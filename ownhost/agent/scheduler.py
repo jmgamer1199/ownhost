@@ -10,7 +10,9 @@ log = logging.getLogger("ownhost.agent")
 CHECK_SECONDS = 30
 # Valores por defecto para servidores que nunca han cambiado su programación:
 # copia diaria guardando las 7 últimas, sin reinicio programado.
-DEFAULT_SCHEDULE = {"backup_hours": 24, "keep_backups": 7, "restart_at": None}
+DEFAULT_SCHEDULE = {"backup_hours": 24, "keep_backups": 7, "restart_at": None, "idle_stop_minutes": 0}
+# Solo en estos juegos se sabe quién está conectado (por la consola).
+TRACKS_PLAYERS = ("minecraft", "bedrock")
 
 
 def schedule_of(meta) -> dict:
@@ -46,6 +48,19 @@ class Scheduler(threading.Thread):
             if used_since and (last is None or time.time() - last >= hours * 3600):
                 self.manager.auto_backup(s, int(sched.get("keep_backups") or 7))
                 return
+
+        # Apagar si nadie juega durante `idle_stop_minutes` (ahorra luz y memoria).
+        idle = sched.get("idle_stop_minutes") or 0
+        if s.state != "running" or s.online or not idle or s.meta.game not in TRACKS_PLAYERS:
+            s.empty_since = None
+        elif s.empty_since is None:
+            s.empty_since = time.time()
+        elif time.time() - s.empty_since >= idle * 60:
+            s.empty_since = None
+            s.log(f"Nadie ha jugado en {idle} minutos: se apaga el servidor.")
+            s.event("idle", f"«{s.meta.name}» se ha apagado porque nadie jugaba.")
+            self.manager.stop(s.meta.id)
+            return
 
         # Reinicio diario a la hora indicada ("HH:MM"), con aviso a los jugadores.
         at = sched.get("restart_at")

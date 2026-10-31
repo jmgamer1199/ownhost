@@ -20,6 +20,7 @@ import psutil
 from ownhost.agent import crossplay, modpacks, mods, players
 from ownhost.agent.metrics import Metrics
 from ownhost.agent.scheduler import Scheduler, schedule_of
+from ownhost.agent.stats import PlayerStats
 from ownhost.agent.device_auth import DeviceAuthWatcher
 from ownhost.sysenv import clean_env
 from ownhost.agent.errors import UserError
@@ -71,6 +72,8 @@ class Server:
         self.auth_watcher = DeviceAuthWatcher()
         self.booted = threading.Event()
         self.online: set[str] = set()  # jugadores conectados ahora mismo
+        self.player_stats = PlayerStats(root / "player-stats.json")
+        self.empty_since: float | None = None  # para apagarlo si se queda vacío (ver scheduler)
         self.events: deque[dict] = deque(maxlen=30)  # avisos para la app (caídas, copias...)
         self.crash_times: deque[float] = deque(maxlen=5)
 
@@ -94,7 +97,12 @@ class Server:
 
     def emit(self, line: str) -> None:
         self.console.append(line)
-        players.track(self.online, line)
+        before = set(self.online)
+        if players.track(self.online, line):
+            for name in self.online - before:
+                self.player_stats.joined(name)
+            for name in before - self.online:
+                self.player_stats.left(name)
         for q in list(self.subscribers):
             self.loop.call_soon_threadsafe(q.put_nowait, line)
         if self.auth_watcher:
@@ -597,7 +605,9 @@ class ServerManager:
             s.proc = None
             s.ps = None
             s.started_at = None
+            s.player_stats.all_left()
             s.online.clear()
+            s.empty_since = None
             s.meta.extra["last_stopped"] = time.time()
             s.save()
             if not s.stopping and s.state == "starting":

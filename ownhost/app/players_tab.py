@@ -1,8 +1,10 @@
 """Pestaña «Jugadores»: conectados, operadores, lista blanca y baneados, sin escribir comandos."""
 
+from datetime import datetime, timedelta
+
 from PySide6.QtWidgets import (
-    QCheckBox, QGridLayout, QHBoxLayout, QLabel, QLineEdit, QListWidget, QMessageBox, QPushButton,
-    QVBoxLayout, QWidget,
+    QAbstractItemView, QCheckBox, QGridLayout, QHBoxLayout, QHeaderView, QLabel, QLineEdit, QListWidget,
+    QMessageBox, QPushButton, QScrollArea, QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget, QFrame,
 )
 
 from ownhost.app.client import AgentClient
@@ -13,6 +15,23 @@ ACTION_NAMES = {
     "whitelist_remove": "quitar de la lista blanca a", "ban": "banear a", "pardon": "perdonar a",
     "whitelist_on": "activar la lista blanca", "whitelist_off": "desactivar la lista blanca",
 }
+
+
+def played(seconds: int) -> str:
+    h, rem = divmod(int(seconds), 3600)
+    return f"{h} h {rem // 60} min" if h else f"{rem // 60} min"
+
+
+def last_seen(ts: float, online: bool) -> str:
+    if online:
+        return "Jugando ahora"
+    when = datetime.fromtimestamp(ts)
+    today = datetime.now().date()
+    if when.date() == today:
+        return f"Hoy, {when:%H:%M}"
+    if when.date() == today - timedelta(days=1):
+        return f"Ayer, {when:%H:%M}"
+    return f"{when:%d/%m/%Y}"
 
 
 def _section(title: str, widget: QWidget, buttons: list[QPushButton]) -> QWidget:
@@ -75,6 +94,17 @@ class PlayersTab(QWidget):
         self.name_row = name_row
         self.can_edit = True
 
+        # Estadísticas: quién ha jugado más y cuándo entró por última vez
+        self.stats = QTableWidget(0, 4)
+        self.stats.setHorizontalHeaderLabels(["Jugador", "Tiempo jugado", "Veces que ha entrado", "Última vez"])
+        self.stats.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        self.stats.verticalHeader().setVisible(False)
+        self.stats.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        self.stats.setSelectionMode(QAbstractItemView.SelectionMode.NoSelection)
+        self.stats.setMinimumHeight(90)
+        self.stats_empty = QLabel("Todavía no ha entrado nadie. Aquí verás quién juega más y cuándo entró por última vez.")
+        self.stats_empty.setObjectName("muted")
+
         self.info = QLabel()
         self.info.setObjectName("muted")
         self.info.setWordWrap(True)
@@ -90,9 +120,22 @@ class PlayersTab(QWidget):
         self.banned_section = _section("Baneados", self.banned, [self.btn_pardon])
         grid.addWidget(self.banned_section, 1, 1)
 
-        layout = QVBoxLayout(self)
+        # Con desplazamiento si no cabe (pantallas de portátil): las listas y las estadísticas ocupan mucho.
+        content = QWidget()
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.Shape.NoFrame)
+        scroll.setStyleSheet("QScrollArea, QScrollArea > QWidget > QWidget { background: transparent; }")
+        scroll.setWidget(content)
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+        outer.addWidget(scroll)
+        layout = QVBoxLayout(content)
         layout.addLayout(name_row)
         layout.addLayout(grid, 1)
+        layout.addWidget(QLabel("<b>Estadísticas</b>"))
+        layout.addWidget(self.stats, 1)
+        layout.addWidget(self.stats_empty)
         layout.addWidget(self.info)
 
     def set_can_edit(self, can: bool) -> None:
@@ -127,6 +170,18 @@ class PlayersTab(QWidget):
             return
         sid, client = self.server["id"], self.client
         run_async(lambda: client.players(sid), self._loaded, lambda msg: self.info.setText(msg))
+        run_async(lambda: client.player_stats(sid), self._stats_loaded, lambda _: None)
+
+    def _stats_loaded(self, rows: list[dict]) -> None:
+        self.stats.setRowCount(0)
+        for r in rows:
+            row = self.stats.rowCount()
+            self.stats.insertRow(row)
+            for col, text in enumerate((r["name"], played(r["seconds"]), str(r["sessions"]),
+                                        last_seen(r["last_seen"], r["online"]))):
+                self.stats.setItem(row, col, QTableWidgetItem(text))
+        self.stats.setVisible(bool(rows))
+        self.stats_empty.setVisible(not rows)
 
     def _loaded(self, data: dict) -> None:
         self.data = data

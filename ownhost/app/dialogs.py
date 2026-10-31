@@ -10,6 +10,7 @@ from PySide6.QtWidgets import (
 from ownhost.agent import DEFAULT_PORT
 from ownhost.app.client import AgentClient
 from ownhost.app.hosts import Host
+from ownhost.app.memory import MemoryAdvice, count_modpack_mods
 from ownhost.app.settings import curseforge_key, embedded_curseforge_key, load_settings, save_settings
 from ownhost.app.tasks import run_async, run_with_progress
 from ownhost.app.world_import import WorldSource, default_saves_dir
@@ -161,6 +162,10 @@ class CreateServerDialog(QDialog):
         self.flavor_box = QComboBox()
         self.version_box = QComboBox()
         self.memory = QSpinBox(minimum=512, maximum=65536, singleStep=512, value=2048, suffix=" MB")
+        self.players = QSpinBox(minimum=1, maximum=200, value=5)
+        self.players.setToolTip("Cuántos vais a jugar a la vez como mucho: sirve para recomendar la memoria")
+        self.memory_help = QLabel()
+        self.advice = MemoryAdvice(self.memory, self.memory_help)
         self.port = QSpinBox(minimum=0, maximum=65535, value=0)
         self.port.setSpecialValueText("Automático")
         self.eula = QCheckBox("Acepto el EULA de Minecraft")
@@ -175,8 +180,11 @@ class CreateServerDialog(QDialog):
         form.addRow("Juego", self.game_box)
         form.addRow("Tipo", self.flavor_box)
         form.addRow("Versión", self.version_box)
+        form.addRow("Jugadores a la vez", self.players)
         form.addRow("Memoria máxima", self.memory)
+        form.addRow("", self.memory_help)
         form.addRow("Puerto", self.port)
+        self.form = form
         form.addRow(self.eula)
         form.addRow(self.eula_link)
         self.account_note = QLabel("Necesitas una cuenta del juego: al crear el servidor se abrirá una "
@@ -212,10 +220,24 @@ class CreateServerDialog(QDialog):
         layout.addWidget(self.buttons)
 
         self.host_box.currentIndexChanged.connect(self._load_games)
+        self.host_box.currentIndexChanged.connect(self._load_host_info)
+        self.players.valueChanged.connect(self._update_memory)
+        self.flavor_box.currentIndexChanged.connect(self._update_memory)
         self.game_box.currentIndexChanged.connect(self._game_changed)
         self.flavor_box.currentIndexChanged.connect(self._load_versions)
         self.flavor_box.currentIndexChanged.connect(self._update_crossplay)
         self._load_games()
+        self._load_host_info()
+
+    def _load_host_info(self) -> None:
+        client = self._client()
+        run_async(client.info, lambda info: client is self._client() and self.advice.set_host_info(info),
+                  lambda _: None)
+
+    def _update_memory(self) -> None:
+        game = self._game()
+        if game:
+            self.advice.update(game["id"], self.flavor_box.currentData() or "", self.players.value())
 
     def _client(self) -> AgentClient:
         return self.hosts[self.host_box.currentIndex()][1]
@@ -251,7 +273,10 @@ class CreateServerDialog(QDialog):
         self.eula_link.setVisible(game["needs_eula"])
         self.account_note.setVisible(game.get("device_auth", False))
         self.whitelist.setVisible(game["id"] in ("minecraft", "bedrock"))
-        self.memory.setValue(4096 if game["id"] == "hytale" else 2048)
+        # Bedrock gestiona su memoria solo: no tiene este ajuste.
+        for w in (self.players, self.memory, self.memory_help):
+            self.form.setRowVisible(w, game["id"] != "bedrock")
+        self._update_memory()
         self._load_versions()
         self._update_crossplay()
 
@@ -345,6 +370,10 @@ class ImportModpackDialog(QDialog):
         self.name = QLineEdit()
         self.name.setPlaceholderText("El del modpack")
         self.memory = QSpinBox(minimum=1024, maximum=65536, singleStep=512, value=4096, suffix=" MB")
+        self.players = QSpinBox(minimum=1, maximum=200, value=5)
+        self.memory_help = QLabel()
+        self.advice = MemoryAdvice(self.memory, self.memory_help)
+        self.mods = 0
         self.eula = QCheckBox("Acepto el EULA de Minecraft")
         eula_link = QLabel('<a href="https://aka.ms/MinecraftEULA">Leer el EULA</a>')
         eula_link.setOpenExternalLinks(True)
@@ -363,7 +392,9 @@ class ImportModpackDialog(QDialog):
         form.addRow("Equipo", self.host_box)
         form.addRow("Modpack", file_row)
         form.addRow("Nombre", self.name)
+        form.addRow("Jugadores a la vez", self.players)
         form.addRow("Memoria máxima", self.memory)
+        form.addRow("", self.memory_help)
         form.addRow(self.eula)
         form.addRow(eula_link)
         form.addRow(self.whitelist)
@@ -376,12 +407,30 @@ class ImportModpackDialog(QDialog):
         layout.addLayout(form)
         layout.addWidget(self.status)
         layout.addWidget(self.buttons)
+        self.players.valueChanged.connect(self._update_memory)
+        self.path.editingFinished.connect(self._count_mods)
+        self.host_box.currentIndexChanged.connect(self._load_host_info)
+        self._update_memory()
+        self._load_host_info()
+
+    def _load_host_info(self) -> None:
+        client = self.hosts[self.host_box.currentIndex()][1]
+        run_async(client.info, self.advice.set_host_info, lambda _: None)
+
+    def _count_mods(self) -> None:
+        archive = Path(self.path.text().strip().strip('"'))
+        self.mods = count_modpack_mods(archive) if archive.is_file() else 0
+        self._update_memory()
+
+    def _update_memory(self) -> None:
+        self.advice.update("minecraft", "", self.players.value(), self.mods, modpack=True)
 
     def _browse(self) -> None:
         path, _ = QFileDialog.getOpenFileName(self, "Elegir modpack", str(Path.home() / "Downloads"),
                                               "Modpacks (*.mrpack *.zip)")
         if path:
             self.path.setText(str(Path(path)))
+            self._count_mods()
 
     def _import(self) -> None:
         archive = Path(self.path.text().strip().strip('"'))

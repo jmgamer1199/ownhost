@@ -397,6 +397,10 @@ def create_app(config: AgentConfig, manager: ServerManager) -> FastAPI:
         manager.set_icon(sid, None)
         return manager.get(sid).to_dict()
 
+    @app.get("/api/servers/{sid}/stats", dependencies=need_server(PLAY))
+    def player_stats(sid: str):
+        return manager.get(sid).player_stats.summary()
+
     @app.get("/api/servers/{sid}/players", dependencies=need_server(PLAY))
     def get_players(sid: str):
         return manager.get_players(sid)

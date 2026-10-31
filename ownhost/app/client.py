@@ -185,6 +185,9 @@ class AgentClient:
     def delete_guest(self, guest_id: str):
         return self._req("DELETE", f"/guests/{guest_id}")
 
+    def player_stats(self, sid: str):
+        return self._req("GET", f"/servers/{sid}/stats")
+
     def players(self, sid: str):
         return self._req("GET", f"/servers/{sid}/players")
 

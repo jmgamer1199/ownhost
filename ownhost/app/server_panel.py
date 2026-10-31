@@ -243,10 +243,15 @@ class ServerPanel(QWidget):
         restart_row.addWidget(self.set_restart_on)
         restart_row.addWidget(self.set_restart_at)
         restart_row.addStretch()
+        self.set_idle_stop = QSpinBox(minimum=0, maximum=1440, singleStep=5, suffix=" min")
+        self.set_idle_stop.setSpecialValueText("Nunca")
+        self.set_idle_stop.setToolTip("Si no hay ningún jugador conectado durante ese tiempo, el servidor se apaga "
+                                      "solo (ahorra luz y memoria). Solo en Minecraft.")
         form.addRow(QLabel("<br><b>Tareas automáticas</b>"))
         form.addRow("Copia de seguridad cada", self.set_backup_hours)
         form.addRow("Copias automáticas a guardar", self.set_keep_backups)
         form.addRow(restart_row)
+        form.addRow("Apagar si nadie juega durante", self.set_idle_stop)
         note = QLabel("Los jugadores reciben un aviso 1 minuto antes del reinicio. "
                       "Los cambios de memoria se aplican la próxima vez que se encienda el servidor.")
         note.setWordWrap(True)
@@ -473,6 +478,8 @@ class ServerPanel(QWidget):
         if not supported:
             self.crossplay_status.setText("Solo disponible en servidores Paper, Fabric o NeoForge.")
             self.crossplay_button.setVisible(False)
+            for w in (self.extras_title, self.extras_note, *self.extra_boxes.values(), self.xbox_info):
+                w.setVisible(False)
             return
         if cp:
             self.crossplay_status.setText(
@@ -565,6 +572,8 @@ class ServerPanel(QWidget):
         self.set_restart_on.setChecked(at.isValid())
         self.set_restart_at.setTime(at if at.isValid() else QTime(5, 0))
         self.set_restart_at.setEnabled(at.isValid())
+        self.set_idle_stop.setValue(int(sched.get("idle_stop_minutes") or 0))
+        self.settings_form.setRowVisible(self.set_idle_stop, s["game"] in ("minecraft", "bedrock"))
         # Descripción solo en Minecraft Java; límite de jugadores en Java y en Bedrock nativo.
         java, bedrock = s["game"] == "minecraft", s["game"] == "bedrock"
         self.settings_form.setRowVisible(self.set_motd, java)
@@ -770,7 +779,8 @@ class ServerPanel(QWidget):
                    "schedule": {"backup_hours": self.set_backup_hours.value(),
                                 "keep_backups": self.set_keep_backups.value(),
                                 "restart_at": self.set_restart_at.time().toString("HH:mm")
-                                if self.set_restart_on.isChecked() else None}}
+                                if self.set_restart_on.isChecked() else None,
+                                "idle_stop_minutes": self.set_idle_stop.value()}}
         props = {}
         if self.props_loaded_for == sid:  # solo si se llegaron a leer (si no, se borrarían)
             props["max-players"] = str(self.set_max_players.value())

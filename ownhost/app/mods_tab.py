@@ -24,6 +24,7 @@ def _table(headers: list[str]) -> QTableWidget:
     t.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
     t.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
     t.horizontalHeader().setStretchLastSection(True)
+    t.setMinimumHeight(56)  # cabecera y una fila: que la ventana quepa en pantallas de portátil
     return t
 
 
