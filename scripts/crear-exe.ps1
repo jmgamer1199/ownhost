@@ -49,6 +49,7 @@ try {
         --paths $root `
         --collect-submodules uvicorn `
         --collect-submodules websockets `
+        --collect-submodules ownhost.locale `
         @hidden `
         --distpath $dist `
         --workpath $work `

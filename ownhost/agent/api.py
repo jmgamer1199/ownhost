@@ -15,7 +15,7 @@ from fastapi import Depends, FastAPI, Header, HTTPException, Request, WebSocket,
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from pydantic import BaseModel, Field
 
-from ownhost import BUILD, __version__, discovery, updates
+from ownhost import BUILD, __version__, discovery, i18n, updates
 from ownhost.agent import files
 from ownhost.agent.access import (
     MANAGE, MODERATE, OWNER, OWNER_PRINCIPAL, PLAY, GuestStore, Principal,
@@ -108,6 +108,10 @@ class RestoreReplica(BaseModel):
     name: str = ""
 
 
+class LanguageChoice(BaseModel):
+    language: str
+
+
 class CreateGuest(BaseModel):
     name: str
     role: str = "play"
@@ -131,6 +135,15 @@ def create_app(config: AgentConfig, manager: ServerManager) -> FastAPI:
         await asyncio.to_thread(manager.shutdown)
 
     app = FastAPI(title="Ownhost - agente", version=__version__, lifespan=lifespan)
+
+    @app.middleware("http")
+    async def request_language(request: Request, call_next):
+        # Errors are returned in the language of the app that asks (the header it sends with every request).
+        token = i18n.use_language(request.headers.get(i18n.HEADER))
+        try:
+            return await call_next(request)
+        finally:
+            i18n.reset_language(token)
 
     owner_check = TailscaleOwnerCheck()
     guests = GuestStore(manager.data_dir)
@@ -215,6 +228,7 @@ def create_app(config: AgentConfig, manager: ServerManager) -> FastAPI:
         mem = psutil.virtual_memory()
         return {
             "access": who.describe(),
+            "language": i18n.normalize(config.language) or i18n.system_language(),
             "name": config.name,
             "hostname": socket.gethostname(),
             "version": __version__,
@@ -240,6 +254,13 @@ def create_app(config: AgentConfig, manager: ServerManager) -> FastAPI:
 
         threading.Thread(target=stop, daemon=True).start()
         return {"detail": "Cerrando el agente"}
+
+    @app.put("/api/agent/language", dependencies=owner, status_code=204)
+    def set_agent_language(body: LanguageChoice):
+        """Language of the console lines and notices of this agent (the app sends its own)."""
+        config.language = i18n.normalize(body.language)
+        config.save(manager.data_dir)
+        i18n.set_language(config.language)
 
     @app.post("/api/agent/update", dependencies=owner, status_code=202)
     def update_agent():

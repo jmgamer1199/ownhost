@@ -8,6 +8,7 @@ from PySide6.QtWidgets import (
 )
 
 from ownhost.agent import DEFAULT_PORT
+from ownhost import i18n
 from ownhost.app.client import AgentClient
 from ownhost.app.hosts import Host
 from ownhost.app.memory import MemoryAdvice, count_modpack_mods
@@ -472,6 +473,7 @@ class SettingsDialog(QDialog):
         self.setWindowTitle("Ajustes")
         self.setMinimumWidth(460)
         self.settings = load_settings()
+        self.language_changed = False
         self.cf_key = QLineEdit(self.settings.get("curseforge_key", ""))
         self.cf_key.setEchoMode(QLineEdit.EchoMode.PasswordEchoOnEdit)
         help_text = QLabel(
@@ -482,7 +484,12 @@ class SettingsDialog(QDialog):
         help_text.setWordWrap(True)
         help_text.setOpenExternalLinks(True)
         form = QFormLayout()
+        form.addRow("Idioma / Language", self.language)
         form.addRow("Clave de CurseForge", self.cf_key)
+        self.language = QComboBox()
+        for code, name in i18n.LANGUAGES.items():
+            self.language.addItem(name, code)
+        self.language.setCurrentIndex(max(0, self.language.findData(i18n.language())))
         self.check_updates = QCheckBox("Buscar versiones nuevas de Ownhost al abrir la app")
         self.check_updates.setChecked(self.settings.get("check_updates", True))
         self.check_now = QPushButton("Buscar ahora")
@@ -506,6 +513,9 @@ class SettingsDialog(QDialog):
     def _save(self) -> None:
         self.settings["curseforge_key"] = self.cf_key.text().strip()
         self.settings["check_updates"] = self.check_updates.isChecked()
+        new_language = self.language.currentData()
+        self.language_changed = new_language != i18n.language()
+        self.settings["language"] = new_language
         save_settings(self.settings)
         self.accept()
 

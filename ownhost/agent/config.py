@@ -15,6 +15,8 @@ class AgentConfig:
     bind: str = "0.0.0.0"
     # Dispositivos de Tailscale de la misma cuenta pueden gestionar este equipo sin token.
     trust_tailscale: bool = True
+    # Language of the console lines and notices ("es" or "en"); None = the system's.
+    language: str | None = None
 
     @staticmethod
     def path(data_dir: Path) -> Path:

@@ -56,7 +56,7 @@ HIDDEN=(--hidden-import ownhost._build)
 COMMON=(--noconfirm --clean --windowed --name Ownhost
     --add-data "$WORK/src/ownhost/app/assets:ownhost/app/assets"
     --add-data "$WORK/src/ownhost/agent/web:ownhost/agent/web"
-    --paths "$WORK/src" --collect-submodules uvicorn --collect-submodules websockets "${HIDDEN[@]}"
+    --paths "$WORK/src" --collect-submodules uvicorn --collect-submodules websockets --collect-submodules ownhost.locale "${HIDDEN[@]}"
     --specpath "$WORK")
 
 # 1) Binario de un solo archivo: útil para servidores sin escritorio (Ownhost --agent).

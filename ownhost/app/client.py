@@ -4,6 +4,7 @@ from urllib.parse import quote
 
 import httpx
 
+from ownhost import i18n
 from ownhost.app.hosts import Host
 
 
@@ -16,7 +17,8 @@ class AgentClient:
         self.host = host
         self.base = f"http://{host.address}:{host.port}/api"
         # Conexión corta: si un equipo está apagado no queremos esperar 15 s.
-        self.http = httpx.Client(timeout=httpx.Timeout(15, connect=3), headers={"Authorization": f"Bearer {host.token}"})
+        self.http = httpx.Client(timeout=httpx.Timeout(15, connect=3),
+                                 headers={"Authorization": f"Bearer {host.token}", i18n.HEADER: i18n.language()})
 
     def close(self) -> None:
         self.http.close()

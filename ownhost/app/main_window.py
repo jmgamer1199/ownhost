@@ -11,7 +11,8 @@ from ownhost.app.client import AgentClient, ApiError
 from ownhost.app.dialogs import (
     AccountLoginDialog, CreateServerDialog, HostDialog, ImportModpackDialog, SettingsDialog,
 )
-from ownhost import BUILD, updates
+from ownhost import BUILD, i18n, updates
+from ownhost.i18n import tr
 from ownhost.app import app_update
 from ownhost.app.hosts import (
     Host, kill_local_agents, launch_local_agent, load_hosts, local_agent_config, save_hosts,
@@ -81,6 +82,7 @@ class MainWindow(QMainWindow):
         self.local_ip = lan_ip()
         self.login_dialogs: dict[tuple[str, str], AccountLoginDialog] = {}
         self.dismissed_logins: set[str] = set()
+        self.language_synced: set[str] = set()
 
         cfg = local_agent_config()
         if not self.hosts and cfg:
@@ -415,6 +417,16 @@ class MainWindow(QMainWindow):
         ip = self._addresses(host_id)[0][0] if host.is_local else host.address
         return f"http://{ip}:{host.port}/"
 
+    def _sync_agent_language(self, host_id: str, info: dict) -> None:
+        """Your agents write their console and notices in your language (once per session and agent)."""
+        if host_id in self.language_synced or self._level(host_id) < OWNER or "language" not in info:
+            return
+        self.language_synced.add(host_id)
+        if info["language"] != i18n.language():
+            client = self.clients[host_id]
+            run_async(lambda: client._req("PUT", "/agent/language", json={"language": i18n.language()}),
+                      lambda _: None, lambda _: None)
+
     def _level(self, host_id: str) -> int:
         return access_level(self.state.get(host_id, {}).get("info"))
 
@@ -426,7 +438,24 @@ class MainWindow(QMainWindow):
     def _settings(self) -> None:
         dialog = SettingsDialog(self)
         dialog.check_now.clicked.connect(lambda: app_update.check(self, manual=True, on_release=self._release_known))
-        dialog.exec()
+        if dialog.exec() and dialog.language_changed:
+            self._restart_for_language()
+
+    def _restart_for_language(self) -> None:
+        """The language is applied when the app starts: it reopens itself (servers keep running)."""
+        if QMessageBox.question(self, tr("Idioma"), tr("Para cambiar el idioma, Ownhost se cerrará y se volverá a "
+                                "abrir. Tus servidores siguen encendidos. ¿Reiniciar ahora?")) \
+                != QMessageBox.StandardButton.Yes:
+            return
+        import subprocess
+        import sys
+
+        binary = updates.running_binary()
+        if binary:
+            updates.relaunch(binary, sys.argv[1:])
+        else:
+            subprocess.Popen([sys.executable, "-m", "ownhost.app"])
+        QApplication.quit()
 
     def _release_known(self, release: dict | None) -> None:
         self.latest_release = release
@@ -556,6 +585,7 @@ class MainWindow(QMainWindow):
             return
         info, servers = result
         self.state[host_id] = {"online": True, "info": info, "servers": servers}
+        self._sync_agent_language(host_id, info)
         self._show_events(host_id, servers)
         self._update_login_dialogs(host_id)
         self._after_poll(host_id)

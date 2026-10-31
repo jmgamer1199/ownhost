@@ -11,6 +11,7 @@ from pathlib import Path
 
 import uvicorn
 
+from ownhost import i18n
 from ownhost.agent.api import create_app
 from ownhost.agent.config import AgentConfig
 from ownhost.agent.manager import ServerManager
@@ -29,6 +30,7 @@ def main(argv: list[str] | None = None) -> None:
 
     data_dir: Path = args.data_dir
     config = AgentConfig.load_or_create(data_dir)
+    i18n.set_language(config.language)
     changed = False
     for key in ("port", "bind", "name"):
         value = getattr(args, key)

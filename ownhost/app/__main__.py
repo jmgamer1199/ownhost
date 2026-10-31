@@ -14,6 +14,12 @@ def main() -> None:
     from PySide6.QtGui import QIcon
     from PySide6.QtWidgets import QApplication
 
+    from ownhost import i18n
+    from ownhost.app.settings import load_settings
+
+    # The language is chosen before the windows are built (Settings → Language; first time: the system's).
+    i18n.set_language(load_settings().get("language"))
+
     from ownhost.app import ASSETS, theme
     from ownhost.app.main_window import MainWindow
 
@@ -21,11 +27,12 @@ def main() -> None:
     app.setApplicationName("Ownhost")
     app.setDesktopFileName("ownhost")  # enlaza la ventana con su .desktop en Linux
     app.setWindowIcon(QIcon(str(ASSETS / "icon.png")))
-    # Botones estándar (Aceptar, Cancelar, Cerrar...) en español: la app está escrita en español.
-    QLocale.setDefault(QLocale(QLocale.Language.Spanish, QLocale.Country.Spain))
-    translator = QTranslator(app)
-    if translator.load("qtbase_es", QLibraryInfo.path(QLibraryInfo.LibraryPath.TranslationsPath)):
-        app.installTranslator(translator)
+    # Standard buttons (OK, Cancel, Close...) in the app's language: Qt's own texts are English.
+    if i18n.language() == "es":
+        QLocale.setDefault(QLocale(QLocale.Language.Spanish, QLocale.Country.Spain))
+        translator = QTranslator(app)
+        if translator.load("qtbase_es", QLibraryInfo.path(QLibraryInfo.LibraryPath.TranslationsPath)):
+            app.installTranslator(translator)
     theme.apply(app)
     window = MainWindow()
     window.show()
