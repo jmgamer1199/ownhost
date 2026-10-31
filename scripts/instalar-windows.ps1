@@ -2,7 +2,7 @@
 # Uso: clic derecho > "Ejecutar con PowerShell", o:  powershell -ExecutionPolicy Bypass -File scripts\instalar-windows.ps1
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
-# El entorno va fuera de la carpeta del proyecto para no sincronizar cientos de MB con Synology.
+# El entorno va fuera de la carpeta del proyecto (por si está en una carpeta sincronizada en la nube).
 $venv = Join-Path $env:USERPROFILE ".venvs\ownhost"
 
 if (-not (Get-Command python -ErrorAction SilentlyContinue)) {

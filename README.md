@@ -232,22 +232,105 @@ En la pestaña **Propiedades** se edita el `config.json` de Hytale (nombre, cont
 
 ## Desarrollo
 
+### Ejecutar desde el código
+
+Hace falta Python 3.11 o superior.
+
 ```bash
 python -m venv ~/.venvs/ownhost
-~/.venvs/ownhost/bin/pip install -e ".[app]"
-python -m ownhost.agent        # agente (muestra el token)
-python -m ownhost.app          # app
+~/.venvs/ownhost/bin/pip install -e ".[app]"   # en Windows: %USERPROFILE%\.venvs\ownhost\Scripts\pip
+python -m ownhost.agent        # el agente (muestra el token al arrancar)
+python -m ownhost.app          # la app
 ```
 
-Variables y opciones útiles:
-- `OWNHOST_DATA_DIR`: carpeta de datos del agente. Por defecto es `%LOCALAPPDATA%\Ownhost\agent` en Windows y `~/.local/share/ownhost` en Linux.
-- `python -m ownhost.agent --port 8765 --bind 0.0.0.0 --name "Homelab" --show-token`
+Solo para hospedar servidores (sin ventana) basta con `pip install -e .`: la interfaz (PySide6) es opcional.
 
-La API del agente está documentada automáticamente en `http://<ip>:8765/docs`.
+Opciones del agente:
+- `--data-dir`, o la variable `OWNHOST_DATA_DIR`: carpeta de datos. Por defecto, `%LOCALAPPDATA%\Ownhost\agent` en Windows y `~/.local/share/ownhost` en Linux.
+- `--port 8765`, `--bind 0.0.0.0`, `--name "Homelab"`, `--show-token`.
+
+La API del agente se documenta sola en `http://<ip>:8765/docs`.
+
+### Compilar
+
+Un solo comando, en Windows, genera todo en `dist/`:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\crear-exe.ps1
+```
+
+| Archivo | Para qué |
+|---|---|
+| `dist/Ownhost.exe` | Windows: app y agente en un solo archivo, sin instalar Python |
+| `dist/linux/Ownhost-x86_64.AppImage` | Linux con escritorio (doble clic) |
+| `dist/linux/Ownhost` | Linux sin escritorio (homelab): el mismo programa en un binario; con `--agent` es el agente |
+| `dist/linux/instalar-*.sh` | Instaladores de la app y del agente como servicio en Linux |
+
+Qué hace el script:
+1. Crea el entorno de Python si no existe, instala las dependencias y PyInstaller.
+2. Decide el número de **compilación** (fecha y hora UTC, `AAAAMMDDhhmmss`). Es el mismo para Windows y Linux y es la etiqueta de la versión al publicarla.
+3. Compila el `.exe` con PyInstaller (los archivos intermedios van a la carpeta temporal del sistema).
+4. Compila Linux dentro de **Docker** con AlmaLinux 8 (`scripts/crear-binario-linux.sh`). Usar una glibc antigua hace que funcione en casi cualquier distribución actual. Hace falta Docker Desktop; si no está, solo se genera el `.exe`.
+5. Ejecuta `scripts/comprobar_privacidad.py`, que abre los binarios y busca tu usuario, el nombre del equipo, tu carpeta personal y tus IPs. Si encuentra algo, avisa: no compartas esos archivos.
+
+Si Ownhost está abierto, el `.exe` en uso se aparta como `.old` y se borra en la siguiente compilación.
+
+**Clave de CurseForge (opcional):** si pones tu clave en un archivo `curseforge.key` en la raíz (o en la variable `CURSEFORGE_API_KEY`), se incluye ofuscada en los binarios y los usuarios no tienen que conseguir la suya. Ese archivo está en `.gitignore`: no lo subas nunca.
+
+### Publicar una versión
+
+1. Compila con `scripts\crear-exe.ps1`. Al principio muestra la etiqueta, por ejemplo `v20261031143350`.
+2. Sube el código (`git push`).
+3. Crea la Release con esa etiqueta y los tres binarios:
+
+```bash
+gh release create v20261031143350 dist/Ownhost.exe dist/linux/Ownhost-x86_64.AppImage dist/linux/Ownhost --title "Ownhost dd/mm/aaaa" --notes "Novedades..."
+```
+
+Las apps y los agentes comparan su compilación con la de la última Release y se ofrecen a actualizarse (ver [Actualizar Ownhost](#actualizar-ownhost)). Para probar las actualizaciones sin publicar nada, la variable `OWNHOST_RELEASES_API` apunta la comprobación a otra dirección con el mismo formato que la API de GitHub.
+
+### Cómo está organizado el código
+
+```
+ownhost/
+├── agent/                  el agente (FastAPI + uvicorn)
+│   ├── api.py              rutas HTTP y WebSocket de la consola; permisos de cada ruta
+│   ├── manager.py          servidores: crear, encender, apagar, copias, importar, clonar, mods...
+│   ├── access.py           accesos para amigos (códigos, niveles de permiso)
+│   ├── games/              un archivo por juego: minecraft.py, bedrock.py, hytale.py (base.py: la interfaz)
+│   ├── java.py             descarga la versión de Java que necesita cada servidor
+│   ├── mods.py, modpacks.py  Modrinth, CurseForge y modpacks
+│   ├── crossplay.py        Geyser, Floodgate y sus extras
+│   ├── players.py          jugadores (operadores, lista blanca, baneos)
+│   ├── scheduler.py        copias y reinicios programados
+│   ├── metrics.py          muestras de CPU, RAM y jugadores para las gráficas
+│   └── web/panel.html      el panel web para el móvil
+├── app/                    la app (PySide6)
+│   ├── main_window.py      ventana principal, lista de equipos, sondeo de los agentes
+│   ├── server_panel.py     la ficha de un servidor y sus pestañas
+│   ├── *_tab.py            pestañas de jugadores, rendimiento y mods
+│   ├── dialogs.py          crear servidor, conectar equipo, ajustes...
+│   ├── guests.py           accesos para amigos
+│   ├── app_update.py       actualizarse sola
+│   ├── client.py           cliente HTTP de la API del agente
+│   └── theme.py            el aspecto (QSS y dibujos)
+├── updates.py              Releases de GitHub: comprobar, descargar y sustituir el ejecutable
+├── discovery.py            encontrar agentes en la red local (UDP)
+└── net.py                  IPs locales y de Tailscale
+```
+
+La app nunca toca los archivos de los servidores directamente: todo pasa por la API del agente, también cuando el agente está en el mismo PC. Por eso cualquier equipo de la red puede gestionar cualquier otro.
+
+### Seguridad
+
+- Cada agente tiene un **token** (en `agent.json`, en su carpeta de datos). Quien lo tiene puede hacerlo todo en ese equipo.
+- Los dispositivos de **tu misma cuenta de Tailscale** entran sin token (se puede desactivar con `trust_tailscale: false` en `agent.json`).
+- Los **códigos de amigos** solo dan los permisos elegidos. El agente guarda su huella (SHA-256), no el código.
+- La comunicación va por HTTP sin cifrar: está pensado para la red local y Tailscale (que ya cifra). No abras el puerto 8765 a internet.
 
 ### Añadir otro juego
 
-Crea una clase en `ownhost/agent/games/` que herede de `GameAdapter`, implementando `versions`, `java_major`, `install` y `command`, y regístrala en `games/__init__.py`. La app la detecta sola.
+Crea una clase en `ownhost/agent/games/` que herede de `GameAdapter`, implementando `versions`, `java_major`, `install` y `command`, y regístrala en `games/__init__.py`. Opcionalmente: `available_update` (actualización automática), `mod_target` (mods), `read_config`/`write_config` (pestaña Propiedades). La app la detecta sola.
 
 ## Ideas pendientes
 

@@ -68,6 +68,8 @@ Write-Host "Listo: $(Join-Path $dist 'Ownhost.exe')" -ForegroundColor Green
 # (glibc 2.28: funciona en casi cualquier distribución: Debian 10+, Ubuntu 20.04+, RHEL 8+, Fedora, Arch...)
 if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
     Write-Host "Docker no está instalado: se omite la versión para Linux." -ForegroundColor Yellow
+    & $python (Join-Path $root "scripts\comprobar_privacidad.py") (Join-Path $dist "Ownhost.exe")
+    if ($LASTEXITCODE -ne 0) { Write-Host "Revisa el aviso de privacidad antes de compartir." -ForegroundColor Red; exit 1 }
     exit 0
 }
 docker info --format "{{.ServerVersion}}" 2>$null | Out-Null
@@ -83,6 +85,8 @@ if ($LASTEXITCODE -ne 0) {
     }
     if ($LASTEXITCODE -ne 0) {
         Write-Host "Docker no responde: se omite la versión para Linux." -ForegroundColor Yellow
+        & $python (Join-Path $root "scripts\comprobar_privacidad.py") (Join-Path $dist "Ownhost.exe")
+        if ($LASTEXITCODE -ne 0) { Write-Host "Revisa el aviso de privacidad antes de compartir." -ForegroundColor Red; exit 1 }
         exit 0
     }
 }
