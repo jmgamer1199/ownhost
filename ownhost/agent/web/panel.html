@@ -84,27 +84,31 @@ label.check { display: flex; align-items: center; gap: 10px; padding: 6px 0; }
 .row > * { flex: 1 1 140px; }
 .empty { color: var(--ink-2); text-align: center; padding: 24px 8px; }
 .hidden { display: none !important; }
+button.lang { min-height: 44px; min-width: 44px; padding: 8px 6px; font-size: .9rem; }
+.login-top { display: flex; justify-content: flex-end; margin: -8px 0 0; }
 </style>
 </head>
 <body>
 <main>
   <section id="login" class="login hidden">
+    <div class="login-top"><button class="link lang" type="button" data-lang-switch></button></div>
     <h1>Ownhost</h1>
-    <p>Escribe el código de acceso que te dio el dueño del equipo (o el token del agente si es tuyo).</p>
+    <p data-i18n="Escribe el código de acceso que te dio el dueño del equipo (o el token del agente si es tuyo).">Escribe el código de acceso que te dio el dueño del equipo (o el token del agente si es tuyo).</p>
     <form id="login-form">
-      <label for="token" class="hidden">Código de acceso</label>
-      <input id="token" type="password" autocomplete="current-password" placeholder="Código de acceso" required>
-      <button class="primary" type="submit">Entrar</button>
+      <label for="token" class="hidden" data-i18n="Código de acceso">Código de acceso</label>
+      <input id="token" type="password" autocomplete="current-password" placeholder="Código de acceso" data-i18n-placeholder="Código de acceso" required>
+      <button class="primary" type="submit" data-i18n="Entrar">Entrar</button>
       <p class="msg" id="login-msg" role="alert"></p>
     </form>
   </section>
 
   <section id="app" class="hidden">
     <header>
-      <button class="link hidden" id="back" type="button">← Servidores</button>
+      <button class="link hidden" id="back" type="button" data-i18n="← Servidores">← Servidores</button>
       <h1 id="host-name">Ownhost</h1>
       <span class="who" id="who"></span>
-      <button class="link" id="logout" type="button">Salir</button>
+      <button class="link lang" type="button" data-lang-switch></button>
+      <button class="link" id="logout" type="button" data-i18n="Salir">Salir</button>
     </header>
     <p class="msg" id="app-msg" role="alert"></p>
     <div id="servers"></div>
@@ -114,6 +118,136 @@ label.check { display: flex; align-items: center; gap: 10px; padding: 6px 0; }
 
 <script>
 "use strict";
+
+// ---------- i18n ----------
+
+// English translations, keyed by the Spanish text. Spanish is the source language.
+const EN = {
+  "Escribe el código de acceso que te dio el dueño del equipo (o el token del agente si es tuyo).":
+    "Enter the access code the computer's owner gave you (or the agent token if it's your computer).",
+  "Código de acceso": "Access code",
+  "Entrar": "Sign in",
+  "← Servidores": "← Servers",
+  "Salir": "Sign out",
+  "Apagado": "Stopped", "Arrancando": "Starting", "Encendido": "Running", "Apagando": "Stopping", "Caído": "Crashed",
+  "Instalando": "Installing", "Actualizando": "Updating", "Haciendo copia": "Backing up", "Restaurando": "Restoring",
+  "Importando": "Importing", "Instalando mods": "Installing mods", "Clonando": "Cloning",
+  "Dueño": "Owner", "Encender y apagar": "Start and stop", "Moderar": "Moderate", "Gestionar": "Manage",
+  "Código incorrecto": "Wrong code",
+  "Error {status}": "Error {status}",
+  "Código incorrecto. Revísalo, o pide otro al dueño del equipo.": "Wrong code. Check it, or ask the computer's owner for a new one.",
+  "Ese código ya no vale. Pide uno nuevo al dueño del equipo.": "That code no longer works. Ask the computer's owner for a new one.",
+  "Encender": "Start", "Apagar": "Stop", "Reiniciar": "Restart", "Abrir": "Open",
+  "No tienes ningún servidor en este equipo.": "There are no servers on this computer.",
+  "Conectar a: ": "Connect to: ",
+  "Jugando ({n}): {names}": "Playing ({n}): {names}",
+  "No hay nadie jugando.": "Nobody is playing.",
+  "Resumen": "Overview", "Jugadores": "Players", "Consola": "Console", "Copias": "Backups", "Ajustes": "Settings",
+  "Bedrock: puerto {port}": "Bedrock: port {port}",
+  "CPU {cpu} % · RAM {mem} MB": "CPU {cpu}% · RAM {mem} MB",
+  "🗺 Abrir el mapa del mundo": "🗺 Open the world map",
+  "Generando el mundo: {p} %": "Generating the world: {p}%",
+  "Cargando...": "Loading...",
+  "Jugando ahora": "Playing now",
+  "Hoy, {time}": "Today, {time}",
+  "Ayer, {time}": "Yesterday, {time}",
+  "Hecho.": "Done.",
+  "Se aplicará al encender el servidor.": "It will apply when the server starts.",
+  "Nadie.": "Nobody.",
+  "Nombre del jugador": "Player name",
+  "Añadir": "Add",
+  "Hacer operador": "Make operator",
+  "A la lista blanca": "Add to whitelist",
+  "Banear": "Ban",
+  "Conectados ahora": "Online now",
+  "Echar": "Kick",
+  "Operadores": "Operators",
+  "Quitar": "Remove",
+  "Lista blanca": "Whitelist",
+  "Solo pueden entrar los de la lista blanca": "Only whitelisted players can join",
+  "Vacía.": "Empty.",
+  "Baneados": "Banned",
+  "Perdonar": "Pardon",
+  "Estadísticas": "Statistics",
+  "Jugador": "Player", "Tiempo": "Time", "Veces": "Sessions", "Última vez": "Last seen",
+  "Todavía no ha entrado nadie.": "Nobody has joined yet.",
+  "Comando (p. ej. say hola)": "Command (e.g. say hello)",
+  "Comando": "Command",
+  "[Conexión cerrada]": "[Connection closed]",
+  "Copias de seguridad": "Backups",
+  "Haciendo la copia...": "Making the backup...",
+  "Crear copia ahora": "Back up now",
+  " · automática": " · automatic",
+  "Apaga el servidor primero": "Stop the server first",
+  "¿Volver a esta copia? Se pierde lo que se haya jugado después.": "Restore this backup? Anything played after it will be lost.",
+  "Restaurando...": "Restoring...",
+  "Restaurar": "Restore",
+  "Todavía no hay copias.": "No backups yet.",
+  "Guardado. Algunos cambios se aplican al reiniciar el servidor.": "Saved. Some changes apply when the server restarts.",
+  "Guardar": "Save",
+  "Nombre": "Name",
+  "Descripción (lo que se ve en la lista de servidores)": "Description (shown in the server list)",
+  "Jugadores máximos": "Max players",
+  "Memoria máxima (MB)": "Max memory (MB)",
+  "Encender automáticamente cuando arranque el equipo": "Start automatically when the computer boots",
+  "Actualizar automáticamente al encender": "Update automatically on start",
+  "Volver a encenderlo si se cae": "Start it again if it crashes",
+  "Tareas automáticas": "Automatic tasks",
+  "Copia cada (horas, 0 = nunca)": "Back up every (hours, 0 = never)",
+  "Copias a guardar": "Backups to keep",
+  "Reiniciar cada día a las (vacío = no)": "Restart every day at (empty = no)",
+  "Apagar si nadie juega (minutos, 0 = nunca)": "Stop when nobody plays (minutes, 0 = never)",
+  "Mapa del mundo": "World map",
+  "Mods, plugins, archivos, multiplataforma y mapa se gestionan desde la app Ownhost.":
+    "Mods, plugins, files, crossplay and the map are managed from the Ownhost app.",
+  "Sin conexión con el equipo. Reintentando...": "Can't reach the computer. Retrying...",
+};
+
+let lang = "";
+try { lang = localStorage.getItem("ownhost-lang") || ""; } catch (e) {}
+if (lang !== "es" && lang !== "en") lang = /^es\b/i.test(navigator.language || "") ? "es" : "en";
+
+function t(text, values) {
+  let out = lang === "en" && Object.prototype.hasOwnProperty.call(EN, text) ? EN[text] : text;
+  if (values) out = out.replace(/\{(\w+)\}/g, (m, k) => (k in values ? String(values[k]) : m));
+  return out;
+}
+
+const locale = () => (lang === "en" ? "en-US" : "es-ES");
+const num = (n) => Number(n).toLocaleString(locale(), { maximumFractionDigits: 2 });
+
+// Translates the static markup (elements tagged with data-i18n / data-i18n-placeholder).
+function applyStatic() {
+  document.documentElement.lang = lang;
+  for (const node of document.querySelectorAll("[data-i18n]")) node.textContent = t(node.dataset.i18n);
+  for (const node of document.querySelectorAll("[data-i18n-placeholder]")) node.placeholder = t(node.dataset.i18nPlaceholder);
+  const other = lang === "en" ? "es" : "en";
+  for (const b of document.querySelectorAll("[data-lang-switch]")) {
+    b.textContent = other === "en" ? "English" : "Español";
+    b.lang = other;
+    b.setAttribute("aria-label", other === "en" ? "Switch language to English" : "Cambiar el idioma a español");
+  }
+}
+
+function setLang(next) {
+  lang = next;
+  try { localStorage.setItem("ownhost-lang", lang); } catch (e) {}
+  applyStatic();
+  // Messages already shown came from the old language; keep only the offline notice.
+  $("login-msg").textContent = "";
+  const wasOffline = offline;
+  say(wasOffline ? t("Sin conexión con el equipo. Reintentando...") : "");
+  offline = wasOffline;
+  if (!$("app").classList.contains("hidden")) {
+    renderWho();
+    if (openSid) renderDetail(true);
+    else renderList();
+  }
+}
+
+// ---------- state ----------
+
+// Labels are Spanish source texts; they go through t() when rendered.
 const STATUS = {
   stopped: "Apagado", starting: "Arrancando", running: "Encendido", stopping: "Apagando", crashed: "Caído",
   installing: "Instalando", updating: "Actualizando", "backing-up": "Haciendo copia", restoring: "Restaurando",
@@ -124,17 +258,18 @@ const PLAY = 1, MODERATE = 2, MANAGE = 3;
 
 let token = "";
 try { token = localStorage.getItem("ownhost-token") || ""; } catch (e) {}
-let level = 0, info = null, timer = null, typed = false;
+let level = 0, info = null, timer = null, typed = false, offline = false;
 let servers = [], openSid = null, tab = "resumen", ws = null, tabData = {};
 const $ = (id) => document.getElementById(id);
 
 async function api(method, path, body) {
-  const headers = token ? { Authorization: "Bearer " + token } : {};
+  const headers = { "X-Ownhost-Language": lang };
+  if (token) headers.Authorization = "Bearer " + token;
   if (body !== undefined) headers["Content-Type"] = "application/json";
   const r = await fetch("/api" + path, { method, headers, body: body === undefined ? undefined : JSON.stringify(body) });
-  if (r.status === 401) throw Object.assign(new Error("Código incorrecto"), { auth: true });
+  if (r.status === 401) throw Object.assign(new Error(t("Código incorrecto")), { auth: true });
   const data = r.status === 204 ? null : await r.json().catch(() => null);
-  if (!r.ok) throw new Error((data && data.detail) || ("Error " + r.status));
+  if (!r.ok) throw new Error((data && data.detail) || t("Error {status}", { status: r.status }));
   return data;
 }
 
@@ -152,7 +287,7 @@ function el(tag, attrs, ...children) {
   return e;
 }
 
-// Como replaceChildren, pero sin los huecos (null) de las partes que no tocan.
+// Like replaceChildren, but skips the null gaps left by parts that don't apply.
 function put(node, ...children) {
   node.replaceChildren(...children.filter((c) => c != null && c !== false));
 }
@@ -163,8 +298,15 @@ function show(which) {
 }
 
 function say(text, ok) {
+  offline = false;
   $("app-msg").textContent = text || "";
   $("app-msg").classList.toggle("ok-msg", !!ok);
+}
+
+function renderWho() {
+  if (!info) return;
+  const role = ROLES[info.access.role] ? t(ROLES[info.access.role]) : "";
+  $("who").textContent = info.access.name ? info.access.name + " · " + role : role;
 }
 
 async function start() {
@@ -174,13 +316,13 @@ async function start() {
     clearInterval(timer);
     show("login");
     if (token && !e.auth) $("login-msg").textContent = e.message;
-    else if (token) $("login-msg").textContent = typed ? "Código incorrecto. Revísalo, o pide otro al dueño del equipo."
-      : "Ese código ya no vale. Pide uno nuevo al dueño del equipo.";
+    else if (token) $("login-msg").textContent = typed ? t("Código incorrecto. Revísalo, o pide otro al dueño del equipo.")
+      : t("Ese código ya no vale. Pide uno nuevo al dueño del equipo.");
     return;
   }
   level = info.access.level;
   $("host-name").textContent = info.name;
-  $("who").textContent = info.access.name ? info.access.name + " · " + ROLES[info.access.role] : ROLES[info.access.role] || "";
+  renderWho();
   $("logout").classList.toggle("hidden", !token);
   show("app");
   await refresh();
@@ -209,7 +351,11 @@ $("logout").addEventListener("click", () => {
 
 $("back").addEventListener("click", () => { closeServer(); refresh(); });
 
-// La dirección del navegador: si se abrió por Tailscale, los jugadores también pueden usar esa.
+for (const b of document.querySelectorAll("[data-lang-switch]")) {
+  b.addEventListener("click", () => setLang(lang === "en" ? "es" : "en"));
+}
+
+// Addresses players can connect to (LAN and, if available, Tailscale).
 function addresses(s) {
   const out = [];
   if (info.lan_ip) out.push(info.lan_ip);
@@ -222,7 +368,17 @@ function mapUrl(s) {
 }
 
 function statusPill(s) {
-  return el("span", { class: "pill " + (s.task ? "s-busy" : "s-" + s.state) }, STATUS[s.status] || s.status);
+  return el("span", { class: "pill " + (s.task ? "s-busy" : "s-" + s.state) }, STATUS[s.status] ? t(STATUS[s.status]) : s.status);
+}
+
+function playingLine(s) {
+  return el("p", { class: "muted" }, s.players_online.length
+    ? t("Jugando ({n}): {names}", { n: s.players_online.length, names: s.players_online.join(", ") }) : t("No hay nadie jugando."));
+}
+
+function addressLine(s) {
+  return el("p", { class: "muted address" }, t("Conectar a: "),
+    ...addresses(s).flatMap((a, i) => (i ? [" · ", el("b", {}, a)] : [el("b", {}, a)])));
 }
 
 async function act(sid, action, button) {
@@ -234,17 +390,17 @@ async function act(sid, action, button) {
 function powerButtons(s) {
   const busy = !!s.task, on = ["starting", "running", "stopping"].includes(s.state);
   return el("div", { class: "actions" },
-    el("button", { class: "primary", type: "button", disabled: busy || on, onclick: (e) => act(s.id, "start", e.currentTarget) }, "Encender"),
-    el("button", { type: "button", disabled: !["starting", "running"].includes(s.state), onclick: (e) => act(s.id, "stop", e.currentTarget) }, "Apagar"),
-    el("button", { type: "button", disabled: busy || s.state !== "running", onclick: (e) => act(s.id, "restart", e.currentTarget) }, "Reiniciar"));
+    el("button", { class: "primary", type: "button", disabled: busy || on, onclick: (e) => act(s.id, "start", e.currentTarget) }, t("Encender")),
+    el("button", { type: "button", disabled: !["starting", "running"].includes(s.state), onclick: (e) => act(s.id, "stop", e.currentTarget) }, t("Apagar")),
+    el("button", { type: "button", disabled: busy || s.state !== "running", onclick: (e) => act(s.id, "restart", e.currentTarget) }, t("Reiniciar")));
 }
 
-// ---------- lista de servidores ----------
+// ---------- server list ----------
 
 function renderList() {
   const box = $("servers");
   if (!servers.length) {
-    box.replaceChildren(el("p", { class: "empty" }, "No tienes ningún servidor en este equipo."));
+    box.replaceChildren(el("p", { class: "empty" }, t("No tienes ningún servidor en este equipo.")));
     return;
   }
   box.replaceChildren(...servers.map((s) => el("article", { class: "card" },
@@ -253,15 +409,14 @@ function renderList() {
         el("div", { class: "name" }, s.name),
         el("div", { class: "meta" }, `${s.game_name} · ${s.flavor_name || s.flavor} ${s.version === "latest" ? (s.build || "") : s.version}`)),
       statusPill(s)),
-    el("p", { class: "muted address" }, "Conectar a: ", ...addresses(s).flatMap((a, i) => (i ? [" · ", el("b", {}, a)] : [el("b", {}, a)]))),
-    s.state === "running" ? el("p", { class: "muted" }, s.players_online.length
-      ? `Jugando (${s.players_online.length}): ${s.players_online.join(", ")}` : "No hay nadie jugando.") : null,
+    addressLine(s),
+    s.state === "running" ? playingLine(s) : null,
     s.error ? el("p", { class: "error" }, s.error) : null,
     powerButtons(s),
-    el("div", { class: "actions" }, el("button", { type: "button", onclick: () => openServer(s.id) }, "Abrir")))));
+    el("div", { class: "actions" }, el("button", { type: "button", onclick: () => openServer(s.id) }, t("Abrir"))))));
 }
 
-// ---------- un servidor ----------
+// ---------- one server ----------
 
 const TABS = [
   ["resumen", "Resumen", PLAY], ["jugadores", "Jugadores", PLAY], ["consola", "Consola", MODERATE],
@@ -297,16 +452,16 @@ function renderDetail(full) {
   if (!s) { closeServer(); return; }
   const detail = $("detail");
   if (full || !detail.firstChild) {
-    put(detail, 
+    put(detail,
       el("div", { class: "card", id: "head" }),
       el("nav", { class: "tabs", role: "tablist" }, ...TABS.filter(([, , need]) => level >= need)
         .filter(([key]) => key !== "jugadores" || ["minecraft", "bedrock"].includes(s.game))
-        .map(([key, label]) => el("button", { type: "button", role: "tab", "aria-selected": String(key === tab), onclick: () => setTab(key) }, label))),
+        .map(([key, label]) => el("button", { type: "button", role: "tab", "aria-selected": String(key === tab), onclick: () => setTab(key) }, t(label)))),
       el("div", { id: "pane" }));
     loadTab(s);
   }
-  // La cabecera se actualiza con cada sondeo; el contenido de la pestaña, solo al cambiar.
-  put($("head"), 
+  // The header refreshes on every poll; the tab content only when the tab changes.
+  put($("head"),
     el("div", { class: "server-head" },
       el("div", { class: "grow" }, el("div", { class: "name" }, s.name),
         el("div", { class: "meta" }, `${s.game_name} · ${s.flavor_name || s.flavor} ${s.version === "latest" ? (s.build || "") : s.version}`)),
@@ -321,20 +476,19 @@ function renderSummary(s) {
   const url = mapUrl(s);
   const p = s.pregen;
   put($("pane"), el("div", { class: "card" },
-    el("p", { class: "muted address" }, "Conectar a: ", ...addresses(s).flatMap((a, i) => (i ? [" · ", el("b", {}, a)] : [el("b", {}, a)]))),
-    s.crossplay ? el("p", { class: "muted" }, `Bedrock: puerto ${s.crossplay.bedrock_port}`) : null,
-    s.state === "running" ? el("p", { class: "muted" }, s.players_online.length
-      ? `Jugando (${s.players_online.length}): ${s.players_online.join(", ")}` : "No hay nadie jugando.") : null,
-    st.cpu_percent != null ? el("p", { class: "muted" }, `CPU ${st.cpu_percent} % · RAM ${st.memory_mb} MB`) : null,
-    url ? el("p", {}, el("a", { href: url, target: "_blank", rel: "noopener" }, "🗺 Abrir el mapa del mundo")) : null,
-    p && p.state === "running" ? el("p", { class: "muted" }, `Generando el mundo: ${Math.round(p.percent)} %`) : null));
+    addressLine(s),
+    s.crossplay ? el("p", { class: "muted" }, t("Bedrock: puerto {port}", { port: s.crossplay.bedrock_port })) : null,
+    s.state === "running" ? playingLine(s) : null,
+    st.cpu_percent != null ? el("p", { class: "muted" }, t("CPU {cpu} % · RAM {mem} MB", { cpu: num(st.cpu_percent), mem: num(st.memory_mb) })) : null,
+    url ? el("p", {}, el("a", { href: url, target: "_blank", rel: "noopener" }, t("🗺 Abrir el mapa del mundo"))) : null,
+    p && p.state === "running" ? el("p", { class: "muted" }, t("Generando el mundo: {p} %", { p: num(Math.round(p.percent)) })) : null));
 }
 
 async function loadTab(s) {
   const pane = $("pane");
   if (tab === "resumen") return renderSummary(s);
   if (tab === "consola") return openConsole(s);
-  pane.replaceChildren(el("p", { class: "muted" }, "Cargando..."));
+  pane.replaceChildren(el("p", { class: "muted" }, t("Cargando...")));
   try {
     if (tab === "jugadores") {
       const [players, stats] = await Promise.all([api("GET", `/servers/${s.id}/players`), api("GET", `/servers/${s.id}/stats`)]);
@@ -351,7 +505,7 @@ async function loadTab(s) {
   }
 }
 
-// ---------- jugadores ----------
+// ---------- players ----------
 
 function hours(sec) {
   const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60);
@@ -359,19 +513,19 @@ function hours(sec) {
 }
 
 function when(ts, online) {
-  if (online) return "Jugando ahora";
+  if (online) return t("Jugando ahora");
   const d = new Date(ts * 1000), today = new Date();
-  const time = d.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" });
-  if (d.toDateString() === today.toDateString()) return "Hoy, " + time;
+  const time = d.toLocaleTimeString(locale(), { hour: "2-digit", minute: "2-digit" });
+  if (d.toDateString() === today.toDateString()) return t("Hoy, {time}", { time });
   const y = new Date(today); y.setDate(today.getDate() - 1);
-  if (d.toDateString() === y.toDateString()) return "Ayer, " + time;
-  return d.toLocaleDateString("es-ES");
+  if (d.toDateString() === y.toDateString()) return t("Ayer, {time}", { time });
+  return d.toLocaleDateString(locale());
 }
 
 async function playerAction(s, action, name) {
   try {
     await api("POST", `/servers/${s.id}/players`, { action, name });
-    say(s.state === "running" ? "Hecho." : "Se aplicará al encender el servidor.", true);
+    say(s.state === "running" ? t("Hecho.") : t("Se aplicará al encender el servidor."), true);
     setTimeout(() => tab === "jugadores" && loadTab(s), 1200);
   } catch (e) { say(e.message); }
 }
@@ -380,42 +534,42 @@ function renderPlayers(s, data, stats) {
   const canEdit = level >= MODERATE;
   const list = (title, names, buttons) => el("div", { class: "card" }, el("h2", {}, title),
     names.length ? el("ul", { class: "list" }, ...names.map((n) => el("li", {}, el("span", { class: "grow" }, n),
-      ...(canEdit ? buttons(n) : [])))) : el("p", { class: "muted" }, "Nadie."));
-  const name = el("input", { placeholder: "Nombre del jugador", autocomplete: "off", autocapitalize: "off" });
+      ...(canEdit ? buttons(n) : [])))) : el("p", { class: "muted" }, t("Nadie.")));
+  const name = el("input", { placeholder: t("Nombre del jugador"), autocomplete: "off", autocapitalize: "off" });
   const withName = (action) => () => name.value.trim() && playerAction(s, action, name.value.trim());
   const bans = (data.supports || []).includes("ban");
-  put($("pane"), 
-    canEdit ? el("div", { class: "card" }, el("h2", {}, "Añadir"), name,
+  put($("pane"),
+    canEdit ? el("div", { class: "card" }, el("h2", {}, t("Añadir")), name,
       el("div", { class: "actions" },
-        el("button", { type: "button", onclick: withName("op") }, "Hacer operador"),
-        el("button", { type: "button", onclick: withName("whitelist_add") }, "A la lista blanca"),
-        bans ? el("button", { class: "danger", type: "button", onclick: withName("ban") }, "Banear") : null)) : null,
-    list("Conectados ahora", data.online || [], (n) => [
-      el("button", { class: "small", type: "button", onclick: () => playerAction(s, "kick", n) }, "Echar")]),
-    list("Operadores", data.ops || [], (n) => [
-      el("button", { class: "small", type: "button", onclick: () => playerAction(s, "deop", n) }, "Quitar")]),
-    el("div", { class: "card" }, el("h2", {}, "Lista blanca"),
+        el("button", { type: "button", onclick: withName("op") }, t("Hacer operador")),
+        el("button", { type: "button", onclick: withName("whitelist_add") }, t("A la lista blanca")),
+        bans ? el("button", { class: "danger", type: "button", onclick: withName("ban") }, t("Banear")) : null)) : null,
+    list(t("Conectados ahora"), data.online || [], (n) => [
+      el("button", { class: "small", type: "button", onclick: () => playerAction(s, "kick", n) }, t("Echar"))]),
+    list(t("Operadores"), data.ops || [], (n) => [
+      el("button", { class: "small", type: "button", onclick: () => playerAction(s, "deop", n) }, t("Quitar"))]),
+    el("div", { class: "card" }, el("h2", {}, t("Lista blanca")),
       el("label", { class: "check" }, el("input", { type: "checkbox", checked: data.whitelist_enabled, disabled: !canEdit,
         onchange: (e) => playerAction(s, e.target.checked ? "whitelist_on" : "whitelist_off", "") }),
-        "Solo pueden entrar los de la lista blanca"),
+        t("Solo pueden entrar los de la lista blanca")),
       (data.whitelist || []).length ? el("ul", { class: "list" }, ...data.whitelist.map((n) => el("li", {},
-        el("span", { class: "grow" }, n), canEdit ? el("button", { class: "small", type: "button", onclick: () => playerAction(s, "whitelist_remove", n) }, "Quitar") : null)))
-        : el("p", { class: "muted" }, "Vacía.")),
-    bans ? list("Baneados", data.banned || [], (n) => [
-      el("button", { class: "small", type: "button", onclick: () => playerAction(s, "pardon", n) }, "Perdonar")]) : null,
-    el("div", { class: "card" }, el("h2", {}, "Estadísticas"),
+        el("span", { class: "grow" }, n), canEdit ? el("button", { class: "small", type: "button", onclick: () => playerAction(s, "whitelist_remove", n) }, t("Quitar")) : null)))
+        : el("p", { class: "muted" }, t("Vacía."))),
+    bans ? list(t("Baneados"), data.banned || [], (n) => [
+      el("button", { class: "small", type: "button", onclick: () => playerAction(s, "pardon", n) }, t("Perdonar"))]) : null,
+    el("div", { class: "card" }, el("h2", {}, t("Estadísticas")),
       stats.length ? el("table", { class: "table" },
-        el("thead", {}, el("tr", {}, el("th", {}, "Jugador"), el("th", {}, "Tiempo"), el("th", {}, "Veces"), el("th", {}, "Última vez"))),
+        el("thead", {}, el("tr", {}, el("th", {}, t("Jugador")), el("th", {}, t("Tiempo")), el("th", {}, t("Veces")), el("th", {}, t("Última vez")))),
         el("tbody", {}, ...stats.map((r) => el("tr", {}, el("td", {}, r.name), el("td", {}, hours(r.seconds)),
-          el("td", {}, String(r.sessions)), el("td", {}, when(r.last_seen, r.online))))))
-        : el("p", { class: "muted" }, "Todavía no ha entrado nadie.")));
+          el("td", {}, num(r.sessions)), el("td", {}, when(r.last_seen, r.online))))))
+        : el("p", { class: "muted" }, t("Todavía no ha entrado nadie."))));
 }
 
-// ---------- consola ----------
+// ---------- console ----------
 
 function openConsole(s) {
   const pre = el("pre", { "aria-live": "off" });
-  const input = el("input", { placeholder: s.game === "minecraft" ? "Comando (p. ej. say hola)" : "Comando",
+  const input = el("input", { placeholder: s.game === "minecraft" ? t("Comando (p. ej. say hola)") : t("Comando"),
                               autocomplete: "off", autocapitalize: "off", spellcheck: "false" });
   put($("pane"), el("div", { class: "card console" }, pre, input));
   const proto = location.protocol === "https:" ? "wss" : "ws";
@@ -428,7 +582,7 @@ function openConsole(s) {
     if (pre.textContent.length > 200000) pre.textContent = pre.textContent.slice(-150000);
     if (atBottom) pre.scrollTop = pre.scrollHeight;
   };
-  ws.onclose = () => { if (ws === mine) pre.textContent += "\n[Conexión cerrada]"; };
+  ws.onclose = () => { if (ws === mine) pre.textContent += "\n" + t("[Conexión cerrada]"); };
   input.addEventListener("keydown", (ev) => {
     if (ev.key !== "Enter" || !input.value.trim()) return;
     const text = input.value.trim();
@@ -437,30 +591,30 @@ function openConsole(s) {
   });
 }
 
-// ---------- copias ----------
+// ---------- backups ----------
 
 function renderBackups(s, backups) {
   const canRestore = level >= MANAGE;
   put($("pane"), el("div", { class: "card" },
-    el("div", { class: "row" }, el("h2", {}, "Copias de seguridad"),
+    el("div", { class: "row" }, el("h2", {}, t("Copias de seguridad")),
       el("button", { class: "primary", type: "button", disabled: !!s.task, onclick: async (e) => {
         e.currentTarget.disabled = true;
-        try { await api("POST", `/servers/${s.id}/backup`); say("Haciendo la copia...", true); } catch (err) { say(err.message); }
+        try { await api("POST", `/servers/${s.id}/backup`); say(t("Haciendo la copia..."), true); } catch (err) { say(err.message); }
         setTimeout(() => tab === "copias" && loadTab(s), 4000);
-      } }, "Crear copia ahora")),
+      } }, t("Crear copia ahora"))),
     backups.length ? el("ul", { class: "list" }, ...backups.map((b) => el("li", {},
-      el("span", { class: "grow" }, new Date(b.created).toLocaleString("es-ES"), el("br"),
-        el("span", { class: "muted" }, `${String(b.size_mb).replace(".", ",")} MB${b.name.includes("-auto") ? " · automática" : ""}`)),
+      el("span", { class: "grow" }, new Date(b.created).toLocaleString(locale()), el("br"),
+        el("span", { class: "muted" }, `${num(b.size_mb)} MB${b.name.includes("-auto") ? t(" · automática") : ""}`)),
       canRestore ? el("button", { class: "small danger", type: "button", disabled: s.state !== "stopped" && s.state !== "crashed",
-        title: "Apaga el servidor primero", onclick: async () => {
-          if (!confirm("¿Volver a esta copia? Se pierde lo que se haya jugado después.")) return;
-          try { await api("POST", `/servers/${s.id}/backups/${encodeURIComponent(b.name)}/restore`); say("Restaurando...", true); }
+        title: t("Apaga el servidor primero"), onclick: async () => {
+          if (!confirm(t("¿Volver a esta copia? Se pierde lo que se haya jugado después."))) return;
+          try { await api("POST", `/servers/${s.id}/backups/${encodeURIComponent(b.name)}/restore`); say(t("Restaurando..."), true); }
           catch (err) { say(err.message); }
-        } }, "Restaurar") : null)))
-      : el("p", { class: "muted" }, "Todavía no hay copias.")));
+        } }, t("Restaurar")) : null)))
+      : el("p", { class: "muted" }, t("Todavía no hay copias."))));
 }
 
-// ---------- ajustes ----------
+// ---------- settings ----------
 
 function renderSettings(s, props) {
   const sched = s.schedule || {};
@@ -478,8 +632,8 @@ function renderSettings(s, props) {
     restart: el("input", { type: "time", value: sched.restart_at || "" }),
     idle: el("input", { type: "number", min: 0, max: 1440, step: 5, value: sched.idle_stop_minutes || 0 }),
   };
-  const field = (label, input) => el("label", { class: "field" }, el("span", {}, label), input);
-  const check = (label, input) => el("label", { class: "check" }, input, label);
+  const field = (label, input) => el("label", { class: "field" }, el("span", {}, t(label)), input);
+  const check = (label, input) => el("label", { class: "check" }, input, t(label));
   const save = el("button", { class: "primary", type: "button", onclick: async () => {
     save.disabled = true;
     try {
@@ -493,10 +647,10 @@ function renderSettings(s, props) {
         if (java) changes.motd = f.motd.value;
         await api("PUT", `/servers/${s.id}/properties`, changes);
       }
-      say("Guardado. Algunos cambios se aplican al reiniciar el servidor.", true);
+      say(t("Guardado. Algunos cambios se aplican al reiniciar el servidor."), true);
     } catch (e) { say(e.message); }
     save.disabled = false;
-  } }, "Guardar");
+  } }, t("Guardar"));
   const url = mapUrl(s);
   put($("pane"), el("div", { class: "card" },
     field("Nombre", f.name),
@@ -506,31 +660,33 @@ function renderSettings(s, props) {
     check("Encender automáticamente cuando arranque el equipo", f.autostart),
     check("Actualizar automáticamente al encender", f.autoupdate),
     check("Volver a encenderlo si se cae", f.autorestart),
-    el("h3", {}, "Tareas automáticas"),
+    el("h3", {}, t("Tareas automáticas")),
     el("div", { class: "row" }, field("Copia cada (horas, 0 = nunca)", f.backup), field("Copias a guardar", f.keep)),
     el("div", { class: "row" }, field("Reiniciar cada día a las (vacío = no)", f.restart),
       ["minecraft", "bedrock"].includes(s.game) ? field("Apagar si nadie juega (minutos, 0 = nunca)", f.idle) : null),
     el("div", { class: "actions" }, save)),
-    url ? el("div", { class: "card" }, el("h2", {}, "Mapa del mundo"),
+    url ? el("div", { class: "card" }, el("h2", {}, t("Mapa del mundo")),
       el("p", {}, el("a", { href: url, target: "_blank", rel: "noopener" }, url))) : null,
-    el("p", { class: "muted" }, "Mods, plugins, archivos, multiplataforma y mapa se gestionan desde la app Ownhost."));
+    el("p", { class: "muted" }, t("Mods, plugins, archivos, multiplataforma y mapa se gestionan desde la app Ownhost.")));
 }
 
-// ---------- sondeo ----------
+// ---------- polling ----------
 
 async function refresh() {
   try {
     servers = await api("GET", "/servers");
   } catch (e) {
     if (e.auth) return start();
-    say("Sin conexión con el equipo. Reintentando...");
+    say(t("Sin conexión con el equipo. Reintentando..."));
+    offline = true;
     return;
   }
-  if ($("app-msg").textContent.startsWith("Sin conexión")) say("");
+  if (offline) say("");
   if (openSid) renderDetail(false);
   else renderList();
 }
 
+applyStatic();
 start();
 </script>
 </body>

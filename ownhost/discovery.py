@@ -1,7 +1,7 @@
-"""Descubrimiento de agentes en la red local por difusión UDP.
+"""Discovery of agents on the local network via UDP broadcast.
 
-La app envía un mensaje de difusión al puerto del agente (UDP) y cada agente responde con su
-nombre y puerto. No se comparte el token: hace falta introducirlo para conectar.
+The app sends a broadcast message to the agent's port (UDP) and each agent answers with its
+name and port. The token is not shared: it must be entered to connect.
 """
 
 import asyncio
@@ -32,7 +32,7 @@ class _Responder(asyncio.DatagramProtocol):
 
 
 async def start_responder(bind: str, port: int, info: dict) -> asyncio.DatagramTransport | None:
-    """Arranca el respondedor dentro del agente. Si el puerto UDP está ocupado, se omite."""
+    """Starts the responder inside the agent. If the UDP port is taken, it is skipped."""
     loop = asyncio.get_running_loop()
     try:
         transport, _ = await loop.create_datagram_endpoint(lambda: _Responder(info), local_addr=(bind, port))
@@ -42,7 +42,7 @@ async def start_responder(bind: str, port: int, info: dict) -> asyncio.DatagramT
 
 
 def _broadcast_addresses() -> set[str]:
-    """Dirección de difusión de cada red local (192.168.1.255...), además de la genérica."""
+    """Broadcast address of each local network (192.168.1.255...), plus the generic one."""
     targets = {"255.255.255.255"}
     for addrs in psutil.net_if_addrs().values():
         for a in addrs:
@@ -58,7 +58,7 @@ def _broadcast_addresses() -> set[str]:
 
 
 def discover(port: int, timeout: float = TIMEOUT) -> list[dict]:
-    """Busca agentes en las redes locales: [{name, hostname, address, port, version}]."""
+    """Looks for agents on the local networks: [{name, hostname, address, port, version}]."""
     found: dict[tuple[str, int], dict] = {}
     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
         s.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
@@ -81,8 +81,8 @@ def discover(port: int, timeout: float = TIMEOUT) -> list[dict]:
             except ValueError:
                 continue
             info["address"] = address
-            # Un mismo equipo puede responder por varias redes (Wi-Fi, VPN, WSL...): uno por equipo,
-            # quedándonos con la dirección de la red local principal si la hay.
+            # The same computer may answer through several networks (Wi-Fi, VPN, WSL...): one per computer,
+            # keeping the main local network address if there is one.
             key = (info.get("hostname") or address, info.get("port", port))
             if key not in found or _same_lan(address):
                 found[key] = info

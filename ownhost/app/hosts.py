@@ -1,4 +1,4 @@
-"""Equipos (agentes) que gestiona la app, y arranque del agente local."""
+"""Computers (agents) managed by the app, and starting the local agent."""
 
 import json
 import os
@@ -53,10 +53,10 @@ def local_agent_config() -> dict | None:
 
 
 def kill_local_agents(port: int) -> int:
-    """Cierra el agente de este PC que escucha en `port` (para sustituirlo por una versión nueva).
+    """Closes this PC's agent listening on `port` (to replace it with a new version).
 
-    Solo ese proceso y su lanzador (el exe de un solo archivo arranca un proceso hijo), nunca otros.
-    Se usa después de apagar los servidores, para no dejar ningún juego huérfano.
+    Only that process and its launcher (the one-file exe starts a child process), never others.
+    Used after stopping the servers, so no game is left orphaned.
     """
     import psutil
 
@@ -84,31 +84,31 @@ def kill_local_agents(port: int) -> int:
 
 
 def launch_local_agent() -> None:
-    """Arranca el agente de este PC en segundo plano, independiente de la app.
+    """Starts this PC's agent in the background, independent of the app.
 
-    Así los servidores siguen encendidos aunque cierres la ventana.
+    That way the servers keep running even if you close the window.
     """
     data_dir = default_data_dir()
     data_dir.mkdir(parents=True, exist_ok=True)
     log = open(data_dir / "agent.log", "ab")
     if os.environ.get("APPIMAGE"):
-        # Dentro de un AppImage: se relanza el propio .AppImage, porque la carpeta montada de esta
-        # ventana desaparece al cerrarla y el agente se quedaría sin sus archivos.
+        # Inside an AppImage: relaunch the .AppImage itself, because this window's mounted folder
+        # disappears when it closes and the agent would be left without its files.
         cmd = [os.environ["APPIMAGE"], "--agent"]
     elif getattr(sys, "frozen", False):
-        # Empaquetado como .exe: el propio ejecutable hace de agente.
+        # Packaged as an .exe: the executable itself acts as the agent.
         cmd = [sys.executable, "--agent"]
     else:
         python = Path(sys.executable)
-        # Con pythonw.exe no aparece ninguna ventana de consola en Windows.
+        # With pythonw.exe no console window appears on Windows.
         if sys.platform == "win32" and python.name.lower() == "python.exe":
             pythonw = python.with_name("pythonw.exe")
             if pythonw.exists():
                 python = pythonw
         cmd = [str(python), "-m", "ownhost.agent"]
-    # Sin esto, el agente reutilizaría la carpeta temporal de la app empaquetada (onefile), que se
-    # borra al cerrar la ventana: el agente seguiría vivo pero sin sus archivos internos.
-    # Además, entorno del sistema sin las bibliotecas de esta app (en Linux, /bin/sh fallaría).
+    # Without this, the agent would reuse the packaged (onefile) app's temp folder, which is
+    # deleted when the window closes: the agent would stay alive but without its internal files.
+    # Also, the system environment without this app's libraries (on Linux, /bin/sh would fail).
     kwargs = {"env": clean_env({"PYINSTALLER_RESET_ENVIRONMENT": "1"})}
     if sys.platform == "win32":
         kwargs["creationflags"] = subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP

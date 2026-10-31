@@ -1,362 +1,375 @@
+Español: [README.es.md](README.es.md)
+
 # Ownhost
 
-Monta tus propios servidores de **Minecraft Java** (Vanilla, Paper, Fabric, Forge, NeoForge), **Minecraft Bedrock** y **Hytale** en tus propios equipos: tu PC, un portátil que no uses o un servidor casero. Con la app (Windows y Linux) los creas, enciendes, apagas, actualizas y haces copias de seguridad desde cualquier PC de tu red local o de tu Tailscale. Sin alquilar nada ni depender de servicios de terceros.
+Run your own **Minecraft Java** (Vanilla, Paper, Fabric, Forge, NeoForge), **Minecraft Bedrock** and **Hytale** servers on your own computers: your PC, a laptop you no longer use, or a home server. With the app (Windows and Linux) you create, start, stop, update and back them up from any PC on your local network or your Tailscale network. No renting anything, no relying on third-party services.
 
-## Cómo funciona
+## How it works
 
 ```
- ┌──────────────┐        HTTP + WebSocket (puerto 8765)       ┌─────────────────────┐
- │  App (GUI)   │ ──────────────────────────────────────────▶ │ Agente  (equipo A)  │──▶ servidores
- │  PySide6     │ ──────────────────────────────────────────▶ │ Agente  (equipo B)  │──▶ servidores
+ ┌──────────────┐        HTTP + WebSocket (port 8765)         ┌─────────────────────┐
+ │  App (GUI)   │ ──────────────────────────────────────────▶ │ Agent (computer A)  │──▶ servers
+ │  PySide6     │ ──────────────────────────────────────────▶ │ Agent (computer B)  │──▶ servers
  └──────────────┘                                             └─────────────────────┘
 ```
 
-- **Agente** (`ownhost/agent`): un pequeño servicio que corre en cada equipo que hospeda servidores. Descarga los juegos y la versión de Java que necesita cada uno, arranca y para los procesos y guarda las copias de seguridad. Si cierras la app, los servidores siguen encendidos.
-- **App** (`ownhost/app`): la ventana desde la que gestionas todos los agentes de la red.
+- **Agent** (`ownhost/agent`): a small service that runs on every computer that hosts servers. It downloads the games and the Java version each one needs, starts and stops the processes, and stores the backups. If you close the app, the servers keep running.
+- **App** (`ownhost/app`): the window you use to manage every agent on your network.
 
-Cada agente genera un **token** la primera vez que arranca. La app lo necesita para conectarse a él.
+Each agent generates a **token** the first time it starts. The app needs it to connect.
 
-## Instalación
+## Installation
 
-Descarga la última versión desde [Releases](https://github.com/jmgamer1199/ownhost/releases). No hace falta instalar Python ni nada más.
+Download the latest version from [Releases](https://github.com/jmgamer1199/ownhost/releases). You don't need to install Python or anything else.
+
+The app can be used in English or Spanish (**Settings → Language**), and the web panel has a language switch too.
 
 ### Windows
 
-Descarga `Ownhost.exe`, guárdalo donde quieras y ábrelo:
+Download `Ownhost.exe`, save it wherever you like and open it:
 
-- **Para hospedar servidores en ese PC**, pulsa **«Usar este PC como servidor»**. El mismo programa se queda en segundo plano como agente.
-- **Para gestionar otro equipo**, pulsa **«Conectar a un equipo por IP»** e introduce su IP, puerto y token. En el otro equipo, el botón **«Copiar token»** de su ficha te da el token.
+- **To host servers on that PC**, click **"Use this PC as a server"**. The same program stays in the background as the agent.
+- **To manage another computer**, click **"Connect to a computer by IP"** and enter its IP, port and token. On the other computer, the **"Copy token"** button on its card gives you the token.
 
-Si Windows pregunta por el cortafuegos, permite el acceso en redes privadas para que los demás equipos y los jugadores puedan conectarse.
+If Windows asks about the firewall, allow access on private networks so other computers and players can connect.
 
-### Linux con escritorio
+### Linux with a desktop
 
-Descarga `Ownhost-x86_64.AppImage`, dale permiso de ejecución (`chmod +x Ownhost-x86_64.AppImage`) y ábrelo con doble clic. Con `instalar-app-linux.sh` (en la misma página) se copia a `~/Applications` y se añade al menú con su icono.
+Download `Ownhost-x86_64.AppImage`, make it executable (`chmod +x Ownhost-x86_64.AppImage`) and double-click it. `install-app-linux.sh` (on the same page) copies it to `~/Applications` and adds it to the menu with its icon.
 
-Funciona en casi cualquier distribución actual: Debian 10+, Ubuntu 20.04+, Fedora, Arch, openSUSE, RHEL/Rocky/Alma 8+ y derivadas (no en las que usan musl, como Alpine). Si la ventana no abre, faltan bibliotecas gráficas; en Debian/Ubuntu: `sudo apt install libgl1 libegl1 libxcb-cursor0`.
+It works on almost any current distribution: Debian 10+, Ubuntu 20.04+, Fedora, Arch, openSUSE, RHEL/Rocky/Alma 8+ and their derivatives (not on musl-based ones such as Alpine). If the window doesn't open, some graphics libraries are missing; on Debian/Ubuntu: `sudo apt install libgl1 libegl1 libxcb-cursor0`.
 
-### Linux sin escritorio (solo el agente)
+### Linux without a desktop (agent only)
 
-Para un equipo que solo hospeda servidores, descarga `Ownhost` e `instalar-agente-servicio.sh` en una misma carpeta y ejecuta:
+For a computer that only hosts servers, download `Ownhost` and `install-agent-service.sh` into the same folder and run:
 
 ```bash
-sudo bash instalar-agente-servicio.sh
+sudo bash install-agent-service.sh
 ```
 
-El script instala el agente como servicio `systemd` (arranca solo con el equipo, aunque nadie inicie sesión), abre los puertos en `ufw` si está activo y al final muestra la IP y el token. En la app de otro equipo, pulsa **«Conectar a un equipo»**, elígelo en «Detectados» y pega el token.
+The script installs the agent as a `systemd` service (it starts with the computer, even if nobody logs in), opens the ports in `ufw` if it is active, and finally shows the IP and token. In the app on another computer, click **"Connect to a computer"**, pick it under "Found on your network" and paste the token.
 
-Si es un portátil y quieres que los servidores sigan funcionando con la tapa cerrada **mientras está enchufado**:
+If it's a laptop and you want the servers to keep running with the lid closed **while it's plugged in**:
 
 ```bash
 sudo mkdir -p /etc/systemd/logind.conf.d
-printf '[Login]\nHandleLidSwitchExternalPower=ignore\nHandleLidSwitchDocked=ignore\n' | sudo tee /etc/systemd/logind.conf.d/10-tapa-cerrada.conf
-sudo systemctl kill -s HUP systemd-logind   # aplica el cambio sin cerrar tu sesión
+printf '[Login]\nHandleLidSwitchExternalPower=ignore\nHandleLidSwitchDocked=ignore\n' | sudo tee /etc/systemd/logind.conf.d/10-lid-closed.conf
+sudo systemctl kill -s HUP systemd-logind   # applies the change without logging you out
 ```
 
-Para que tampoco se suspenda con batería, añade también `HandleLidSwitch=ignore`; no es recomendable si lo guardas cerrado en una mochila (se calienta y se descarga). No uses `systemctl restart systemd-logind`: en muchos escritorios cierra la sesión.
+To keep it from suspending on battery as well, also add `HandleLidSwitch=ignore`; this isn't recommended if you carry it closed in a backpack (it heats up and drains the battery). Don't use `systemctl restart systemd-logind`: on many desktops it ends your session.
 
-## Equipos detectados automáticamente
+## Automatically found computers
 
-Cada 30 segundos la app busca otros equipos con Ownhost, en la red local (por difusión UDP) y en Tailscale (preguntando a cada dispositivo conectado).
+Every 30 seconds the app looks for other computers running Ownhost, on the local network (via UDP broadcast) and on Tailscale (by asking each connected device).
 
-- **Tailscale, misma cuenta:** si el otro equipo está en tu Tailscale con tu misma cuenta, la app **lo añade sola y sin token**. Lo gestionas como cualquier otro equipo tuyo, también desde fuera de casa. El agente pregunta a Tailscale de quién es cada conexión (`tailscale whois`) y solo deja pasar dispositivos de su misma cuenta que lleguen por la interfaz de Tailscale.
-- **Resto de equipos** (solo red local, o Tailscale de otra persona): aparecen en **«Detectados en tu red»**. Al pulsar uno, la app pide su token **una vez**.
-- Si quitas un equipo de la lista, no se vuelve a añadir solo; sigue apareciendo en «Detectados».
-- Para desactivar el acceso sin token por Tailscale en un equipo, pon `"trust_tailscale": false` en su `agent.json`.
+- **Tailscale, same account:** if the other computer is on your Tailscale network under your own account, the app **adds it by itself, with no token**. You manage it like any other computer of yours, even from outside your home. The agent asks Tailscale who owns each connection (`tailscale whois`) and only lets in devices from its own account that arrive through the Tailscale interface.
+- **Other computers** (local network only, or someone else's Tailscale): they appear under **"Found on your network"**. When you click one, the app asks for its token **once**.
+- If you remove a computer from the list, it isn't added back automatically; it still shows up under "Found on your network".
+- To turn off token-free access over Tailscale on a computer, set `"trust_tailscale": false` in its `agent.json`.
 
 ## Tailscale
 
-Si un equipo tiene Tailscale activo, la app lo detecta:
+If a computer has Tailscale running, the app detects it:
 
-- **Al conectar a un equipo**, el diálogo muestra una lista con los ordenadores de tu red Tailscale. Al elegir uno se rellenan su nombre y su IP.
-- **En la ficha de cada servidor**, «Conectar a» muestra la IP de la red local y la de Tailscale. Los amigos que estén en tu tailnet pueden entrar desde fuera de casa sin abrir puertos en el router.
-- **En la ficha de cada equipo** aparece también su IP de Tailscale, para gestionarlo desde fuera de casa.
+- **When connecting to a computer**, the dialog shows a list of the machines on your Tailscale network. Picking one fills in its name and IP.
+- **On each server's card**, "Connect to" shows the local network IP and the Tailscale IP. Friends on your tailnet can join from outside your home without opening ports on the router.
+- **On each computer's card** its Tailscale IP is shown too, so you can manage it from outside your home.
 
-## Puertos
+## Ports
 
-| Para qué | Puerto |
+| Purpose | Port |
 |---|---|
-| Agente (app ↔ agente) | 8765/TCP |
-| Minecraft | 25565/TCP (el siguiente libre si ya está ocupado) |
-| Minecraft Bedrock | 19132/UDP y 19133/UDP (los siguientes libres si hay varios) |
+| Agent (app ↔ agent) | 8765/TCP |
+| Minecraft | 25565/TCP (the next free one if it's already taken) |
+| Minecraft Bedrock | 19132/UDP and 19133/UDP (the next free ones if there are several) |
 | Hytale | 5520/UDP |
-| Bedrock con Geyser (multiplataforma) | 19132/UDP (19133, 19134... si hay varios servidores) |
-| Mapa web (BlueMap) | 8100/TCP (8101, 8102... si hay varios servidores) |
+| Bedrock via Geyser (crossplay) | 19132/UDP (19133, 19134... if there are several servers) |
+| Web map (BlueMap) | 8100/TCP (8101, 8102... if there are several servers) |
 
-## Multiplataforma (Bedrock)
+## Crossplay (Bedrock)
 
-Los servidores **Paper, Fabric y NeoForge** pueden admitir también jugadores de **Minecraft Bedrock** (móvil, consolas, Windows) gracias a [Geyser](https://geysermc.org/). Puedes activarlo al crear el servidor o después, en **Ajustes → Multiplataforma**.
+**Paper, Fabric and NeoForge** servers can also accept **Minecraft Bedrock** players (mobile, consoles, Windows) thanks to [Geyser](https://geysermc.org/). You can turn it on when creating the server or later, under **Settings → Crossplay**.
 
-- Geyser se instala solo. En Paper también se añade ViaVersion si el servidor no es de la última versión de Minecraft, y en Fabric también Fabric API.
-- **Floodgate** (activado por defecto) deja entrar a los jugadores de Bedrock sin cuenta de Java.
-- Cada servidor recibe su propio puerto para Bedrock, que se muestra en «Conectar a», más el siguiente para NetherNet. Por ejemplo: 19132 en TCP y UDP, y 19133 en UDP.
-- Lo que ven los jugadores de Bedrock: el **nombre** del servidor es el de la app; Geyser lo recibe en cada arranque, porque si no enseñaría «Geyser». La **descripción** y el **límite de jugadores** son los mismos que en Java. Se editan en **Ajustes** («Descripción» y «Jugadores máximos», que corresponden a `motd` y `max-players` de `server.properties`), y Geyser los copia.
-- Geyser se configura con `transport: both`, es decir, NetherNet (Bedrock 26.60+) y RakNet a la vez. Con solo NetherNet, las consolas de la misma red no veían el servidor en la pestaña de Amigos como partida LAN.
-- Vanilla y Forge no son compatibles: Geyser no tiene versión para ellos.
-- **Extras** (en Ajustes → Multiplataforma, una vez activada):
-  - **Consolas en la pestaña Amigos (MCXboxBroadcast):** Switch, Xbox y PlayStation no pueden añadir servidores por IP. Geyser tampoco anuncia el servidor en la red local con NetherNet (puerto 7551), así que no aparece como partida LAN. Con esta extensión, el servidor inicia sesión con una cuenta de Microsoft **secundaria** y aparece como partida de un amigo. La app abre una ventana para iniciar sesión y luego muestra a qué cuenta hay que añadir como amigo.
-  - **ThirdPartyCosmetics:** los jugadores de Bedrock ven las capas y orejas de los de Java.
-  - **EmoteOffhand:** cambiar el objeto de la mano secundaria con un gesto.
-  - El paquete que iguala Bedrock a Java (GeyserIntegratedPack, antes GeyserOptionalPack) ya viene incluido en Geyser.
-- En consolas (Switch, Xbox, PlayStation) no se puede añadir un servidor por IP directamente. Hace falta un truco como [BedrockConnect](https://github.com/Pugmatt/BedrockConnect). En móvil y Windows sí se añade por IP y puerto.
+- Geyser installs itself. On Paper, ViaVersion is also added if the server isn't on the latest Minecraft version, and on Fabric, Fabric API is added too.
+- **Floodgate** (on by default) lets Bedrock players join without a Java account.
+- Each server gets its own Bedrock port, shown under "Connect to", plus the next one for NetherNet. For example: 19132 on TCP and UDP, and 19133 on UDP.
+- What Bedrock players see: the server **name** is the one in the app; Geyser receives it on every start, because otherwise it would show "Geyser". The **description** and **player limit** are the same as on Java. You edit them in **Settings** ("Description" and "Max players", which map to `motd` and `max-players` in `server.properties`), and Geyser copies them.
+- Geyser is configured with `transport: both`, meaning NetherNet (Bedrock 26.60+) and RakNet at the same time. With NetherNet alone, consoles on the same network didn't see the server in the Friends tab as a LAN game.
+- Vanilla and Forge aren't supported: Geyser has no version for them.
+- **Extras** (under Settings → Crossplay, once enabled):
+  - **Consoles in the Friends tab (MCXboxBroadcast):** Switch, Xbox and PlayStation can't add servers by IP. Geyser doesn't announce the server on the local network over NetherNet (port 7551) either, so it doesn't show up as a LAN game. With this extension, the server signs in with a **secondary** Microsoft account and appears as a friend's game. The app opens a sign-in window and then shows which account to add as a friend.
+  - **ThirdPartyCosmetics:** Bedrock players see Java players' capes and ears.
+  - **EmoteOffhand:** swap the item in the offhand with an emote.
+  - The pack that makes Bedrock match Java (GeyserIntegratedPack, formerly GeyserOptionalPack) is already included in Geyser.
+- On consoles (Switch, Xbox, PlayStation) you can't add a server by IP directly. You need a workaround such as [BedrockConnect](https://github.com/Pugmatt/BedrockConnect). On mobile and Windows you can add it by IP and port.
 
-## Mover un servidor a otro equipo
+## Moving a server to another computer
 
-En la ficha del servidor, pulsa **«Mover a otro equipo...»** y elige el destino. La app hace lo siguiente:
+On the server's card, click **"Move to another computer..."** and pick the destination. The app does the following:
 
-1. Apaga el servidor.
-2. Crea una copia de seguridad.
-3. La envía por la red al otro agente.
-4. Allí instala la misma versión del juego y restaura el mundo, la configuración y los mods.
+1. Stops the server.
+2. Creates a backup.
+3. Sends it over the network to the other agent.
+4. Installs the same game version there and restores the world, settings and mods.
 
-El original se conserva apagado, salvo que marques «Borrar el servidor de este equipo».
+The original is kept, stopped, unless you check "Delete the server from this computer".
 
-## Mundos
+## Worlds
 
-En la ficha del servidor, el botón **Mundo** tiene tres opciones:
+On the server's card, the **World** button has three options:
 
-- **Importar un mundo...**: eliges la carpeta del mundo (en `.minecraft\saves`, o en la carpeta `saves` de tu instancia de CurseForge, Prism o Modrinth) o un `.zip`.
-  - Antes de sustituir el mundo actual se hace una copia de seguridad.
-  - Si el mundo viene de una instancia con mods, la app ofrece copiar también sus mods y su carpeta `config`. Los mods de Fabric marcados como «solo cliente» (shaders, minimapas...) se descartan.
-  - El servidor tiene que ser de la misma versión de Minecraft y del mismo loader que la instancia.
-- **Abrir carpeta del servidor**: solo si el servidor está en el mismo PC que la app. Sirve para editar archivos a mano.
-- **Descargar una copia...**: lleva a la pestaña «Copias», donde «Descargar...» guarda la copia en tu PC. Así puedes editar el mundo con programas como [Amulet](https://www.amuletmc.com/) aunque el servidor esté en otro equipo, y volver a subirlo con «Importar un mundo».
+- **Import a world...**: pick the world folder (in `.minecraft\saves`, or in the `saves` folder of your CurseForge, Prism or Modrinth instance) or a `.zip`.
+  - A backup is made before the current world is replaced.
+  - If the world comes from a modded instance, the app offers to copy its mods and `config` folder too. Fabric mods marked as "client only" (shaders, minimaps...) are skipped.
+  - The server must be on the same Minecraft version and the same loader as the instance.
+- **Open server folder**: only if the server is on the same PC as the app. Use it to edit files by hand.
+- **Download a backup...**: takes you to the "Backups" tab, where "Download..." saves the backup to your PC. That way you can edit the world with tools such as [Amulet](https://www.amuletmc.com/) even if the server is on another computer, and upload it again with "Import a world".
 
-## Mods y plugins
+## Mods and plugins
 
-La pestaña **Plugins** (en servidores Paper) o **Mods** (en servidores Fabric, Forge y NeoForge) busca en **Modrinth** y **CurseForge**. Solo muestra lo que es compatible con la versión del servidor e instala solas las dependencias obligatorias. Desde la misma pestaña puedes activar, desactivar o eliminar lo instalado.
+The **Plugins** tab (on Paper servers) or **Mods** tab (on Fabric, Forge and NeoForge servers) searches **Modrinth** and **CurseForge**. It only shows what's compatible with the server version and installs required dependencies automatically. From the same tab you can enable, disable or remove what's installed.
 
-- Modrinth no necesita configuración.
-- CurseForge necesita una clave de API gratuita: consíguela en [console.curseforge.com](https://console.curseforge.com/) y ponla en **Ajustes** de la app.
-- Algunos autores de CurseForge bloquean las descargas desde apps externas. En ese caso, la app te da el enlace para descargarlo desde la web.
-- Los servidores Vanilla no admiten mods.
+- Modrinth needs no setup.
+- CurseForge needs a free API key: get one at [console.curseforge.com](https://console.curseforge.com/) and enter it in the app's **Settings**.
+- Some CurseForge authors block downloads from external apps. In that case, the app gives you the link to download it from the website.
+- Vanilla servers don't support mods.
 
-## Jugadores
+## Players
 
-En la pestaña **Jugadores** (Minecraft Java y Bedrock) ves quién está conectado y puedes hacer operador, echar o banear sin escribir comandos. También gestionas los operadores, la lista blanca (y activarla o no) y los baneados.
+In the **Players** tab (Minecraft Java and Bedrock) you see who's online and can op, kick or ban them without typing commands. You also manage operators, the whitelist (and whether it's on) and banned players.
 
-- Los jugadores de Bedrock que entran por Geyser llevan un «.» delante del nombre.
-- Si el servidor está apagado, los cambios quedan pendientes y se aplican en cuanto se enciende.
-- Bedrock nativo no tiene baneos: usa la lista blanca.
-- Minecraft 26 crea los servidores con la lista blanca activada. Ownhost la deja desactivada salvo que marques «Solo pueden entrar los jugadores que añadas» al crear el servidor; así tus amigos pueden entrar a la primera.
-- **Estadísticas:** cuánto tiempo ha jugado cada uno, cuántas veces ha entrado y cuándo fue la última vez. El agente las apunta aunque la app esté cerrada.
+- Bedrock players joining through Geyser have a "." in front of their name.
+- If the server is stopped, changes are queued and applied as soon as it starts.
+- Native Bedrock has no bans: use the whitelist.
+- Minecraft 26 creates servers with the whitelist turned on. Ownhost leaves it off unless you check "Only players you add can join" when creating the server, so your friends can join right away.
+- **Statistics:** how long each player has played, how many times they've joined, and when they were last on. The agent records them even when the app is closed.
 
-## Rendimiento
+## Performance
 
-La pestaña **Rendimiento** muestra gráficas de CPU, memoria RAM y jugadores conectados de la última hora, 6 horas o 24 horas, y cuánto ocupan el servidor y sus copias, y el espacio libre del disco. Si el disco pasa del 90 % avisa. El agente toma una muestra por minuto mientras el servidor está encendido y guarda las últimas 24 horas, aunque la app esté cerrada.
+The **Performance** tab shows graphs of CPU, RAM and online players for the last hour, 6 hours or 24 hours, plus how much space the server and its backups take up and the free disk space. It warns you if the disk goes over 90 %. The agent takes one sample per minute while the server is running and keeps the last 24 hours, even when the app is closed.
 
-## Clonar e icono
+## Cloning and icon
 
-- **Clonar o mover → Clonar en este equipo...** crea otro servidor igual (mundo, mods, ajustes e icono) con otro puerto. Se puede clonar con el servidor encendido.
-- **Ajustes → Icono** (Minecraft Java): elige cualquier imagen y la app la recorta y la deja en 64x64, que es lo que pide Minecraft. Se ve en la lista de servidores del juego tras reiniciar y también en la lista de la app.
+- **Clone or move → Clone on this computer...** creates an identical server (world, mods, settings and icon) on a different port. You can clone while the server is running.
+- **Settings → Icon** (Minecraft Java): pick any image and the app crops it and scales it to 64x64, which is what Minecraft requires. It shows up in the game's server list after a restart, and in the app's list too.
 
-## Tareas automáticas
+## Automatic tasks
 
-En **Ajustes** de cada servidor:
+In each server's **Settings**:
 
-- **Volver a encenderlo si se cae** (activado por defecto): si el servidor se cierra por un error, se enciende de nuevo a los 10 segundos. Si se cae más de 3 veces en 10 minutos se queda apagado, para no entrar en un bucle. La app avisa en los dos casos.
-- **Copia de seguridad cada N horas** (24 por defecto): solo se hace si el servidor se ha usado desde la última copia. Las copias automáticas acaban en `-auto.zip` y se guardan las últimas N; las que haces a mano no se borran nunca.
-- **Reiniciar cada día a una hora**: avisa a los jugadores 1 minuto y 10 segundos antes.
-- **Apagar si nadie juega durante N minutos** (Minecraft; desactivado por defecto): ahorra luz y memoria cuando el servidor se queda vacío.
+- **Restart it if it crashes** (on by default): if the server closes because of an error, it starts again after 10 seconds. If it crashes more than 3 times in 10 minutes it stays stopped, to avoid a loop. The app notifies you in both cases.
+- **Backup every N hours** (24 by default): only made if the server has been used since the last backup. Automatic backups end in `-auto.zip` and the last N are kept; the ones you make by hand are never deleted.
+- **Restart every day at a set time**: warns players 1 minute and 10 seconds before.
+- **Stop if nobody plays for N minutes** (Minecraft; off by default): saves power and memory when the server is empty.
 
-Las tareas las hace el agente, así que funcionan aunque la app esté cerrada.
+The agent runs these tasks, so they work even when the app is closed.
 
-## Memoria recomendada
+## Recommended memory
 
-Al crear un servidor (o importar un modpack) dices cuántos vais a jugar a la vez y la app recomienda la memoria según el tipo de servidor, los mods del modpack y la memoria del equipo, y avisa si pides más de la que tiene libre. Bedrock gestiona su memoria solo, así que no lo pregunta.
+When you create a server (or import a modpack) you say how many people will play at once, and the app recommends the memory based on the server type, the modpack's mods and the computer's memory, and warns you if you ask for more than is free. Bedrock manages its own memory, so it doesn't ask.
 
-## Mapa y mundo
+## Map & world
 
-En **Ajustes → Mapa y mundo** (servidores Paper, Fabric, Forge y NeoForge):
+Under **Settings → Map & world** (Paper, Fabric, Forge and NeoForge servers):
 
-- **Mapa del mundo en el navegador (BlueMap):** se instala con un clic y la app enseña el enlace (`http://IP:8100/`). Es un mapa en 3D que se ve también desde el móvil y se dibuja poco a poco mientras el servidor está encendido.
-- **Generar el mundo por adelantado (Chunky):** eliges un radio en bloques y pulsas **Generar**. Crea el terreno de antemano para que no haya tirones cuando los jugadores exploran; la app enseña el progreso. Se puede seguir jugando mientras tanto.
+- **World map in the browser (BlueMap):** installs with one click and the app shows the link (`http://IP:8100/`). It's a 3D map you can also view on your phone, and it renders bit by bit while the server is running.
+- **Pre-generate the world (Chunky):** choose a radius in blocks and click **Generate**. It creates the terrain ahead of time so there's no lag when players explore; the app shows the progress. You can keep playing in the meantime.
 
-## Archivos
+## Files
 
-La pestaña **Archivos** abre y edita la configuración de mods y plugins (`.yml`, `.json`, `.toml`, `.properties`...) sin buscar la carpeta del servidor, también si está en otro equipo. Solo se ven archivos de configuración: nunca el mundo, los programas ni los archivos de inicio de sesión. Los `.json` se comprueban antes de guardar.
+The **Files** tab opens and edits mod and plugin configuration (`.yml`, `.json`, `.toml`, `.properties`...) without hunting for the server folder, even if it's on another computer. Only configuration files are shown: never the world, the programs or the login files. `.json` files are validated before saving.
 
-## Copias en otro equipo
+## Backups on another computer
 
-Por si se estropea un disco: en **Ajustes → Copia en otro equipo** eliges otro equipo tuyo y cada copia de seguridad se envía también allí (guarda las 3 últimas). El otro equipo da un código que solo sirve para recibir copias. Si el primero falla, en la ficha del otro equipo, **Copias de otros equipos...** → **Restaurar aquí** crea el servidor con su mundo, sus mods y su configuración.
+In case a disk fails: under **Settings → Backup on another computer** you choose another computer of yours and every backup is also sent there (it keeps the last 3). The other computer provides a code that can only be used to receive backups. If the first one fails, on the other computer's card, **Backups from other computers...** → **Restore here** creates the server with its world, mods and configuration.
 
 ## Modpacks
 
-En **Nuevo servidor → Desde un modpack...** eliges un modpack descargado y Ownhost monta el servidor:
+Under **New server → From a modpack...** you pick a downloaded modpack and Ownhost sets up the server:
 
-- **Modrinth**: el archivo `.mrpack` (botón «Download» de la página del modpack).
-- **CurseForge**: el `.zip` normal del modpack, no el «Server Pack». Necesita tu clave de API de CurseForge en Ajustes.
+- **Modrinth**: the `.mrpack` file ("Download" button on the modpack's page).
+- **CurseForge**: the regular `.zip` of the modpack, not the "Server Pack". Requires your CurseForge API key in Settings.
 
-Se instala la versión de Minecraft y la versión exacta de Fabric, Forge o NeoForge que pide el modpack, se descargan los mods (comprobando que no estén corruptos) y se copia su configuración. Los mods que solo sirven en el juego (shaders, minimapas...) se descartan solos. Si algún autor de CurseForge no permite descargar su mod desde otras apps, la consola dice cuál falta y dónde bajarlo.
+It installs the Minecraft version and the exact Fabric, Forge or NeoForge version the modpack requires, downloads the mods (checking they aren't corrupted) and copies their configuration. Mods that only matter in the game client (shaders, minimaps...) are skipped automatically. If a CurseForge author doesn't allow their mod to be downloaded from other apps, the console says which one is missing and where to get it.
 
-Los servidores de modpack no cambian de loader al actualizarse solos, para no romper el modpack.
+Modpack servers don't change loader when they update themselves, so the modpack doesn't break.
 
-### Actualizar mods
+### Updating mods
 
-En la pestaña **Mods**, **Buscar actualizaciones** muestra los mods con versión nueva para tu versión de Minecraft y te deja elegir cuáles actualizar. Antes de cambiar nada se hace una copia de seguridad. Los mods de Modrinth se reconocen aunque no los instalaras desde Ownhost (por ejemplo, los de un modpack o copiados a mano); los de CurseForge, si los instalaste desde Ownhost y tienes la clave de API.
+In the **Mods** tab, **Check for updates** shows the mods with a new version for your Minecraft version and lets you choose which ones to update. A backup is made before anything changes. Modrinth mods are recognized even if you didn't install them from Ownhost (for example, those from a modpack or copied by hand); CurseForge ones, if you installed them from Ownhost and have the API key.
 
-## Accesos para amigos
+## Friend access
 
-En la ficha de un equipo tuyo, **Accesos para amigos...** crea un código para cada amigo, sin darle tu token. Eliges qué servidores puede ver y con qué permiso:
+On the card of one of your computers, **Friend access...** creates a code for each friend, without giving them your token. You choose which servers they can see and with what permission:
 
-| Permiso | Qué puede hacer |
+| Permission | What they can do |
 |---|---|
-| Encender y apagar | Ver el estado y quién juega; encender, apagar y reiniciar |
-| Moderar | Lo anterior, la consola, los jugadores (operadores, lista blanca, baneos) y hacer copias |
-| Gestionar | Lo anterior, ajustes, propiedades, mods, actualizar, restaurar copias e importar mundos |
+| Start and stop | See the status and who's playing; start, stop and restart |
+| Moderate | All of the above, plus the console, players (operators, whitelist, bans) and making backups |
+| Manage | All of the above, plus settings, properties, mods, updating, restoring backups and importing worlds |
 
-Nadie con un código puede crear ni borrar servidores, clonarlos o moverlos, descargar copias ni ver la carpeta del equipo. Tu amigo entra con «Conectar a un equipo» poniendo el código en «Token o código», o desde el navegador (abajo). El código solo se ve al crearlo: el agente guarda su huella, no el código. Para quitarle el acceso, **Quitar acceso**; deja de funcionar al momento.
+Nobody with a code can create or delete servers, clone or move them, download backups or see the computer's folder. Your friend connects with "Connect to a computer" by entering the code in "Token or code", or from the browser (below). The code is only shown when it's created: the agent stores its fingerprint, not the code. To revoke access, click **Remove access**; it stops working immediately.
 
-Tu amigo tiene que estar en tu red local o en tu Tailscale (desde Tailscale puedes compartirle solo ese equipo con «Share»). Nada se abre a internet.
+Your friend has to be on your local network or your Tailscale network (in Tailscale you can share just that computer with "Share"). Nothing is opened to the internet.
 
-## Panel web
+## Web panel
 
-Cada agente sirve un panel en `http://IP-del-equipo:8765/` (la ficha de cada equipo en la app enseña el enlace). Desde el navegador del móvil o de cualquier PC, con el token o un código de amigo, se gestiona cada servidor: encender y apagar, quién juega, jugadores y estadísticas, consola, copias de seguridad y ajustes, según el permiso de cada uno. Si entras desde un dispositivo de tu misma cuenta de Tailscale no hace falta código. Mods, archivos, multiplataforma y mapa se gestionan desde la app.
+Each agent serves a panel at `http://computer-IP:8765/` (each computer's card in the app shows the link). From the browser on your phone or any PC, with the token or a friend code, you manage each server: start and stop, who's playing, players and statistics, console, backups and settings, depending on each person's permission. If you connect from a device on your own Tailscale account, no code is needed. Mods, files, crossplay and the map are managed from the app. The panel has its own language switch (English/Spanish).
 
-## Actualizaciones
+## Updates
 
-Cada servidor tiene la opción **«Actualizar automáticamente al encender»** en Ajustes, activada por defecto. Antes de encender, la app comprueba si hay una versión nueva compatible. Si la hay, hace una copia de seguridad y la instala.
+Each server has the **"Update automatically on start"** option in Settings, on by default. Before starting, the app checks whether there's a new compatible version. If there is, it makes a backup and installs it.
 
-- **Minecraft Java:** se actualizan las builds de Paper y los loaders de Fabric, Forge y NeoForge, pero **no se cambia la versión de Minecraft**, para no romper mundos ni mods. Para pasar a otra versión (por ejemplo, de la 1.21.1 a la 26.3) usa «Actualizar...».
-- **Minecraft Bedrock:** se instala siempre la última versión, porque los clientes de Bedrock se actualizan solos y no pueden entrar en servidores antiguos.
-- **Hytale:** antes de encender, el *Hytale Downloader* comprueba si hay una versión nueva en tu canal (Release o Pre-release) y, si la hay, la instala tras hacer una copia.
+- **Minecraft Java:** Paper builds and the Fabric, Forge and NeoForge loaders are updated, but **the Minecraft version is not changed**, so worlds and mods don't break. To move to another version (for example, from 1.21.1 to 26.3) use "Update...".
+- **Minecraft Bedrock:** the latest version is always installed, because Bedrock clients update themselves and can't join older servers.
+- **Hytale:** before starting, the *Hytale Downloader* checks whether there's a new version on your channel (Release or Pre-release) and, if so, installs it after making a backup.
 
-## Actualizar Ownhost
+## Updating Ownhost
 
-Al abrirse, la app mira si hay una versión nueva en las [Releases](https://github.com/jmgamer1199/ownhost/releases) del proyecto (se puede desactivar en **Ajustes**, donde también está **Buscar ahora**). Si la hay, la descarga, se cierra y se abre ya actualizada; los servidores siguen encendidos y el agente del mismo PC se actualiza solo. Los agentes de otros equipos se actualizan desde su ficha con **Actualizar agente**: apagan los servidores guardando el mundo, se reinician con la versión nueva y los vuelven a encender. Solo se actualizan solos el `.exe` y el AppImage o binario de Linux; si instalaste el agente con pip, actualízalo con pip.
+When it opens, the app checks whether there's a new version in the project's [Releases](https://github.com/jmgamer1199/ownhost/releases) (this can be turned off in **Settings**, which also has **Check now**). If there is, it downloads it, closes and reopens already updated; the servers keep running and the agent on the same PC updates itself. Agents on other computers are updated from their card with **Update agent**: they stop the servers saving the world, restart with the new version and start them again. Only the `.exe` and the Linux AppImage or binary update themselves; if you installed the agent with pip, update it with pip.
 
-Para publicar versiones, ver [Publicar una versión](#publicar-una-versión).
+To publish releases, see [Publishing a release](#publishing-a-release).
 
-## Notas por juego
+## Notes per game
 
-**Minecraft**: al crear el servidor tienes que aceptar el [EULA](https://aka.ms/MinecraftEULA). La versión de Java correcta (Temurin) se descarga sola. Las copias de seguridad en caliente usan `save-off` / `save-all` para no corromper el mundo.
+**Minecraft**: when creating the server you have to accept the [EULA](https://aka.ms/MinecraftEULA). The right Java version (Temurin) is downloaded automatically. Hot backups use `save-off` / `save-all` so the world doesn't get corrupted.
 
-**Minecraft Bedrock**: usa el servidor oficial de Mojang (Bedrock Dedicated Server), que no necesita Java. Escucha por UDP en el puerto 19132 (IPv4) y 19133 (IPv6). Si creas varios servidores, la app reparte los puertos para que no choquen entre sí ni con Geyser.
+**Minecraft Bedrock**: uses Mojang's official server (Bedrock Dedicated Server), which doesn't need Java. It listens over UDP on port 19132 (IPv4) and 19133 (IPv6). If you create several servers, the app assigns ports so they don't clash with each other or with Geyser.
 
-**Forge / NeoForge**: la app descarga y ejecuta el instalador oficial en modo servidor, y elige la versión recomendada del loader para la versión de Minecraft que escojas.
+**Forge / NeoForge**: the app downloads and runs the official installer in server mode, and picks the recommended loader version for the Minecraft version you choose.
 
-**Hytale**: necesitas una cuenta de Hytale. La app abre una ventana de **inicio de sesión** con un código en dos momentos:
-1. Al crear el servidor, para que el *Hytale Downloader* oficial pueda descargar los archivos. Solo la primera vez en cada equipo, porque las credenciales se guardan.
-2. Al encenderlo por primera vez, para autenticar el servidor. El agente lanza `/auth login device` solo y, cuando inicias sesión, guarda las credenciales con `/auth persistence Encrypted`.
+**Hytale**: you need a Hytale account. The app opens a **sign-in** window with a code at two points:
+1. When creating the server, so the official *Hytale Downloader* can download the files. Only the first time on each computer, because the credentials are saved.
+2. When starting it for the first time, to authenticate the server. The agent runs `/auth login device` by itself and, once you sign in, saves the credentials with `/auth persistence Encrypted`.
 
-Si algo falla, el botón «Iniciar sesión...» de la ficha del servidor vuelve a pedirlo.
+If something goes wrong, the "Sign in..." button on the server's card asks again.
 
-En la pestaña **Propiedades** se edita el `config.json` de Hytale (nombre, contraseña, jugadores máximos, modo de juego...) sin tocar el archivo; cada valor conserva su tipo (número, true/false o texto). El nombre del servidor en la app se pasa a `ServerName`. La pestaña **Mods** busca e instala mods de Hytale de CurseForge (necesita tu clave de API) en la carpeta `mods` del servidor, y también busca sus actualizaciones.
+The **Properties** tab edits Hytale's `config.json` (name, password, max players, game mode...) without touching the file; each value keeps its type (number, true/false or text). The server name in the app is passed to `ServerName`. The **Mods** tab searches for and installs Hytale mods from CurseForge (requires your API key) into the server's `mods` folder, and also checks for their updates.
 
-## Desarrollo
+## Development
 
-### Ejecutar desde el código
+### Running from source
 
-Hace falta Python 3.11 o superior.
+You need Python 3.11 or later.
 
 ```bash
 python -m venv ~/.venvs/ownhost
-~/.venvs/ownhost/bin/pip install -e ".[app]"   # en Windows: %USERPROFILE%\.venvs\ownhost\Scripts\pip
-python -m ownhost.agent        # el agente (muestra el token al arrancar)
-python -m ownhost.app          # la app
+~/.venvs/ownhost/bin/pip install -e ".[app]"   # on Windows: %USERPROFILE%\.venvs\ownhost\Scripts\pip
+python -m ownhost.agent        # the agent (shows the token on startup)
+python -m ownhost.app          # the app
 ```
 
-Solo para hospedar servidores (sin ventana) basta con `pip install -e .`: la interfaz (PySide6) es opcional.
+To only host servers (no window), `pip install -e .` is enough: the interface (PySide6) is optional.
 
-Opciones del agente:
-- `--data-dir`, o la variable `OWNHOST_DATA_DIR`: carpeta de datos. Por defecto, `%LOCALAPPDATA%\Ownhost\agent` en Windows y `~/.local/share/ownhost` en Linux.
-- `--port 8765`, `--bind 0.0.0.0`, `--name "Servidor"`, `--show-token`.
+Agent options:
+- `--data-dir`, or the `OWNHOST_DATA_DIR` variable: data folder. By default, `%LOCALAPPDATA%\Ownhost\agent` on Windows and `~/.local/share/ownhost` on Linux.
+- `--port 8765`, `--bind 0.0.0.0`, `--name "Server"`, `--show-token`.
 
-La API del agente se documenta sola en `http://<ip>:8765/docs`.
+The agent's API documents itself at `http://<ip>:8765/docs`.
 
-### Compilar
+### Translations
 
-Un solo comando, en Windows, genera todo en `dist/`:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File scripts\crear-exe.ps1
-```
-
-| Archivo | Para qué |
-|---|---|
-| `dist/Ownhost.exe` | Windows: app y agente en un solo archivo, sin instalar Python |
-| `dist/linux/Ownhost-x86_64.AppImage` | Linux con escritorio (doble clic) |
-| `dist/linux/Ownhost` | Linux sin escritorio: el mismo programa en un binario; con `--agent` es el agente |
-| `dist/linux/instalar-*.sh` | Instaladores de la app y del agente como servicio en Linux |
-
-Qué hace el script:
-1. Crea el entorno de Python si no existe, instala las dependencias y PyInstaller.
-2. Decide el número de **compilación** (fecha y hora UTC, `AAAAMMDDhhmmss`). Es el mismo para Windows y Linux y es la etiqueta de la versión al publicarla.
-3. Compila el `.exe` con PyInstaller (los archivos intermedios van a la carpeta temporal del sistema).
-4. Compila Linux dentro de **Docker** con AlmaLinux 8 (`scripts/crear-binario-linux.sh`). Usar una glibc antigua hace que funcione en casi cualquier distribución actual. Hace falta Docker Desktop; si no está, solo se genera el `.exe`.
-5. Ejecuta `scripts/comprobar_privacidad.py`, que abre los binarios y busca tu usuario, el nombre del equipo, tu carpeta personal y tus IPs. Si encuentra algo, avisa: no compartas esos archivos.
-
-Si Ownhost está abierto, el `.exe` en uso se aparta como `.old` y se borra en la siguiente compilación.
-
-**Clave de CurseForge (opcional):** si pones tu clave en un archivo `curseforge.key` en la raíz (o en la variable `CURSEFORGE_API_KEY`), se incluye ofuscada en los binarios y los usuarios no tienen que conseguir la suya. Es ofuscación, no cifrado: alguien con tiempo podría sacarla, así que no la incluyas en binarios que vayas a publicar. Ese archivo está en `.gitignore`: no lo subas nunca.
-
-Otros scripts: `scripts\instalar-windows.ps1` instala el entorno para ejecutar desde el código en Windows, `scripts/instalar-agente-linux.sh` instala el agente como servicio en Linux usando Python, y `scripts/generar_icono.py` vuelve a dibujar el icono y los gráficos del tema.
-
-### Publicar una versión
-
-1. Compila con `scripts\crear-exe.ps1`. Al principio muestra la etiqueta, por ejemplo `v20261031143350`.
-2. Sube el código (`git push`).
-3. Crea la Release con esa etiqueta, los tres binarios y los dos instaladores de Linux:
+UI texts are written in Spanish with `tr("Spanish text")`, and their English translation goes in `ownhost/locale/en_*.py`. `scripts/check_translations.py` checks that every `tr()` text has an English translation with the same `{placeholders}`, and lists catalog entries that are no longer used:
 
 ```bash
-gh release create v20261031143350 dist/Ownhost.exe dist/linux/Ownhost-x86_64.AppImage dist/linux/Ownhost dist/linux/instalar-app-linux.sh dist/linux/instalar-agente-servicio.sh --title "Ownhost dd/mm/aaaa" --notes "Novedades..."
+python scripts/check_translations.py
 ```
 
-Las apps y los agentes comparan su compilación con la de la última Release y se ofrecen a actualizarse (ver [Actualizar Ownhost](#actualizar-ownhost)). Para probar las actualizaciones sin publicar nada, la variable `OWNHOST_RELEASES_API` apunta la comprobación a otra dirección con el mismo formato que la API de GitHub.
+### Building
 
-### Cómo está organizado el código
+A single command, on Windows, generates everything in `dist/`:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\build.ps1
+```
+
+| File | Purpose |
+|---|---|
+| `dist/Ownhost.exe` | Windows: app and agent in a single file, no Python needed |
+| `dist/linux/Ownhost-x86_64.AppImage` | Linux with a desktop (double-click) |
+| `dist/linux/Ownhost` | Linux without a desktop: the same program as a single binary; with `--agent` it's the agent |
+| `dist/linux/install-*.sh` | Installers for the app and for the agent as a service on Linux |
+
+What the script does:
+1. Creates the Python environment if it doesn't exist, installs the dependencies and PyInstaller.
+2. Picks the **build** number (UTC date and time, `YYYYMMDDhhmmss`). It's the same for Windows and Linux and is the release tag when publishing.
+3. Builds the `.exe` with PyInstaller (intermediate files go to the system temp folder).
+4. Builds Linux inside **Docker** with AlmaLinux 8 (`scripts/build-linux.sh`). Using an old glibc makes it work on almost any current distribution. Requires Docker Desktop; without it, only the `.exe` is generated.
+5. Runs `scripts/check_privacy.py`, which opens the binaries and looks for your username, computer name, home folder and IPs. If it finds anything, it warns you: don't share those files.
+
+If Ownhost is open, the `.exe` in use is moved aside as `.old` and deleted on the next build.
+
+**CurseForge key (optional):** if you put your key in a `curseforge.key` file at the root (or in the `CURSEFORGE_API_KEY` variable), it's embedded, obfuscated, in the binaries so users don't need to get their own. It's obfuscation, not encryption: someone with time could extract it, so don't include it in binaries you're going to publish. That file is in `.gitignore`: never commit it.
+
+Other scripts: `scripts\install-windows.ps1` sets up the environment to run from source on Windows, `scripts/install-agent-linux.sh` installs the agent as a service on Linux using Python, `scripts/generate_icon.py` redraws the icon and the theme graphics, and `scripts/check_translations.py` checks the translations (see [Translations](#translations)).
+
+### Publishing a release
+
+1. Build with `scripts\build.ps1`. At the start it shows the tag, for example `v20261031143350`.
+2. Push the code (`git push`).
+3. Create the Release with that tag, the three binaries and the two Linux installers:
+
+```bash
+gh release create v20261031143350 dist/Ownhost.exe dist/linux/Ownhost-x86_64.AppImage dist/linux/Ownhost dist/linux/install-app-linux.sh dist/linux/install-agent-service.sh --title "Ownhost mm/dd/yyyy" --notes "What's new..."
+```
+
+Apps and agents compare their build with the latest Release's and offer to update (see [Updating Ownhost](#updating-ownhost)). To test updates without publishing anything, the `OWNHOST_RELEASES_API` variable points the check at another address with the same format as the GitHub API.
+
+### How the code is organized
 
 ```
 ownhost/
-├── agent/                  el agente (FastAPI + uvicorn)
-│   ├── api.py              rutas HTTP y WebSocket de la consola; permisos de cada ruta
-│   ├── manager.py          servidores: crear, encender, apagar, copias, importar, clonar, mods...
-│   ├── access.py           accesos para amigos (códigos, niveles de permiso)
-│   ├── games/              un archivo por juego: minecraft.py, bedrock.py, hytale.py (base.py: la interfaz)
-│   ├── java.py             descarga la versión de Java que necesita cada servidor
-│   ├── mods.py, modpacks.py  Modrinth, CurseForge y modpacks
-│   ├── crossplay.py        Geyser, Floodgate y sus extras
-│   ├── players.py          jugadores (operadores, lista blanca, baneos)
-│   ├── stats.py            estadísticas de jugadores (tiempo jugado, última vez)
-│   ├── addons.py           mapa web (BlueMap) y pregeneración (Chunky)
-│   ├── files.py            pestaña Archivos: qué se puede leer y guardar
-│   ├── replicas.py         copias de seguridad en otro equipo
-│   ├── scheduler.py        copias, reinicios programados y apagar si está vacío
-│   ├── metrics.py          muestras de CPU, RAM y jugadores para las gráficas
-│   └── web/panel.html      el panel web para el móvil
-├── app/                    la app (PySide6)
-│   ├── main_window.py      ventana principal, lista de equipos, sondeo de los agentes
-│   ├── server_panel.py     la ficha de un servidor y sus pestañas
-│   ├── *_tab.py            pestañas de jugadores, rendimiento, mods y archivos
-│   ├── memory.py           memoria recomendada al crear un servidor
-│   ├── replicas.py         copias en otro equipo (enviar y restaurar)
-│   ├── dialogs.py          crear servidor, conectar equipo, ajustes...
-│   ├── guests.py           accesos para amigos
-│   ├── app_update.py       actualizarse sola
-│   ├── client.py           cliente HTTP de la API del agente
-│   └── theme.py            el aspecto (QSS y dibujos)
-├── updates.py              Releases de GitHub: comprobar, descargar y sustituir el ejecutable
-├── discovery.py            encontrar agentes en la red local (UDP)
-└── net.py                  IPs locales y de Tailscale
+├── agent/                  the agent (FastAPI + uvicorn)
+│   ├── api.py              HTTP routes and the console WebSocket; permissions for each route
+│   ├── manager.py          servers: create, start, stop, backups, import, clone, mods...
+│   ├── access.py           friend access (codes, permission levels)
+│   ├── games/              one file per game: minecraft.py, bedrock.py, hytale.py (base.py: the interface)
+│   ├── java.py             downloads the Java version each server needs
+│   ├── mods.py, modpacks.py  Modrinth, CurseForge and modpacks
+│   ├── crossplay.py        Geyser, Floodgate and their extras
+│   ├── players.py          players (operators, whitelist, bans)
+│   ├── stats.py            player statistics (time played, last seen)
+│   ├── addons.py           web map (BlueMap) and pre-generation (Chunky)
+│   ├── files.py            Files tab: what can be read and saved
+│   ├── replicas.py         backups on another computer
+│   ├── scheduler.py        backups, scheduled restarts and stopping when empty
+│   ├── metrics.py          CPU, RAM and player samples for the graphs
+│   └── web/panel.html      the web panel for phones
+├── app/                    the app (PySide6)
+│   ├── main_window.py      main window, computer list, agent polling
+│   ├── server_panel.py     a server's card and its tabs
+│   ├── *_tab.py            players, performance, mods and files tabs
+│   ├── memory.py           recommended memory when creating a server
+│   ├── replicas.py         backups on another computer (send and restore)
+│   ├── dialogs.py          create server, connect computer, settings...
+│   ├── guests.py           friend access
+│   ├── app_update.py       self-update
+│   ├── client.py           HTTP client for the agent API
+│   └── theme.py            the look (QSS and drawings)
+├── locale/                 English translations (en_*.py)
+├── updates.py              GitHub Releases: check, download and replace the executable
+├── discovery.py            find agents on the local network (UDP)
+└── net.py                  local and Tailscale IPs
 ```
 
-La app nunca toca los archivos de los servidores directamente: todo pasa por la API del agente, también cuando el agente está en el mismo PC. Por eso cualquier equipo de la red puede gestionar cualquier otro.
+The app never touches server files directly: everything goes through the agent's API, even when the agent is on the same PC. That's why any computer on the network can manage any other.
 
-### Seguridad
+### Security
 
-- Cada agente tiene un **token** (en `agent.json`, en su carpeta de datos). Quien lo tiene puede hacerlo todo en ese equipo.
-- Los dispositivos de **tu misma cuenta de Tailscale** entran sin token (se puede desactivar con `trust_tailscale: false` en `agent.json`).
-- Los **códigos de amigos** solo dan los permisos elegidos. El agente guarda su huella (SHA-256), no el código.
-- La comunicación va por HTTP sin cifrar: está pensado para la red local y Tailscale (que ya cifra). No abras el puerto 8765 a internet.
+- Each agent has a **token** (in `agent.json`, in its data folder). Whoever has it can do anything on that computer.
+- Devices on **your own Tailscale account** get in without a token (can be turned off with `trust_tailscale: false` in `agent.json`).
+- **Friend codes** only grant the chosen permissions. The agent stores their fingerprint (SHA-256), not the code.
+- Communication is unencrypted HTTP: it's meant for the local network and Tailscale (which already encrypts). Don't open port 8765 to the internet.
 
-### Añadir otro juego
+### Adding another game
 
-Crea una clase en `ownhost/agent/games/` que herede de `GameAdapter`, implementando `versions`, `java_major`, `install` y `command`, y regístrala en `games/__init__.py`. Opcionalmente: `available_update` (actualización automática), `mod_target` (mods), `read_config`/`write_config` (pestaña Propiedades). La app la detecta sola.
+Create a class in `ownhost/agent/games/` that inherits from `GameAdapter`, implementing `versions`, `java_major`, `install` and `command`, and register it in `games/__init__.py`. Optionally: `available_update` (automatic updates), `mod_target` (mods), `read_config`/`write_config` (Properties tab). The app picks it up automatically.
 
-## Ideas pendientes
+## Ideas for later
 
-- HTTPS entre app y agente si alguna vez sale de la red local.
+- HTTPS between app and agent if it ever leaves the local network.
 
-## Licencia
+## License
 
-Ownhost es software libre bajo la [GPL-3.0](LICENSE): puedes usarlo, estudiarlo, modificarlo y compartirlo. Si publicas una versión modificada, tiene que seguir siendo libre y con la misma licencia.
+Ownhost is free software under the [GPL-3.0](LICENSE): you can use, study, modify and share it. If you publish a modified version, it must remain free and under the same license.

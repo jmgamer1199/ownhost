@@ -1,17 +1,19 @@
-"""Tareas programadas: copias de seguridad automáticas y reinicio diario."""
+"""Scheduled tasks: automatic backups and daily restart."""
 
 import logging
 import threading
 import time
 from datetime import datetime
 
+from ownhost.i18n import tr
+
 log = logging.getLogger("ownhost.agent")
 
 CHECK_SECONDS = 30
-# Valores por defecto para servidores que nunca han cambiado su programación:
-# copia diaria guardando las 7 últimas, sin reinicio programado.
+# Defaults for servers that never changed their schedule:
+# daily backup keeping the last 7, no scheduled restart.
 DEFAULT_SCHEDULE = {"backup_hours": 24, "keep_backups": 7, "restart_at": None, "idle_stop_minutes": 0}
-# Solo en estos juegos se sabe quién está conectado (por la consola).
+# Only in these games is it known who is online (from the console).
 TRACKS_PLAYERS = ("minecraft", "bedrock")
 
 
@@ -23,7 +25,7 @@ class Scheduler(threading.Thread):
     def __init__(self, manager):
         super().__init__(daemon=True, name="scheduler")
         self.manager = manager
-        self._restarted_on: dict[str, str] = {}  # servidor -> día del último reinicio programado
+        self._restarted_on: dict[str, str] = {}  # server -> day of the last scheduled restart
 
     def run(self) -> None:
         while True:
@@ -31,16 +33,16 @@ class Scheduler(threading.Thread):
             for s in list(self.manager.servers.values()):
                 try:
                     self._check(s)
-                except Exception:  # noqa: BLE001 - un fallo en un servidor no para a los demás
-                    log.exception("Error en las tareas programadas de %s", s.meta.name)
+                except Exception:  # noqa: BLE001 - a failure in one server does not stop the others
+                    log.exception("Error in the scheduled tasks of %s", s.meta.name)
 
     def _check(self, s) -> None:
         if s.task or s.state in ("starting", "stopping") or not s.server_dir.exists():
             return
         sched = schedule_of(s.meta)
 
-        # Copia automática: cada `backup_hours`, solo si el servidor ha estado encendido desde la última
-        # (si lleva días apagado, la copia sería idéntica a la anterior).
+        # Automatic backup: every `backup_hours`, only if the server has been running since the last one
+        # (if it has been stopped for days, the backup would be identical to the previous one).
         hours = sched.get("backup_hours") or 0
         if hours:
             last = self.manager.last_backup_time(s.meta.id)
@@ -49,7 +51,7 @@ class Scheduler(threading.Thread):
                 self.manager.auto_backup(s, int(sched.get("keep_backups") or 7))
                 return
 
-        # Apagar si nadie juega durante `idle_stop_minutes` (ahorra luz y memoria).
+        # Stop if nobody plays for `idle_stop_minutes` (saves power and memory).
         idle = sched.get("idle_stop_minutes") or 0
         if s.state != "running" or s.online or not idle or s.meta.game not in TRACKS_PLAYERS:
             s.empty_since = None
@@ -57,12 +59,12 @@ class Scheduler(threading.Thread):
             s.empty_since = time.time()
         elif time.time() - s.empty_since >= idle * 60:
             s.empty_since = None
-            s.log(f"Nadie ha jugado en {idle} minutos: se apaga el servidor.")
-            s.event("idle", f"«{s.meta.name}» se ha apagado porque nadie jugaba.")
+            s.log(tr("Nadie ha jugado en {minutes} minutos: se apaga el servidor.", minutes=idle))
+            s.event("idle", tr("«{name}» se ha apagado porque nadie jugaba.", name=s.meta.name))
             self.manager.stop(s.meta.id)
             return
 
-        # Reinicio diario a la hora indicada ("HH:MM"), con aviso a los jugadores.
+        # Daily restart at the given time ("HH:MM"), warning the players.
         at = sched.get("restart_at")
         today = datetime.now().strftime("%Y-%m-%d")
         if at and s.state == "running" and datetime.now().strftime("%H:%M") == at \

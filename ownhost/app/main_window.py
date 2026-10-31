@@ -34,8 +34,8 @@ ROLE = Qt.ItemDataRole.UserRole
 
 
 class IndentedServers(QStyledItemDelegate):
-    """Los servidores, un poco metidos bajo su equipo, con su icono después de la sangría.
-    (La sangría del propio árbol pintaría la selección también en el hueco de la izquierda.)"""
+    """Servers, slightly indented under their computer, with their icon after the indent.
+    (The tree's own indentation would also paint the selection in the gap on the left.)"""
 
     INDENT = 18
 
@@ -45,10 +45,10 @@ class IndentedServers(QStyledItemDelegate):
             return
         opt = QStyleOptionViewItem(option)
         self.initStyleOption(opt, index)
-        icon = QIcon(opt.icon)  # copia: opt.icon es el mismo objeto que se vacía abajo
+        icon = QIcon(opt.icon)  # copy: opt.icon is the same object that is cleared below
         opt.icon = QIcon()
         opt.features &= ~QStyleOptionViewItem.ViewItemFeature.HasDecoration
-        # Mismo hueco para el icono aunque el servidor no tenga: así los nombres quedan alineados.
+        # Same room for the icon even if the server has none: keeps the names aligned.
         offset = self.INDENT + opt.decorationSize.width() + 6
         space = max(1, opt.fontMetrics.horizontalAdvance(" "))
         opt.text = " " * round(offset / space) + opt.text
@@ -73,10 +73,10 @@ class MainWindow(QMainWindow):
         self.clients: dict[str, AgentClient] = {}
         self.state: dict[str, dict] = {}  # host_id -> {online, info, servers, error}
         self.inflight: set[str] = set()
-        # Avisos del agente ya vistos, por equipo: (servidor, hora, número). Al conectar con un equipo
-        # se marcan como vistos los que ya tenía, para no enseñar caídas antiguas.
+        # Agent notices already seen, per computer: (server, time, number). When connecting to a computer
+        # the ones it already had are marked as seen, so old crashes are not shown.
         self.seen_events: dict[str, set[tuple]] = {}
-        self.server_icons: dict[tuple[str, str], tuple[int | None, QIcon]] = {}  # (equipo, servidor) -> (fecha, icono)
+        self.server_icons: dict[tuple[str, str], tuple[int | None, QIcon]] = {}  # (computer, server) -> (date, icon)
         self.local_launch_tried = False
         self.upgrading_agent = False
         self.local_ip = lan_ip()
@@ -86,7 +86,7 @@ class MainWindow(QMainWindow):
 
         cfg = local_agent_config()
         if not self.hosts and cfg:
-            self.hosts.append(Host(name="Este PC", address="127.0.0.1", token=cfg["token"], port=cfg["port"]))
+            self.hosts.append(Host(name=tr("Este PC"), address="127.0.0.1", token=cfg["token"], port=cfg["port"]))
             save_hosts(self.hosts)
 
         self._build_ui()
@@ -99,7 +99,7 @@ class MainWindow(QMainWindow):
         self.timer.start()
         self.poll()
 
-        # Buscar otros equipos con Ownhost (red local y Tailscale)
+        # Look for other computers running Ownhost (local network and Tailscale)
         self.detected: list[dict] = []
         self.scanning = False
         self.scan_timer = QTimer(self, interval=SCAN_MS)
@@ -107,16 +107,16 @@ class MainWindow(QMainWindow):
         self.scan_timer.start()
         QTimer.singleShot(1500, self.scan_network)
 
-        # Versión nueva de la app (y de los agentes de otros equipos)
+        # New version of the app (and of the agents on other computers)
         self.latest_release: dict | None = None
         updates.cleanup_old()
         if BUILD != "dev" and load_settings().get("check_updates", True):
             QTimer.singleShot(6000, lambda: app_update.check(self, on_release=self._release_known))
 
-    # ---------- interfaz ----------
+    # ---------- interface ----------
 
     def _build_ui(self) -> None:
-        # Barra superior sobre el propio cielo: logo y botones-píldora de cristal.
+        # Top bar over the sky itself: logo and glass pill buttons.
         top = QHBoxLayout()
         top.setSpacing(10)
         logo = QLabel()
@@ -127,9 +127,9 @@ class MainWindow(QMainWindow):
         top.addWidget(logo)
         top.addWidget(app_title)
         top.addStretch()
-        for text, slot in (("＋  Nuevo servidor", self.new_server),
-                           ("Conectar a un equipo", self.add_host),
-                           ("Ajustes", self._settings)):
+        for text, slot in ((tr("＋  Nuevo servidor"), self.new_server),
+                           (tr("Conectar a un equipo"), self.add_host),
+                           (tr("Ajustes"), self._settings)):
             button = QPushButton(text)
             button.setObjectName("top")
             button.clicked.connect(slot)
@@ -138,8 +138,8 @@ class MainWindow(QMainWindow):
         self.tree = QTreeWidget()
         self.tree.setObjectName("hosts")
         self.tree.setHeaderHidden(True)
-        # Sin zona de sangría: Qt pintaría ahí un trozo suelto de la selección. La jerarquía se
-        # marca con el icono y la negrita de los equipos y la sangría del texto de los servidores.
+        # No indentation area: Qt would paint a loose piece of the selection there. The hierarchy is
+        # shown by the computers' icon and bold text and the indented server text.
         self.tree.setIndentation(0)
         self.tree.setItemDelegate(IndentedServers(self.tree))
         self.tree.setRootIsDecorated(False)
@@ -158,9 +158,9 @@ class MainWindow(QMainWindow):
         for w in (self.welcome, self.host_page, self.server_panel):
             self.stack.addWidget(w)
 
-        # Fondo de cielo con dos paneles de cristal: equipos a la izquierda, detalle a la derecha.
+        # Sky background with two glass panels: computers on the left, details on the right.
         splitter = QSplitter()
-        self.detected_title = QLabel("Detectados en tu red")
+        self.detected_title = QLabel(tr("Detectados en tu red"))
         self.detected_title.setObjectName("panelTitle")
         self.detected_list = QListWidget()
         self.detected_list.setObjectName("detected")
@@ -174,9 +174,9 @@ class MainWindow(QMainWindow):
         left_layout.addWidget(self.tree, 1)
         left_layout.addWidget(self.detected_title)
         left_layout.addWidget(self.detected_list)
-        splitter.addWidget(theme.glass(left, "Equipos y servidores"))
+        splitter.addWidget(theme.glass(left, tr("Equipos y servidores")))
         splitter.addWidget(theme.glass(self.stack, margins=18))
-        splitter.setHandleWidth(22)  # separación clara entre los dos paneles
+        splitter.setHandleWidth(22)  # clear gap between the two panels
         splitter.setChildrenCollapsible(False)
         splitter.setStretchFactor(1, 1)
         splitter.setSizes([290, 860])
@@ -193,24 +193,24 @@ class MainWindow(QMainWindow):
         logo = QLabel()
         logo.setPixmap(QPixmap(str(ASSETS / "icon.png")).scaled(
             96, 96, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
-        title = QLabel("<span style='font-size:26pt'>Bienvenido</span><br>"
-                       "<span style='font-size:11pt'>Tus servidores de Minecraft y Hytale, en toda tu red.</span>")
+        title = QLabel(tr("<span style='font-size:26pt'>Bienvenido</span><br>"
+                          "<span style='font-size:11pt'>Tus servidores de Minecraft y Hytale, en toda tu red.</span>"))
         title.setObjectName("title")
         head = QHBoxLayout()
         head.addWidget(logo)
         head.addSpacing(12)
         head.addWidget(title, 1)
-        text = QLabel(
+        text = QLabel(tr(
             "Cada equipo que hospeda servidores ejecuta un pequeño <b>agente</b>. "
             "Esta app se conecta a los agentes de tu red para crear, encender, apagar "
             "y actualizar servidores.<br><br>"
             "Empieza usando este PC como servidor, o conéctate por IP a otro equipo "
-            "(por ejemplo tu homelab) donde ya esté funcionando.")
+            "(por ejemplo tu homelab) donde ya esté funcionando."))
         text.setWordWrap(True)
-        use_local = QPushButton("Usar este PC como servidor")
+        use_local = QPushButton(tr("Usar este PC como servidor"))
         use_local.setProperty("kind", "primary")
         use_local.clicked.connect(self.setup_local_agent)
-        add = QPushButton("Conectar a un equipo por IP...")
+        add = QPushButton(tr("Conectar a un equipo por IP..."))
         add.clicked.connect(self.add_host)
         row = QHBoxLayout()
         row.addWidget(use_local)
@@ -232,36 +232,36 @@ class MainWindow(QMainWindow):
         self.host_info.setTextInteractionFlags(Qt.TextInteractionFlag.TextBrowserInteraction)
         self.host_info.setOpenExternalLinks(True)
         self.host_title.setObjectName("title")
-        self.btn_host_new = QPushButton("Nuevo servidor en este equipo")
+        self.btn_host_new = QPushButton(tr("Nuevo servidor en este equipo"))
         self.btn_host_new.setProperty("kind", "primary")
         self.btn_host_new.clicked.connect(self.new_server)
-        self.btn_host_start = QPushButton("Iniciar agente local")
+        self.btn_host_start = QPushButton(tr("Iniciar agente local"))
         self.btn_host_start.clicked.connect(self._start_local_agent)
-        self.btn_copy_token = QPushButton("Copiar token")
+        self.btn_copy_token = QPushButton(tr("Copiar token"))
         self.btn_copy_token.clicked.connect(self._copy_token)
-        # Linux con cortafuegos activo (ufw/firewalld): abrir los puertos con la contraseña del sistema.
+        # Linux with an active firewall (ufw/firewalld): open the ports with the system password.
         self.firewall_kind = firewall.detect()
-        self.btn_firewall = QPushButton("Abrir puertos del cortafuegos")
-        self.btn_firewall.setToolTip(f"El cortafuegos ({self.firewall_kind}) bloquea a los demás equipos y "
-                                     "a los jugadores. Pide tu contraseña.")
+        self.btn_firewall = QPushButton(tr("Abrir puertos del cortafuegos"))
+        self.btn_firewall.setToolTip(tr("El cortafuegos ({kind}) bloquea a los demás equipos y "
+                                        "a los jugadores. Pide tu contraseña.", kind=self.firewall_kind))
         self.btn_firewall.clicked.connect(lambda: self._open_firewall(ask=False))
-        self.btn_agent_update = QPushButton("Actualizar agente")
-        self.btn_agent_update.setToolTip("Instala en ese equipo la última versión de Ownhost. Los servidores "
-                                         "encendidos se apagan con «stop» y se vuelven a encender.")
+        self.btn_agent_update = QPushButton(tr("Actualizar agente"))
+        self.btn_agent_update.setToolTip(tr("Instala en ese equipo la última versión de Ownhost. Los servidores "
+                                            "encendidos se apagan con «stop» y se vuelven a encender."))
         self.btn_agent_update.clicked.connect(self._update_agent)
-        self.btn_received = QPushButton("Copias de otros equipos...")
-        self.btn_received.setToolTip("Copias de seguridad que otros equipos tuyos guardan en este")
+        self.btn_received = QPushButton(tr("Copias de otros equipos..."))
+        self.btn_received.setToolTip(tr("Copias de seguridad que otros equipos tuyos guardan en este"))
         self.btn_received.clicked.connect(self._received_backups)
-        self.btn_guests = QPushButton("Accesos para amigos...")
-        self.btn_guests.setToolTip("Da a tus amigos un código para encender o gestionar tus servidores")
+        self.btn_guests = QPushButton(tr("Accesos para amigos..."))
+        self.btn_guests.setToolTip(tr("Da a tus amigos un código para encender o gestionar tus servidores"))
         self.btn_guests.clicked.connect(self._guests)
-        edit = QPushButton("Editar equipo")
+        edit = QPushButton(tr("Editar equipo"))
         edit.clicked.connect(lambda: self.edit_host(self._selected()[0]))
-        remove = QPushButton("Quitar de la lista")
+        remove = QPushButton(tr("Quitar de la lista"))
         remove.setProperty("kind", "danger")
         remove.clicked.connect(lambda: self.remove_host(self._selected()[0]))
-        # Ocultos hasta saber qué equipo es: si no, la ventana se ensancharía al abrirse y no volvería a
-        # encoger (en un portátil de 1366 px quedaría más ancha que la pantalla).
+        # Hidden until we know which computer it is: otherwise the window would widen on opening and never
+        # shrink back (on a 1366 px laptop it would end up wider than the screen).
         for b in (self.btn_guests, self.btn_host_start, self.btn_copy_token, self.btn_firewall,
                   self.btn_agent_update, self.btn_received):
             b.hide()
@@ -283,7 +283,7 @@ class MainWindow(QMainWindow):
         layout.addStretch()
         return w
 
-    # ---------- árbol ----------
+    # ---------- tree ----------
 
     def _host(self, host_id: str) -> Host | None:
         return next((h for h in self.hosts if h.id == host_id), None)
@@ -342,7 +342,7 @@ class MainWindow(QMainWindow):
             item.setForeground(0, QBrush())
             item.setToolTip(0, f"{host.address}:{host.port}")
         else:
-            item.setText(0, f"{host.name} (sin conexión)" if st else f"{host.name} (conectando...)")
+            item.setText(0, tr("{name} (sin conexión)", name=host.name) if st else tr("{name} (conectando...)", name=host.name))
             item.setForeground(0, QBrush(QColor(theme.OFFLINE)))
             item.setToolTip(0, st.get("error", ""))
 
@@ -364,7 +364,7 @@ class MainWindow(QMainWindow):
             label, _ = STATUS.get(s["status"], (s["status"], ""))
             child.setText(0, f"●  {s['name']}")
             child.setForeground(0, QBrush(QColor(theme.STATUS_DOT.get(s["status"], theme.OFFLINE))))
-            child.setToolTip(0, f"{s['game_name']} {s['version']} · {label}")
+            child.setToolTip(0, f"{s['game_name']} {s['version']} · {tr(label)}")
             self._update_server_icon(host_id, s, child)
 
     def _update_server_icon(self, host_id: str, s: dict, child: QTreeWidgetItem) -> None:
@@ -410,7 +410,7 @@ class MainWindow(QMainWindow):
         self.stack.setCurrentWidget(self.host_page)
 
     def _web_url(self, host_id: str) -> str | None:
-        """El panel web del agente, con una dirección que sirva también desde otros dispositivos."""
+        """The agent's web panel, with an address that also works from other devices."""
         host = self._host(host_id)
         if not host:
             return None
@@ -431,7 +431,7 @@ class MainWindow(QMainWindow):
         return access_level(self.state.get(host_id, {}).get("info"))
 
     def _owned_online(self, exclude: str | None = None) -> list[tuple[Host, AgentClient]]:
-        """Equipos conectados en los que se puede crear servidores (los tuyos, no los de un amigo)."""
+        """Connected computers where servers can be created (yours, not a friend's)."""
         return [(h, self.clients[h.id]) for h in self.hosts if h.id != exclude
                 and self.state.get(h.id, {}).get("online") and self._level(h.id) >= OWNER]
 
@@ -466,13 +466,15 @@ class MainWindow(QMainWindow):
         host_id = self._selected()[0]
         host = self._host(host_id)
         if not host or QMessageBox.question(
-                self, "Actualizar agente", f"¿Actualizar Ownhost en «{host.name}»? Los servidores encendidos se "
-                "apagan guardando el mundo y se vuelven a encender al terminar (un par de minutos).")                 != QMessageBox.StandardButton.Yes:
+                self, tr("Actualizar agente"),
+                tr("¿Actualizar Ownhost en «{name}»? Los servidores encendidos se apagan guardando el mundo y se "
+                   "vuelven a encender al terminar (un par de minutos).", name=host.name)) \
+                != QMessageBox.StandardButton.Yes:
             return
         client = self.clients[host_id]
         run_async(lambda: client._req("POST", "/agent/update"),
                   lambda r: self.statusBar().showMessage(f"{host.name}: {r['detail']}...", 30000),
-                  lambda msg: QMessageBox.warning(self, "Actualizar agente", msg))
+                  lambda msg: QMessageBox.warning(self, tr("Actualizar agente"), msg))
         self.btn_agent_update.hide()
 
     def _received_backups(self) -> None:
@@ -491,14 +493,14 @@ class MainWindow(QMainWindow):
                      self._addresses(host_id), host.port).exec()
 
     def _addresses(self, host_id: str) -> list[tuple[str, str]]:
-        """Direcciones por las que se llega a un equipo: [(ip, descripción)]."""
+        """Addresses a computer can be reached at: [(ip, description)]."""
         host = self._host(host_id)
         info = self.state.get(host_id, {}).get("info") or {}
         if host.is_local:
             lan, ts = self.local_ip, tailscale_ip()
         else:
             lan, ts = info.get("lan_ip") or host.address, info.get("tailscale_ip")
-        addresses = [(lan, "red local")]
+        addresses = [(lan, tr("red local"))]
         if ts and ts != lan:
             addresses.append((ts, "Tailscale"))
         return addresses
@@ -512,33 +514,38 @@ class MainWindow(QMainWindow):
             used = info["memory_total_mb"] - info["memory_available_mb"]
             running = sum(1 for s in st["servers"] if s["state"] == "running")
             self.host_info.setText(
-                f"<b>{info['hostname']}</b> · {info['os']} · agente v{info['version']}<br>"
-                f"Dirección: {host.address}:{host.port}"
+                tr("<b>{hostname}</b> · {os} · agente v{version}<br>", hostname=info["hostname"], os=info["os"],
+                   version=info["version"])
+                + tr("Dirección: {address}", address=f"{host.address}:{host.port}")
                 + (f" · Tailscale: {info['tailscale_ip']}" if info.get("tailscale_ip") else "") + "<br>"
-                f"CPU: {info['cpu_count']} hilos, {info['cpu_percent']}% en uso<br>"
-                f"RAM: {used / 1024:.1f} / {info['memory_total_mb'] / 1024:.1f} GB en uso<br>"
-                f"Servidores: {len(st['servers'])} ({running} encendidos)<br>"
-                + (f"Panel web (también desde el móvil): <a href='{url}'>{url}</a>"
+                + tr("CPU: {threads} hilos, {percent}% en uso<br>", threads=info["cpu_count"],
+                     percent=info["cpu_percent"])
+                + tr("RAM: {used} / {total} GB en uso<br>", used=f"{used / 1024:.1f}",
+                     total=f"{info['memory_total_mb'] / 1024:.1f}")
+                + tr("Servidores: {count} ({running} encendidos)<br>", count=len(st["servers"]), running=running)
+                + (tr("Panel web (también desde el móvil): <a href='{url}'>{url}</a>", url=url)
                    if (url := self._web_url(host_id)) else "")
-                + (f"<br><br>Entras con el acceso de <b>{access['name']}</b>: "
-                   f"<b>{ROLE_NAMES.get(access['role'], access['role'])}</b>."
+                + (tr("<br><br>Entras con el acceso de <b>{name}</b>: <b>{role}</b>.", name=access["name"],
+                      role=tr(ROLE_NAMES.get(access["role"], access["role"])))
                    if (access := info.get("access")) and access.get("level", OWNER) < OWNER else ""))
             if host.is_local and (cfg := local_agent_config()):
-                self.host_info.setText(self.host_info.text() +
-                                       f"<br><br>Para gestionar este PC desde otro equipo usa la IP "
-                                       f"<b>{self.local_ip}</b>"
-                                       + (f" (o <b>{ts}</b> por Tailscale, desde fuera de casa)"
-                                          if (ts := tailscale_ip()) else "")
-                                       + f", puerto <b>{cfg['port']}</b> y el token (botón «Copiar token»).")
+                if ts := tailscale_ip():
+                    extra = tr("<br><br>Para gestionar este PC desde otro equipo usa la IP <b>{ip}</b> (o <b>{ts}</b> "
+                               "por Tailscale, desde fuera de casa), puerto <b>{port}</b> y el token (botón "
+                               "«Copiar token»).", ip=self.local_ip, ts=ts, port=cfg["port"])
+                else:
+                    extra = tr("<br><br>Para gestionar este PC desde otro equipo usa la IP <b>{ip}</b>, puerto "
+                               "<b>{port}</b> y el token (botón «Copiar token»).", ip=self.local_ip, port=cfg["port"])
+                self.host_info.setText(self.host_info.text() + extra)
         else:
-            self.host_info.setText(f"Sin conexión con {host.address}:{host.port}<br>"
+            self.host_info.setText(tr("Sin conexión con {address}", address=f"{host.address}:{host.port}") + "<br>"
                                    f"<span style='color:{theme.DANGER_TEXT}'>{st.get('error', '')}</span>")
         owner = self._level(host_id) >= OWNER
         self.btn_host_new.setEnabled(bool(st.get("online")))
         self.btn_host_new.setVisible(owner)
         self.btn_guests.setVisible(owner and bool(st.get("online")))
         self.btn_received.setVisible(owner and bool(st.get("online")))
-        # El agente de este PC lo actualiza la propia app; los de otros equipos, con este botón.
+        # This PC's agent is updated by the app itself; other computers' agents, with this button.
         agent_build = (info or {}).get("build") or "dev"
         self.btn_agent_update.setVisible(
             owner and bool(st.get("online")) and not host.is_local and bool(self.latest_release)
@@ -558,12 +565,12 @@ class MainWindow(QMainWindow):
             return
         menu = QMenu(self)
         if self._level(host_id) >= OWNER:
-            menu.addAction("Nuevo servidor", self.new_server)
-        menu.addAction("Editar equipo", lambda: self.edit_host(host_id))
-        menu.addAction("Quitar de la lista", lambda: self.remove_host(host_id))
+            menu.addAction(tr("Nuevo servidor"), self.new_server)
+        menu.addAction(tr("Editar equipo"), lambda: self.edit_host(host_id))
+        menu.addAction(tr("Quitar de la lista"), lambda: self.remove_host(host_id))
         menu.exec(self.tree.viewport().mapToGlobal(pos))
 
-    # ---------- sondeo de agentes ----------
+    # ---------- agent polling ----------
 
     def poll(self) -> None:
         for h in self.hosts:
@@ -590,8 +597,8 @@ class MainWindow(QMainWindow):
         self._update_login_dialogs(host_id)
         self._after_poll(host_id)
         host = self._host(host_id)
-        # Solo hacia delante: una app más antigua nunca sustituye a un agente más nuevo (si hay dos
-        # versiones abiertas a la vez se lo quitarían la una a la otra). Las compilaciones son fechas.
+        # Forward only: an older app never replaces a newer agent (with two versions open at once
+        # they would keep replacing each other). Builds are dates.
         agent_build = info.get("build") or "dev"
         if host.is_local and BUILD != "dev" and (agent_build == "dev" or agent_build < BUILD):
             self._upgrade_local_agent(host_id, servers)
@@ -601,7 +608,7 @@ class MainWindow(QMainWindow):
         if self._placed:
             return
         self._placed = True
-        # Que quepa en la pantalla (sin quedar debajo de la barra de tareas) y centrada.
+        # Fit on the screen (not under the taskbar) and centered.
         screen = (self.screen() or QApplication.primaryScreen()).availableGeometry()
         frame = self.frameGeometry().size() - self.size()
         w = min(self.width(), screen.width() - frame.width())
@@ -622,30 +629,30 @@ class MainWindow(QMainWindow):
             return
         host = self._host(host_id)
         texts = [e["text"] for e in new]
-        where = f" (en {host.name})" if host and not host.is_local else ""
+        where = tr(" (en {name})", name=host.name) if host and not host.is_local else ""
         self.statusBar().showMessage(" · ".join(texts) + where, 30000)
         QApplication.alert(self)
         if any(e["kind"] == "crash" for e in new):
-            # Se ha quedado apagado: merece una ventana. Si solo se reinicia, basta con la barra.
-            QMessageBox.warning(self, "Servidor caído", "\n".join(texts) + where +
-                                "\n\nMira la consola del servidor para ver el motivo.")
+            # It stayed down: worth a window. If it only restarts, the status bar is enough.
+            QMessageBox.warning(self, tr("Servidor caído"), "\n".join(texts) + where +
+                                tr("\n\nMira la consola del servidor para ver el motivo."))
 
-    # ---------- sustituir el agente local cuando se abre una versión nueva de la app ----------
+    # ---------- replace the local agent when a new version of the app is opened ----------
 
     def _upgrade_local_agent(self, host_id: str, servers: list[dict]) -> None:
         if self.upgrading_agent or any(s.get("task") for s in servers):
-            return  # ya en marcha, o hay una instalación/copia a medias: se reintenta en el próximo sondeo
+            return  # already running, or an install/backup is half-done: retried on the next poll
         self.upgrading_agent = True
         client = self.clients[host_id]
         running = [s["id"] for s in servers if s["state"] in ("starting", "running")]
-        self.statusBar().showMessage("Actualizando el agente de este PC a la versión nueva...")
+        self.statusBar().showMessage(tr("Actualizando el agente de este PC a la versión nueva..."))
         run_async(lambda: self._replace_agent(client, running),
                   lambda restarted: self._agent_upgraded(restarted),
                   lambda msg: self._agent_upgrade_failed(msg))
 
     @staticmethod
     def _replace_agent(client: AgentClient, running: list[str]) -> list[str]:
-        """Apaga los servidores con «stop», cambia el agente y vuelve a encender los que lo estaban."""
+        """Stop the servers with "stop", swap the agent and start again the ones that were running."""
         import time
 
         for sid in running:
@@ -656,15 +663,15 @@ class MainWindow(QMainWindow):
                 break
             time.sleep(1)
         try:
-            client._req("POST", "/shutdown")  # agentes nuevos: se cierran solos
+            client._req("POST", "/shutdown")  # new agents: they shut down by themselves
         except (ApiError, httpx.HTTPError):
-            # Agentes antiguos no tienen esta función, y los nuevos pueden cerrarse tan rápido que
-            # cortan la respuesta: en los dos casos se sigue igual.
+            # Old agents lack this endpoint, and new ones can close so fast that they cut the
+            # response: either way, carry on.
             pass
         time.sleep(2)
         try:
             kill_local_agents(client.host.port)
-        except Exception:  # noqa: BLE001 - sin permisos para ver procesos: ya se cerró solo
+        except Exception:  # noqa: BLE001 - no permission to list processes: it already closed by itself
             pass
         launch_local_agent()
         deadline = time.time() + 60
@@ -675,9 +682,9 @@ class MainWindow(QMainWindow):
             except ApiError:
                 time.sleep(1)
         else:
-            raise ApiError("El agente nuevo no ha arrancado; abre la app de nuevo")
+            raise ApiError(tr("El agente nuevo no ha arrancado; abre la app de nuevo"))
         restarted = []
-        for sid in running:  # uno a uno: si uno falla, los demás se encienden igual
+        for sid in running:  # one by one: if one fails, the others still start
             try:
                 client.action(sid, "start")
                 restarted.append(sid)
@@ -687,14 +694,19 @@ class MainWindow(QMainWindow):
 
     def _agent_upgraded(self, restarted: list[str]) -> None:
         self.upgrading_agent = False
-        extra = ("" if not restarted else " y 1 servidor vuelto a encender" if len(restarted) == 1 else
-                 f" y {len(restarted)} servidores vueltos a encender")
-        self.statusBar().showMessage(f"Agente de este PC actualizado a la versión nueva{extra}.", 8000)
+        if not restarted:
+            text = tr("Agente de este PC actualizado a la versión nueva.")
+        elif len(restarted) == 1:
+            text = tr("Agente de este PC actualizado a la versión nueva y 1 servidor vuelto a encender.")
+        else:
+            text = tr("Agente de este PC actualizado a la versión nueva y {count} servidores vueltos a encender.",
+                      count=len(restarted))
+        self.statusBar().showMessage(text, 8000)
         self.poll()
 
     def _agent_upgrade_failed(self, msg: str) -> None:
         self.upgrading_agent = False
-        self.statusBar().showMessage(f"No se pudo actualizar el agente de este PC: {msg}", 15000)
+        self.statusBar().showMessage(tr("No se pudo actualizar el agente de este PC: {msg}", msg=msg), 15000)
 
     def _poll_failed(self, host_id: str, msg: str) -> None:
         self.inflight.discard(host_id)
@@ -723,7 +735,7 @@ class MainWindow(QMainWindow):
         else:
             self._show_host_page(host_id)
 
-    # ---------- inicio de sesión con la cuenta del juego (Hytale) ----------
+    # ---------- sign-in with the game account (Hytale) ----------
 
     def _update_login_dialogs(self, host_id: str) -> None:
         pending = set()
@@ -751,16 +763,16 @@ class MainWindow(QMainWindow):
             dialog = self.login_dialogs.pop(key)
             dialog.auto_closed = True
             dialog.close()
-            self.statusBar().showMessage("Sesión iniciada correctamente.", 6000)
+            self.statusBar().showMessage(tr("Sesión iniciada correctamente."), 6000)
 
     def _login_closed(self, key, dialog: AccountLoginDialog) -> None:
         if not getattr(dialog, "auto_closed", False):
-            # El usuario la cerró: no volver a abrirla para este mismo código.
+            # The user closed it: don't reopen it for this same code.
             self.dismissed_logins.add(dialog.ident)
         if self.login_dialogs.get(key) is dialog:
             del self.login_dialogs[key]
 
-    # ---------- acciones ----------
+    # ---------- actions ----------
 
     def _set_hosts(self, hosts: list[Host]) -> None:
         for c in self.clients.values():
@@ -792,10 +804,10 @@ class MainWindow(QMainWindow):
         host = self._host(host_id) if host_id else None
         if not host:
             return
-        if QMessageBox.question(self, "Quitar equipo",
-                                f"¿Quitar «{host.name}» de la lista? Sus servidores no se borran.") \
+        if QMessageBox.question(self, tr("Quitar equipo"),
+                                tr("¿Quitar «{name}» de la lista? Sus servidores no se borran.", name=host.name)) \
                 == QMessageBox.StandardButton.Yes:
-            # Que la búsqueda automática no lo vuelva a añadir solo (seguirá en «Detectados»).
+            # Keep the automatic search from adding it back (it stays under "Found on your network").
             hostname = (self.state.get(host_id, {}).get("info") or {}).get("hostname")
             if hostname:
                 settings = load_settings()
@@ -804,7 +816,7 @@ class MainWindow(QMainWindow):
             self._set_hosts([h for h in self.hosts if h.id != host_id])
             self.scan_network()
 
-    # ---------- equipos detectados en la red local y en Tailscale ----------
+    # ---------- computers found on the local network and on Tailscale ----------
 
     def scan_network(self) -> None:
         if self.scanning:
@@ -827,18 +839,18 @@ class MainWindow(QMainWindow):
             if self._is_known(entry):
                 continue
             if entry["trusted"] and entry["hostname"] not in ignored:
-                # Mismo dueño en Tailscale: se añade solo, y funciona también fuera de casa.
+                # Same owner on Tailscale: added automatically, and it also works away from home.
                 added.append(Host(name=entry["name"], address=entry["tailscale"], token="", port=entry["port"]))
         if added:
             self._set_hosts(self.hosts + added)
             names = ", ".join(h.name for h in added)
-            self.statusBar().showMessage(f"Añadido automáticamente por Tailscale: {names}", 8000)
+            self.statusBar().showMessage(tr("Añadido automáticamente por Tailscale: {names}", names=names), 8000)
         self.detected = [e for e in results if not self._is_known(e)]
         self.detected_list.clear()
         for entry in self.detected:
-            via = "Tailscale" if entry["tailscale"] and not entry["lan"] else "red local"
+            via = "Tailscale" if entry["tailscale"] and not entry["lan"] else tr("red local")
             item = QListWidgetItem(f"＋  {entry['name']}  ({via})")
-            item.setToolTip("Pulsa para conectarlo (te pedirá el token de ese equipo)")
+            item.setToolTip(tr("Pulsa para conectarlo (te pedirá el token de ese equipo)"))
             self.detected_list.addItem(item)
         visible = bool(self.detected)
         self.detected_title.setVisible(visible)
@@ -860,9 +872,9 @@ class MainWindow(QMainWindow):
     def new_server(self) -> None:
         online = self._owned_online()
         if not online:
-            QMessageBox.information(self, "Sin equipos", "No hay ningún equipo tuyo conectado. "
+            QMessageBox.information(self, tr("Sin equipos"), tr("No hay ningún equipo tuyo conectado. "
                                     "Usa este PC o añade otro equipo primero.\n\n(En los equipos de un amigo "
-                                    "solo puedes usar los servidores que te haya dejado.)")
+                                    "solo puedes usar los servidores que te haya dejado.)"))
             return
         dialog = CreateServerDialog(self, online, self._selected()[0])
         ok = dialog.exec()
@@ -890,8 +902,8 @@ class MainWindow(QMainWindow):
         if not local_agent_config():
             launch_local_agent()
         self.local_launch_tried = True
-        self.statusBar().showMessage("Arrancando el agente de este PC (la primera vez puede tardar un poco)...")
-        # En un portátil el AppImage tarda en montarse la primera vez: hasta 60 s de margen.
+        self.statusBar().showMessage(tr("Arrancando el agente de este PC (la primera vez puede tardar un poco)..."))
+        # On a laptop the AppImage takes a while to mount the first time: up to 60 s of leeway.
         self._wait_for_local_config(120)
 
     def _wait_for_local_config(self, tries: int) -> None:
@@ -899,14 +911,14 @@ class MainWindow(QMainWindow):
         if cfg:
             self.statusBar().clearMessage()
             if not any(h.is_local for h in self.hosts):
-                host = Host(name="Este PC", address="127.0.0.1", token=cfg["token"], port=cfg["port"])
+                host = Host(name=tr("Este PC"), address="127.0.0.1", token=cfg["token"], port=cfg["port"])
                 self._set_hosts([host] + self.hosts)
                 self._select((host.id, None))
             return
         if tries <= 0:
             self.statusBar().clearMessage()
-            QMessageBox.warning(self, "Agente local", "El agente de este PC no ha arrancado.\n\n"
-                                f"Mira qué ha pasado en:\n{default_data_dir() / 'agent.log'}")
+            QMessageBox.warning(self, tr("Agente local"), tr("El agente de este PC no ha arrancado.\n\n"
+                                "Mira qué ha pasado en:\n{path}", path=default_data_dir() / "agent.log"))
             return
         QTimer.singleShot(500, lambda: self._wait_for_local_config(tries - 1))
 
@@ -915,32 +927,32 @@ class MainWindow(QMainWindow):
         if not kind:
             return
         if ask:
-            # Solo se pregunta una vez por equipo; después queda el botón en la ficha «Este PC».
+            # Asked only once per computer; afterwards the button stays on the "This PC" page.
             settings = load_settings()
             settings["firewall_asked"] = True
             save_settings(settings)
             answer = QMessageBox.question(
-                self, "Cortafuegos",
-                f"Este equipo tiene el cortafuegos «{kind}» activado: bloquea a los demás equipos de la red "
-                "y a los jugadores.\n\n¿Abrir ahora los puertos de Ownhost y de los juegos? Te pedirá tu "
-                "contraseña.")
+                self, tr("Cortafuegos"),
+                tr("Este equipo tiene el cortafuegos «{kind}» activado: bloquea a los demás equipos de la red "
+                   "y a los jugadores.\n\n¿Abrir ahora los puertos de Ownhost y de los juegos? Te pedirá tu "
+                   "contraseña.", kind=kind))
             if answer != QMessageBox.StandardButton.Yes:
                 return
-        self.statusBar().showMessage("Abriendo puertos del cortafuegos...")
+        self.statusBar().showMessage(tr("Abriendo puertos del cortafuegos..."))
 
         def done(result):
             ok, msg = result
             self.statusBar().showMessage(msg, 8000)
             if not ok:
-                QMessageBox.warning(self, "Cortafuegos", msg)
+                QMessageBox.warning(self, tr("Cortafuegos"), msg)
 
-        run_async(lambda: firewall.open_ports(kind), done, lambda msg: QMessageBox.warning(self, "Cortafuegos", msg))
+        run_async(lambda: firewall.open_ports(kind), done, lambda msg: QMessageBox.warning(self, tr("Cortafuegos"), msg))
 
     def _copy_token(self) -> None:
         cfg = local_agent_config()
         if cfg:
             QApplication.clipboard().setText(cfg["token"])
-            self.statusBar().showMessage("Token copiado al portapapeles", 3000)
+            self.statusBar().showMessage(tr("Token copiado al portapapeles"), 3000)
 
     def _start_local_agent(self) -> None:
         launch_local_agent()

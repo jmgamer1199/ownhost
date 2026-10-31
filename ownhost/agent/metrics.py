@@ -1,7 +1,7 @@
-"""Historial de rendimiento: CPU, RAM y jugadores de cada servidor, y uso de disco.
+"""Performance history: CPU, RAM and players of each server, and disk usage.
 
-Se toma una muestra por minuto de cada servidor encendido y se guardan las últimas 24 horas.
-El historial se escribe a disco de vez en cuando para que sobreviva a un reinicio del agente.
+One sample per minute is taken from each running server and the last 24 hours are kept.
+The history is written to disk now and then so it survives an agent restart.
 """
 
 import json
@@ -16,7 +16,7 @@ log = logging.getLogger("ownhost.agent")
 
 SAMPLE_SECONDS = 60
 KEEP_SECONDS = 24 * 3600
-SAVE_EVERY = 10  # muestras entre guardados
+SAVE_EVERY = 10  # samples between saves
 DISK_CACHE_SECONDS = 300
 
 
@@ -43,7 +43,7 @@ class Metrics(threading.Thread):
         self._disk: dict[str, tuple[float, dict]] = {}
         self._lock = threading.Lock()
 
-    # ---------- historial ----------
+    # ---------- history ----------
 
     def _series(self, server_id: str) -> deque:
         if server_id not in self.history:
@@ -81,7 +81,7 @@ class Metrics(threading.Thread):
                 try:
                     (self.folder / f"{sid}.json").write_text(json.dumps(list(points)), encoding="utf-8")
                 except OSError:
-                    log.exception("No se pudo guardar el historial de %s", sid)
+                    log.exception("Could not save the history of %s", sid)
 
     def forget(self, server_id: str) -> None:
         with self._lock:
@@ -94,11 +94,11 @@ class Metrics(threading.Thread):
         with self._lock:
             return [p for p in self._series(server_id) if p[0] >= cutoff]
 
-    # ---------- disco ----------
+    # ---------- disk ----------
 
     def disk(self, s) -> dict:
-        """Tamaño del servidor y de sus copias, y espacio del disco. Recorrer un mundo grande es lento:
-        se guarda unos minutos."""
+        """Size of the server and its backups, and disk space. Walking a large world is slow:
+        it is cached for a few minutes."""
         cached = self._disk.get(s.meta.id)
         if cached and time.time() - cached[0] < DISK_CACHE_SECONDS:
             return cached[1]

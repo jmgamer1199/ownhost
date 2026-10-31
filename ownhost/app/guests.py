@@ -1,4 +1,4 @@
-"""Accesos para amigos: códigos con permisos limitados para que otros gestionen tus servidores."""
+"""Friend access: codes with limited permissions so others can manage your servers."""
 
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QGuiApplication
@@ -10,8 +10,10 @@ from PySide6.QtWidgets import (
 
 from ownhost.app.client import AgentClient
 from ownhost.app.tasks import run_async
+from ownhost.i18n import tr
 
-# Niveles de permiso (los mismos que en el agente). Cada uno incluye los anteriores.
+# Permission levels (the same as in the agent). Each one includes the previous ones.
+# The texts are the Spanish keys: they are translated with tr() where they are shown.
 PLAY, MODERATE, MANAGE, OWNER = 1, 2, 3, 9
 ROLES = [
     ("play", "Encender y apagar",
@@ -27,7 +29,7 @@ ROLE_NAMES = {key: name for key, name, _ in ROLES} | {"owner": "Dueño", "backup
 
 
 def access_level(info: dict | None) -> int:
-    """Nivel con el que la app está conectada a un equipo (los agentes antiguos no lo dicen: dueño)."""
+    """Level the app is connected to a computer with (old agents don't say: owner)."""
     return ((info or {}).get("access") or {}).get("level", OWNER)
 
 
@@ -35,17 +37,17 @@ class GuestsDialog(QDialog):
     def __init__(self, parent, client: AgentClient, host_name: str, servers: list[dict],
                  addresses: list[tuple[str, str]], port: int):
         super().__init__(parent)
-        self.setWindowTitle(f"Accesos para amigos · {host_name}")
+        self.setWindowTitle(tr("Accesos para amigos · {host}", host=host_name))
         self.setMinimumSize(620, 380)
         self.client, self.servers, self.addresses, self.port = client, servers, addresses, port
         self.guests: list[dict] = []
 
-        intro = QLabel("Dale a cada amigo su propio código para que encienda o gestione tus servidores desde su "
-                       "Ownhost o desde el navegador del móvil, sin darle tu token. Puedes quitarle el acceso "
-                       "cuando quieras.")
+        intro = QLabel(tr("Dale a cada amigo su propio código para que encienda o gestione tus servidores desde su "
+                          "Ownhost o desde el navegador del móvil, sin darle tu token. Puedes quitarle el acceso "
+                          "cuando quieras."))
         intro.setWordWrap(True)
         self.table = QTableWidget(0, 3)
-        self.table.setHorizontalHeaderLabels(["Nombre", "Permiso", "Servidores"])
+        self.table.setHorizontalHeaderLabels([tr("Nombre"), tr("Permiso"), tr("Servidores")])
         self.table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
         self.table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
         self.table.horizontalHeader().setStretchLastSection(True)
@@ -53,16 +55,16 @@ class GuestsDialog(QDialog):
         self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self.table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
         self.table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
-        self.empty = QLabel("Todavía no has dado acceso a nadie.")
+        self.empty = QLabel(tr("Todavía no has dado acceso a nadie."))
         self.empty.setObjectName("muted")
 
-        new = QPushButton("Nuevo acceso...")
+        new = QPushButton(tr("Nuevo acceso..."))
         new.setProperty("kind", "primary")
         new.clicked.connect(self._new)
-        self.remove = QPushButton("Quitar acceso")
+        self.remove = QPushButton(tr("Quitar acceso"))
         self.remove.setProperty("kind", "danger")
         self.remove.clicked.connect(self._remove)
-        close = QPushButton("Cerrar")
+        close = QPushButton(tr("Cerrar"))
         close.clicked.connect(self.accept)
         row = QHBoxLayout()
         row.addWidget(new)
@@ -78,7 +80,7 @@ class GuestsDialog(QDialog):
         self._load()
 
     def _load(self) -> None:
-        run_async(self.client.guests, self._loaded, lambda msg: QMessageBox.warning(self, "Accesos", msg))
+        run_async(self.client.guests, self._loaded, lambda msg: QMessageBox.warning(self, tr("Accesos"), msg))
 
     def _loaded(self, guests: list[dict]) -> None:
         self.guests = guests
@@ -87,9 +89,9 @@ class GuestsDialog(QDialog):
         for g in guests:
             row = self.table.rowCount()
             self.table.insertRow(row)
-            servers = ("Todos" if g["servers"] is None else
-                       ", ".join(names.get(sid, "(borrado)") for sid in g["servers"]) or "Ninguno")
-            for col, text in enumerate((g["name"], ROLE_NAMES.get(g["role"], g["role"]), servers)):
+            servers = (tr("Todos") if g["servers"] is None else
+                       ", ".join(names.get(sid, tr("(borrado)")) for sid in g["servers"]) or tr("Ninguno"))
+            for col, text in enumerate((g["name"], tr(ROLE_NAMES.get(g["role"], g["role"])), servers)):
                 self.table.setItem(row, col, QTableWidgetItem(text))
         self.empty.setVisible(not guests)
         self.remove.setEnabled(bool(guests))
@@ -105,38 +107,39 @@ class GuestsDialog(QDialog):
             CodeDialog(self, guest, self.addresses, self.port).exec()
 
         run_async(lambda: self.client.create_guest(name, role, servers), created,
-                  lambda msg: QMessageBox.warning(self, "Accesos", msg))
+                  lambda msg: QMessageBox.warning(self, tr("Accesos"), msg))
 
     def _remove(self) -> None:
         rows = self.table.selectionModel().selectedRows()
         if not rows:
-            QMessageBox.information(self, "Accesos", "Selecciona un acceso de la lista.")
+            QMessageBox.information(self, tr("Accesos"), tr("Selecciona un acceso de la lista."))
             return
         guest = self.guests[rows[0].row()]
-        if QMessageBox.question(self, "Quitar acceso", f"¿Quitar el acceso de {guest['name']}? Su código dejará "
-                                "de funcionar al momento.") != QMessageBox.StandardButton.Yes:
+        if QMessageBox.question(self, tr("Quitar acceso"),
+                                tr("¿Quitar el acceso de {name}? Su código dejará de funcionar al momento.",
+                                   name=guest["name"])) != QMessageBox.StandardButton.Yes:
             return
         run_async(lambda: self.client.delete_guest(guest["id"]), lambda _: self._load(),
-                  lambda msg: QMessageBox.warning(self, "Accesos", msg))
+                  lambda msg: QMessageBox.warning(self, tr("Accesos"), msg))
 
 
 class NewGuestDialog(QDialog):
     def __init__(self, parent, servers: list[dict]):
         super().__init__(parent)
-        self.setWindowTitle("Nuevo acceso")
+        self.setWindowTitle(tr("Nuevo acceso"))
         self.setMinimumWidth(500)
         self.name = QLineEdit()
-        self.name.setPlaceholderText("Nombre de tu amigo")
+        self.name.setPlaceholderText(tr("Nombre de tu amigo"))
         self.role = QComboBox()
         for key, name, _ in ROLES:
-            self.role.addItem(name, key)
+            self.role.addItem(tr(name), key)
         self.role_help = QLabel()
         self.role_help.setObjectName("muted")
         self.role_help.setWordWrap(True)
-        self.role.currentIndexChanged.connect(lambda i: self.role_help.setText(ROLES[i][2]))
-        self.role_help.setText(ROLES[0][2])
+        self.role.currentIndexChanged.connect(lambda i: self.role_help.setText(tr(ROLES[i][2])))
+        self.role_help.setText(tr(ROLES[0][2]))
 
-        self.all_servers = QCheckBox("Todos los servidores (también los que crees después)")
+        self.all_servers = QCheckBox(tr("Todos los servidores (también los que crees después)"))
         self.server_list = QListWidget()
         self.server_list.setMaximumHeight(140)
         for s in servers:
@@ -149,16 +152,16 @@ class NewGuestDialog(QDialog):
         self.all_servers.setChecked(not servers)
 
         form = QFormLayout()
-        form.addRow("Nombre", self.name)
-        form.addRow("Permiso", self.role)
+        form.addRow(tr("Nombre"), self.name)
+        form.addRow(tr("Permiso"), self.role)
         form.addRow("", self.role_help)
         buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
-        buttons.button(QDialogButtonBox.StandardButton.Ok).setText("Crear código")
+        buttons.button(QDialogButtonBox.StandardButton.Ok).setText(tr("Crear código"))
         buttons.accepted.connect(self._accept)
         buttons.rejected.connect(self.reject)
         layout = QVBoxLayout(self)
         layout.addLayout(form)
-        layout.addWidget(QLabel("<b>Servidores que puede ver</b>"))
+        layout.addWidget(QLabel(tr("<b>Servidores que puede ver</b>")))
         layout.addWidget(self.all_servers)
         layout.addWidget(self.server_list)
         layout.addWidget(buttons)
@@ -169,10 +172,11 @@ class NewGuestDialog(QDialog):
 
     def _accept(self) -> None:
         if not self.name.text().strip():
-            QMessageBox.warning(self, "Nuevo acceso", "Ponle un nombre (el de tu amigo, para reconocerlo luego).")
+            QMessageBox.warning(self, tr("Nuevo acceso"), tr("Ponle un nombre (el de tu amigo, para reconocerlo luego)."))
             return
         if not self.all_servers.isChecked() and not self._checked():
-            QMessageBox.warning(self, "Nuevo acceso", "Elige al menos un servidor, o marca «Todos los servidores».")
+            QMessageBox.warning(self, tr("Nuevo acceso"),
+                                tr("Elige al menos un servidor, o marca «Todos los servidores»."))
             return
         self.accept()
 
@@ -182,31 +186,32 @@ class NewGuestDialog(QDialog):
 
 
 class CodeDialog(QDialog):
-    """El código solo se puede ver ahora: el agente guarda una huella, no el código."""
+    """The code can only be seen now: the agent stores a fingerprint, not the code."""
 
     def __init__(self, parent, guest: dict, addresses: list[tuple[str, str]], port: int):
         super().__init__(parent)
-        self.setWindowTitle(f"Código para {guest['name']}")
+        self.setWindowTitle(tr("Código para {name}", name=guest["name"]))
         self.setMinimumWidth(540)
         code = QLineEdit(guest["token"])
         code.setReadOnly(True)
-        copy = QPushButton("Copiar")
+        copy = QPushButton(tr("Copiar"))
         copy.clicked.connect(lambda: (QGuiApplication.clipboard().setText(guest["token"]),
-                                      copy.setText("Copiado")))
+                                      copy.setText(tr("Copiado"))))
         code_row = QHBoxLayout()
         code_row.addWidget(code, 1)
         code_row.addWidget(copy)
 
-        where = " o ".join(f"<b>{ip}</b> ({label})" for ip, label in addresses)
+        where = tr(" o ").join(f"<b>{ip}</b> ({label})" for ip, label in addresses)
         first = addresses[0][0] if addresses else ""
-        steps = QLabel(
-            f"Pásale este código a <b>{guest['name']}</b> por un canal privado. Con él puede entrar:<br><br>"
-            f"• <b>Desde Ownhost</b>: «Conectar a un equipo», dirección {where}, puerto <b>{port}</b>, y el "
+        steps = QLabel(tr(
+            "Pásale este código a <b>{name}</b> por un canal privado. Con él puede entrar:<br><br>"
+            "• <b>Desde Ownhost</b>: «Conectar a un equipo», dirección {where}, puerto <b>{port}</b>, y el "
             "código en «Token o código».<br>"
-            f"• <b>Desde el navegador del móvil</b>: abre <b>http://{first}:{port}/</b> y escribe el código.<br><br>"
+            "• <b>Desde el navegador del móvil</b>: abre <b>http://{first}:{port}/</b> y escribe el código.<br><br>"
             "Tiene que estar en tu red local, o en tu Tailscale (desde Tailscale puedes compartirle solo este "
             "equipo con «Share»).<br><br>"
-            "<b>Guárdalo ahora:</b> no se puede volver a ver. Si se pierde, quita este acceso y crea otro.")
+            "<b>Guárdalo ahora:</b> no se puede volver a ver. Si se pierde, quita este acceso y crea otro.",
+            name=guest["name"], where=where, port=port, first=first))
         steps.setWordWrap(True)
         steps.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
         buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)

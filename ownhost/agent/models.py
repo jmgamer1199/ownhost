@@ -14,11 +14,11 @@ class ServerMeta:
     build: str | None = None
     java_major: int | None = None
     auto_start: bool = False
-    # Al encender, instala builds nuevas compatibles (misma versión de Minecraft Java; última en Bedrock).
+    # On start, installs new compatible builds (same Minecraft Java version; latest on Bedrock).
     auto_update: bool = True
-    # Si se cae, se vuelve a encender solo (máximo 3 veces en 10 minutos).
+    # If it crashes, it starts again by itself (at most 3 times in 10 minutes).
     auto_restart: bool = True
-    extra: dict = field(default_factory=dict)  # datos propios de cada juego
+    extra: dict = field(default_factory=dict)  # each game's own data
     created_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
     def to_dict(self) -> dict:

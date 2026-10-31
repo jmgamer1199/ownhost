@@ -1,11 +1,11 @@
-﻿# Genera dist\Ownhost.exe (app + agente en un solo archivo, sin necesidad de Python).
-# Uso:  powershell -ExecutionPolicy Bypass -File scripts\crear-exe.ps1
-# Clave de CurseForge opcional: archivo "curseforge.key" en la raíz o variable CURSEFORGE_API_KEY.
+﻿# Builds dist\Ownhost.exe (app + agent in a single file, no Python needed).
+# Usage:  powershell -ExecutionPolicy Bypass -File scripts\build.ps1
+# Optional CurseForge key: "curseforge.key" file at the root or the CURSEFORGE_API_KEY variable.
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
 $venv = Join-Path $env:USERPROFILE ".venvs\ownhost"
 $python = "$venv\Scripts\python.exe"
-# Los archivos intermedios van a TEMP para no llenar la carpeta sincronizada.
+# Intermediate files go to TEMP so they don't fill up the synced folder.
 $work = Join-Path $env:TEMP "ownhost-build"
 
 if (-not (Test-Path $python)) {
@@ -14,13 +14,13 @@ if (-not (Test-Path $python)) {
 & $python -m pip install --upgrade pip
 & $python -m pip install -e "$root[app]" pyinstaller
 
-# Siempre se reemplazan los archivos de dist\ (nunca se crean otras carpetas).
-# Windows no deja sobrescribir un exe en uso, pero sí renombrarlo: el que está abierto se aparta
-# como .old (sigue funcionando hasta que se cierre) y el nuevo ocupa su sitio.
+# The files in dist\ are always replaced (no other folders are ever created).
+# Windows doesn't allow overwriting an exe in use, but it does allow renaming it: the open one is moved
+# aside as .old (it keeps working until it's closed) and the new one takes its place.
 $dist = Join-Path $root "dist"
 New-Item -ItemType Directory -Force $dist | Out-Null
 Get-ChildItem $dist -Filter "*.old" -ErrorAction SilentlyContinue | ForEach-Object {
-    try { Remove-Item $_.FullName -Force -ErrorAction Stop } catch { }  # los que sigan abiertos, la próxima vez
+    try { Remove-Item $_.FullName -Force -ErrorAction Stop } catch { }  # any still open: next time
 }
 $exe = Join-Path $dist "Ownhost.exe"
 if (Test-Path $exe) {
@@ -28,15 +28,15 @@ if (Test-Path $exe) {
     catch {
         $old = "$exe.$(Get-Date -Format yyyyMMddHHmmss).old"
         Rename-Item $exe $old
-        Write-Host "Ownhost está abierto: la versión en uso se ha apartado como $(Split-Path $old -Leaf)." -ForegroundColor Yellow
-        Write-Host "Cierra Ownhost y vuelve a abrir dist\Ownhost.exe para usar la nueva." -ForegroundColor Yellow
+        Write-Host "Ownhost is open: the version in use has been moved aside as $(Split-Path $old -Leaf)." -ForegroundColor Yellow
+        Write-Host "Close Ownhost and reopen dist\Ownhost.exe to use the new one." -ForegroundColor Yellow
     }
 }
 
-# Misma compilación (fecha) para Windows y Linux: es la etiqueta de la versión publicada, y la app
-# compara la suya con ella para saber si hay una más nueva.
+# Same build (date) for Windows and Linux: it's the tag of the published release, and the app
+# compares its own build with it to know whether there's a newer one.
 if (-not $env:OWNHOST_BUILD) { $env:OWNHOST_BUILD = (Get-Date).ToUniversalTime().ToString("yyyyMMddHHmmss") }
-Write-Host "Compilación $env:OWNHOST_BUILD (etiqueta para publicar: v$env:OWNHOST_BUILD)"
+Write-Host "Build $env:OWNHOST_BUILD (tag to publish: v$env:OWNHOST_BUILD)"
 & $python (Join-Path $root "scripts\embed_key.py")
 try {
     $hidden = @("--hidden-import", "ownhost._build")
@@ -58,26 +58,26 @@ try {
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 }
 finally {
-    # La clave no se queda en el código fuente.
+    # The key doesn't stay in the source code.
     & $python (Join-Path $root "scripts\embed_key.py") --clean
 }
 
 Write-Host ""
-Write-Host "Listo: $(Join-Path $dist 'Ownhost.exe')" -ForegroundColor Green
+Write-Host "Done: $(Join-Path $dist 'Ownhost.exe')" -ForegroundColor Green
 
-# --- Versión para Linux, compilada en un contenedor AlmaLinux 8 con Docker ---
-# (glibc 2.28: funciona en casi cualquier distribución: Debian 10+, Ubuntu 20.04+, RHEL 8+, Fedora, Arch...)
+# --- Linux version, built in an AlmaLinux 8 container with Docker ---
+# (glibc 2.28: works on almost any distribution: Debian 10+, Ubuntu 20.04+, RHEL 8+, Fedora, Arch...)
 if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
-    Write-Host "Docker no está instalado: se omite la versión para Linux." -ForegroundColor Yellow
-    & $python (Join-Path $root "scripts\comprobar_privacidad.py") (Join-Path $dist "Ownhost.exe")
-    if ($LASTEXITCODE -ne 0) { Write-Host "Revisa el aviso de privacidad antes de compartir." -ForegroundColor Red; exit 1 }
+    Write-Host "Docker is not installed: skipping the Linux version." -ForegroundColor Yellow
+    & $python (Join-Path $root "scripts\check_privacy.py") (Join-Path $dist "Ownhost.exe")
+    if ($LASTEXITCODE -ne 0) { Write-Host "Check the privacy warning before sharing." -ForegroundColor Red; exit 1 }
     exit 0
 }
 docker info --format "{{.ServerVersion}}" 2>$null | Out-Null
 if ($LASTEXITCODE -ne 0) {
     $desktop = Join-Path (Split-Path (Split-Path (Split-Path (Get-Command docker).Source))) "Docker Desktop.exe"
     if (Test-Path $desktop) {
-        Write-Host "Arrancando Docker Desktop..."
+        Write-Host "Starting Docker Desktop..."
         Start-Process $desktop
         for ($i = 0; $i -lt 60 -and $LASTEXITCODE -ne 0; $i++) {
             Start-Sleep -Seconds 3
@@ -85,19 +85,19 @@ if ($LASTEXITCODE -ne 0) {
         }
     }
     if ($LASTEXITCODE -ne 0) {
-        Write-Host "Docker no responde: se omite la versión para Linux." -ForegroundColor Yellow
-        & $python (Join-Path $root "scripts\comprobar_privacidad.py") (Join-Path $dist "Ownhost.exe")
-        if ($LASTEXITCODE -ne 0) { Write-Host "Revisa el aviso de privacidad antes de compartir." -ForegroundColor Red; exit 1 }
+        Write-Host "Docker is not responding: skipping the Linux version." -ForegroundColor Yellow
+        & $python (Join-Path $root "scripts\check_privacy.py") (Join-Path $dist "Ownhost.exe")
+        if ($LASTEXITCODE -ne 0) { Write-Host "Check the privacy warning before sharing." -ForegroundColor Red; exit 1 }
         exit 0
     }
 }
 $linuxOut = "/src/" + ($dist.Substring($root.Length + 1) -replace '\\', '/') + "/linux"
 docker run --rm -e OWNHOST_BUILD -v "${root}:/src" almalinux:8 `
-    bash /src/scripts/crear-binario-linux.sh /src $linuxOut
+    bash /src/scripts/build-linux.sh /src $linuxOut
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-Write-Host "Listo: $(Join-Path $root ($linuxOut -replace '^/src/', '') )" -ForegroundColor Green
+Write-Host "Done: $(Join-Path $root ($linuxOut -replace '^/src/', '') )" -ForegroundColor Green
 
-# Ningún dato de quien compila (usuario, equipo, IPs...) debe acabar dentro de lo que se comparte.
+# No data about whoever builds (user, computer, IPs...) may end up inside what gets shared.
 $linuxBin = Join-Path $root (($linuxOut -replace '^/src/', '') + "/Ownhost")
-& $python (Join-Path $root "scripts\comprobar_privacidad.py") (Join-Path $dist "Ownhost.exe") $linuxBin
-if ($LASTEXITCODE -ne 0) { Write-Host "Revisa el aviso de privacidad antes de compartir." -ForegroundColor Red; exit 1 }
+& $python (Join-Path $root "scripts\check_privacy.py") (Join-Path $dist "Ownhost.exe") $linuxBin
+if ($LASTEXITCODE -ne 0) { Write-Host "Check the privacy warning before sharing." -ForegroundColor Red; exit 1 }

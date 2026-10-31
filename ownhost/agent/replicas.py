@@ -1,8 +1,8 @@
-"""Copias de seguridad en otro equipo: cada copia que se hace se envía también al agente elegido.
+"""Backups on another computer: every backup made is also sent to the chosen agent.
 
-El equipo que las guarda da un código especial («recibir copias») que solo sirve para enviarle copias:
-con él no se puede ver ni tocar nada más. Así, si se rompe el disco de un equipo, las copias de sus
-servidores siguen en otro y se pueden restaurar allí con un clic.
+The computer that stores them gives a special code ("receive backups") that only allows sending it
+backups: nothing else can be seen or touched with it. So if a computer's disk breaks, its servers'
+backups are still on another one and can be restored there with one click.
 """
 
 import json
@@ -15,7 +15,8 @@ from pathlib import Path
 
 import httpx
 
-from ownhost.agent.errors import UserError
+from ownhost.agent.errors import CodeRejected, UserError
+from ownhost.i18n import tr
 
 SAFE = re.compile(r"[^A-Za-z0-9_.-]+")
 KEY = re.compile(r"^[A-Za-z0-9_.-]+--[0-9a-f]{6,32}$")
@@ -28,7 +29,7 @@ def _safe(text: str) -> str:
 
 
 class ReplicaStore:
-    """Las copias que otros equipos envían a este."""
+    """The backups other computers send to this one."""
 
     def __init__(self, data_dir: Path):
         self.root = data_dir / "replicas"
@@ -36,13 +37,13 @@ class ReplicaStore:
 
     def folder(self, source: str, sid: str) -> Path:
         if not re.fullmatch(r"[0-9a-f]{6,32}", sid):
-            raise UserError("Servidor no válido")
+            raise UserError(tr("Servidor no válido"))
         return self.root / f"{_safe(source)}--{sid}"
 
     def store(self, source: str, sid: str, name: str, server_name: str, game: str, upload: Path, keep: int) -> None:
         if not BACKUP_NAME.match(name):
             upload.unlink(missing_ok=True)
-            raise UserError("Nombre de copia no válido")
+            raise UserError(tr("Nombre de copia no válido"))
         folder = self.folder(source, sid)
         with self.lock:
             folder.mkdir(parents=True, exist_ok=True)
@@ -70,15 +71,15 @@ class ReplicaStore:
 
     def path(self, key: str, name: str) -> Path:
         if not KEY.match(key) or not BACKUP_NAME.match(name):
-            raise UserError("Copia no válida")
+            raise UserError(tr("Copia no válida"))
         path = self.root / key / name
         if not path.is_file():
-            raise UserError("Esa copia ya no existe")
+            raise UserError(tr("Esa copia ya no existe"))
         return path
 
     def delete(self, key: str) -> None:
         if not KEY.match(key) or not (self.root / key).is_dir():
-            raise UserError("No existe")
+            raise UserError(tr("No existe"))
         shutil.rmtree(self.root / key)
 
 
@@ -88,33 +89,34 @@ def _client(cfg: dict) -> httpx.Client:
 
 
 def check(cfg: dict) -> None:
-    """Comprueba que el otro equipo responde y acepta el código, antes de guardar la configuración."""
+    """Checks that the other computer answers and accepts the code, before saving the configuration."""
     try:
         with _client(cfg) as c:
             r = c.get("/replicas/check")
     except httpx.HTTPError:
-        raise UserError(f"No se puede conectar con {cfg['address']}:{cfg['port']}. ¿Está encendido y en la red?") \
-            from None
+        raise UserError(tr("No se puede conectar con {address}:{port}. ¿Está encendido y en la red?",
+                           address=cfg["address"], port=cfg["port"])) from None
     if r.status_code in (401, 403):
-        raise UserError("El otro equipo no ha aceptado el código de copias")
+        raise CodeRejected(tr("El otro equipo no ha aceptado el código de copias"))
     if r.status_code == 404:
-        raise UserError("El otro equipo tiene una versión de Ownhost sin copias remotas: actualízalo")
+        raise UserError(tr("El otro equipo tiene una versión de Ownhost sin copias remotas: actualízalo"))
     r.raise_for_status()
 
 
 def reachable(cfg: dict) -> str:
-    """La primera de las direcciones del otro equipo que responde y acepta el código."""
+    """The first of the other computer's addresses that answers and accepts the code."""
     errors = []
     for address in cfg["addresses"]:
         try:
             check({**cfg, "address": address})
             return address
-        except UserError as e:
-            if "no ha aceptado" in str(e):
-                raise
+        except CodeRejected:
+            raise
+        except UserError:
             errors.append(address)
-    raise UserError(f"Este equipo no llega al otro por {', '.join(errors)} (puerto {cfg['port']}). "
-                    "¿Está encendido, en la misma red o en tu Tailscale, y con el cortafuegos abierto?")
+    raise UserError(tr("Este equipo no llega al otro por {addresses} (puerto {port}). "
+                       "¿Está encendido, en la misma red o en tu Tailscale, y con el cortafuegos abierto?",
+                       addresses=", ".join(errors), port=cfg["port"]))
 
 
 def send(cfg: dict, source: str, sid: str, server_name: str, game: str, archive: Path) -> None:
@@ -133,4 +135,4 @@ def send(cfg: dict, source: str, sid: str, server_name: str, game: str, archive:
             detail = r.json().get("detail")
         except ValueError:
             detail = r.text
-        raise RuntimeError(detail or f"error {r.status_code}")
+        raise RuntimeError(detail or tr("error {status}", status=r.status_code))

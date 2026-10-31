@@ -1,5 +1,5 @@
 [Unit]
-Description=Ownhost - agente
+Description=Ownhost - agent
 After=network-online.target
 Wants=network-online.target
 
@@ -7,7 +7,7 @@ Wants=network-online.target
 User=ownhost
 Environment=OWNHOST_DATA_DIR=/var/lib/ownhost
 ExecStart=/opt/ownhost/venv/bin/python -m ownhost.agent
-# Solo el agente recibe SIGTERM: él apaga cada servidor con "stop" para que guarde el mundo.
+# Only the agent receives SIGTERM: it stops each server with "stop" so the world gets saved.
 KillMode=mixed
 TimeoutStopSec=120
 Restart=on-failure

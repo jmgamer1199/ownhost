@@ -1,2 +1,6 @@
 class UserError(Exception):
-    """Error que se muestra tal cual al usuario (400)."""
+    """Error shown to the user as is (400)."""
+
+
+class CodeRejected(UserError):
+    """The other computer did not accept the backup code (replicas)."""

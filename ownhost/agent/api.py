@@ -24,6 +24,7 @@ from ownhost.agent.config import AgentConfig
 from ownhost.agent.errors import UserError
 from ownhost.agent.games import GAMES
 from ownhost.agent.manager import ServerManager
+from ownhost.i18n import tr
 from ownhost.net import TailscaleOwnerCheck, lan_ip, tailscale_ip
 from ownhost.sysenv import clean_env
 
@@ -100,7 +101,7 @@ class ReplicaTarget(BaseModel):
     port: int = Field(..., ge=1, le=65535)
     token: str
     target_name: str
-    source_name: str = ""  # cómo se llama este equipo en la app (para que el otro lo enseñe así)
+    source_name: str = ""  # what this computer is called in the app (so the other one shows it that way)
     keep: int = Field(3, ge=1, le=30)
 
 
@@ -115,7 +116,7 @@ class LanguageChoice(BaseModel):
 class CreateGuest(BaseModel):
     name: str
     role: str = "play"
-    servers: list[str] | None = None  # None = todos
+    servers: list[str] | None = None  # None = all
 
 
 WEB_PANEL = Path(__file__).resolve().parent / "web" / "panel.html"
@@ -125,7 +126,7 @@ def create_app(config: AgentConfig, manager: ServerManager) -> FastAPI:
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         manager.load(asyncio.get_running_loop())
-        # Responde a la app cuando busca agentes en la red (mismo número de puerto, por UDP).
+        # Answers the app when it looks for agents on the network (same port number, over UDP).
         responder = await discovery.start_responder(
             config.bind, config.port,
             {"name": config.name, "hostname": socket.gethostname(), "port": config.port, "version": __version__})
@@ -149,7 +150,7 @@ def create_app(config: AgentConfig, manager: ServerManager) -> FastAPI:
     guests = GuestStore(manager.data_dir)
 
     def identify(token: str, client, server) -> Principal | None:
-        """El dueño (token del agente, o Tailscale desde un dispositivo de su cuenta) o un amigo con su código."""
+        """The owner (agent token, or Tailscale from a device of their account) or a friend with their code."""
         if token and secrets.compare_digest(token.encode(), config.token.encode()):
             return OWNER_PRINCIPAL
         if guest := guests.find(token):
@@ -162,22 +163,22 @@ def create_app(config: AgentConfig, manager: ServerManager) -> FastAPI:
         token = authorization.removeprefix("Bearer ").strip()
         who = identify(token, request.scope.get("client"), request.scope.get("server"))
         if not who:
-            raise HTTPException(401, "Token incorrecto")
+            raise HTTPException(401, tr("Token incorrecto"))
         return who
 
     def need(level: int) -> list:
         def check(who: Principal = Depends(principal)) -> None:
             if who.level < level:
-                raise HTTPException(403, "No tienes permiso para hacer esto en este equipo")
+                raise HTTPException(403, tr("No tienes permiso para hacer esto en este equipo"))
         return [Depends(check)]
 
     def need_server(level: int) -> list:
-        """Igual, y además el servidor tiene que estar entre los que puede ver."""
+        """Same, and the server must also be one of those they can see."""
         def check(sid: str, who: Principal = Depends(principal)) -> None:
             if not who.can_see(sid):
-                raise HTTPException(404, "Servidor no encontrado")
+                raise HTTPException(404, tr("Servidor no encontrado"))
             if who.level < level:
-                raise HTTPException(403, "No tienes permiso para hacer esto en este servidor")
+                raise HTTPException(403, tr("No tienes permiso para hacer esto en este servidor"))
         return [Depends(check)]
 
     @app.exception_handler(UserError)
@@ -186,29 +187,29 @@ def create_app(config: AgentConfig, manager: ServerManager) -> FastAPI:
 
     @app.exception_handler(httpx.HTTPError)
     async def upstream_error(_: Request, exc: httpx.HTTPError):
-        return JSONResponse({"detail": f"Error al contactar con un servicio externo: {exc}"}, status_code=502)
+        return JSONResponse({"detail": tr("Error al contactar con un servicio externo: {error}", error=exc)}, status_code=502)
 
     @app.exception_handler(KeyError)
     async def not_found(_: Request, exc: KeyError):
-        return JSONResponse({"detail": f"Servidor no encontrado: {exc}"}, status_code=404)
+        return JSONResponse({"detail": tr("Servidor no encontrado: {server}", server=exc)}, status_code=404)
 
     owner = need(OWNER)
     manager.agent_name = config.name
 
     def backup_sender(who: Principal = Depends(principal)) -> None:
-        """El código «recibir copias» de otro equipo, o el dueño."""
+        """The "receive backups" code of another computer, or the owner."""
         if not (who.owner or who.role == "backup"):
-            raise HTTPException(403, "No tienes permiso para hacer esto en este equipo")
+            raise HTTPException(403, tr("No tienes permiso para hacer esto en este equipo"))
 
     def shown(server, who: Principal) -> dict:
-        # La carpeta solo la ve el dueño (la ruta lleva su nombre de usuario).
+        # Only the owner sees the folder (the path contains their user name).
         data = server.to_dict()
         if who.owner:
             data["path"] = str(server.server_dir)
         return data
 
     async def _receive_upload(request: Request) -> Path:
-        # El .zip llega como cuerpo de la petición, en streaming, para no cargarlo entero en memoria.
+        # The .zip arrives as the request body, streamed, so it is not loaded whole into memory.
         tmp_dir = manager.data_dir / "tmp"
         tmp_dir.mkdir(parents=True, exist_ok=True)
         archive = tmp_dir / f"upload-{secrets.token_hex(6)}.zip"
@@ -219,7 +220,7 @@ def create_app(config: AgentConfig, manager: ServerManager) -> FastAPI:
 
     @app.get("/api/hello")
     def hello():
-        """Sin token: solo identifica el equipo para que la app pueda encontrarlo en la red."""
+        """No token: only identifies the computer so the app can find it on the network."""
         return {"name": config.name, "hostname": socket.gethostname(), "version": __version__,
                 "build": BUILD, "port": config.port, "trust_tailscale": config.trust_tailscale}
 
@@ -244,16 +245,16 @@ def create_app(config: AgentConfig, manager: ServerManager) -> FastAPI:
 
     @app.post("/api/shutdown", dependencies=owner, status_code=202)
     def shutdown():
-        """Cierra el agente (lo usa la app para sustituirlo por una versión nueva).
+        """Closes the agent (the app uses it to replace it with a new version).
 
-        Antes apaga los servidores con «stop» para que guarden el mundo.
+        First it stops the servers with "stop" so they save the world.
         """
         def stop():
             manager.shutdown()
             os._exit(0)
 
         threading.Thread(target=stop, daemon=True).start()
-        return {"detail": "Cerrando el agente"}
+        return {"detail": tr("Cerrando el agente")}
 
     @app.put("/api/agent/language", dependencies=owner, status_code=204)
     def set_agent_language(body: LanguageChoice):
@@ -264,34 +265,34 @@ def create_app(config: AgentConfig, manager: ServerManager) -> FastAPI:
 
     @app.post("/api/agent/update", dependencies=owner, status_code=202)
     def update_agent():
-        """Descarga la última versión publicada y se reinicia con ella (agentes de otros equipos).
+        """Downloads the latest published version and restarts with it (agents on other computers).
 
-        Los servidores encendidos se apagan con «stop» y se vuelven a encender al volver.
+        Running servers are stopped with "stop" and started again when it comes back.
         """
         release = updates.latest_release()
         if not release or not updates.is_newer(release["build"]):
-            raise UserError("Este agente ya tiene la última versión")
+            raise UserError(tr("Este agente ya tiene la última versión"))
         url = updates.download_url(release)
         if not url:
-            raise UserError("Este agente no se puede actualizar solo (se instaló desde el código o con pip, "
-                            "o no hay versión para este sistema). Actualízalo a mano.")
+            raise UserError(tr("Este agente no se puede actualizar solo (se instaló desde el código o con pip, "
+                               "o no hay versión para este sistema). Actualízalo a mano."))
 
         def run():
             try:
                 binary = updates.install(url)
-            except Exception:  # noqa: BLE001 - se queda con la versión actual
-                logging.getLogger(__name__).exception("No se pudo actualizar el agente")
+            except Exception:  # noqa: BLE001 - keeps the current version
+                logging.getLogger(__name__).exception("Could not update the agent")
                 return
             manager.shutdown(resume=True)
             args = sys.argv[1:]
             if sys.platform == "win32":
                 updates.relaunch(binary, args)
                 os._exit(0)
-            # Mismo proceso (y mismo PID): systemd no lo da por caído.
+            # Same process (and same PID): systemd does not consider it dead.
             os.execve(str(binary), [str(binary), *args], clean_env({"PYINSTALLER_RESET_ENVIRONMENT": "1"}))
 
         threading.Thread(target=run, daemon=True).start()
-        return {"detail": f"Actualizando a la versión del {updates.build_date(release['build'])}"}
+        return {"detail": tr("Actualizando a la versión del {date}", date=updates.build_date(release["build"]))}
 
     @app.get("/api/games", dependencies=need(MANAGE))
     def games():
@@ -300,7 +301,7 @@ def create_app(config: AgentConfig, manager: ServerManager) -> FastAPI:
     @app.get("/api/games/{game}/{flavor}/versions", dependencies=need(MANAGE))
     def versions(game: str, flavor: str):
         if game not in GAMES:
-            raise HTTPException(404, "Juego desconocido")
+            raise HTTPException(404, tr("Juego desconocido"))
         return GAMES[game].versions(flavor)
 
     @app.get("/api/servers", dependencies=need(PLAY))
@@ -324,7 +325,7 @@ def create_app(config: AgentConfig, manager: ServerManager) -> FastAPI:
         manager.delete(sid)
         guests.forget_server(sid)
 
-    # ---------- accesos para amigos ----------
+    # ---------- access for friends ----------
 
     @app.get("/api/guests", dependencies=owner)
     def list_guests():
@@ -335,14 +336,14 @@ def create_app(config: AgentConfig, manager: ServerManager) -> FastAPI:
         for sid in body.servers or []:
             manager.get(sid)
         guest, token = guests.create(body.name, body.role, body.servers)
-        # El código solo se ve ahora: el agente guarda su hash.
+        # The code is only shown now: the agent stores its hash.
         return {**guest.public(), "token": token}
 
     @app.delete("/api/guests/{guest_id}", dependencies=owner, status_code=204)
     def delete_guest(guest_id: str):
         guests.delete(guest_id)
 
-    # ---------- copias de seguridad de otros equipos ----------
+    # ---------- backups from other computers ----------
 
     @app.get("/api/replicas/check", dependencies=[Depends(backup_sender)])
     def replicas_check():
@@ -377,7 +378,7 @@ def create_app(config: AgentConfig, manager: ServerManager) -> FastAPI:
         manager.set_replica(sid, None)
         return manager.get(sid).to_dict()
 
-    # ---------- panel web (para el móvil) ----------
+    # ---------- web panel (for the phone) ----------
 
     @app.get("/", include_in_schema=False)
     def web_panel():
@@ -551,7 +552,7 @@ def create_app(config: AgentConfig, manager: ServerManager) -> FastAPI:
 
     @app.websocket("/api/servers/{sid}/console")
     async def console(ws: WebSocket, sid: str, token: str = ""):
-        # Los navegadores/clientes WebSocket no envían cabeceras fácilmente: token por query.
+        # Browsers/WebSocket clients cannot easily send headers: token in the query.
         who = identify(token, ws.scope.get("client"), ws.scope.get("server"))
         if not who or who.level < MODERATE or not who.can_see(sid) or sid not in manager.servers:
             await ws.close(code=4401)

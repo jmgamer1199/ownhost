@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
-# Genera en dist/linux/:
-#   Ownhost-x86_64.AppImage  -> para escritorio (doble clic)
-#   Ownhost                  -> binario simple, p. ej. para el agente en un servidor sin escritorio
+# Generates in dist/linux/:
+#   Ownhost-x86_64.AppImage  -> for desktops (double-click)
+#   Ownhost                  -> plain binary, e.g. for the agent on a server without a desktop
 #
-# Se ejecuta dentro de un contenedor AlmaLinux 8 (lo lanza crear-exe.ps1): compilar sobre una glibc
-# antigua (2.28, de 2018) hace que el binario funcione en prácticamente cualquier distribución de
-# escritorio actual: Debian 10+, Ubuntu 20.04+, RHEL/Rocky/Alma 8+, Fedora, Arch/CachyOS, openSUSE...
-# (no en las que usan musl en vez de glibc, como Alpine).
+# Runs inside an AlmaLinux 8 container (launched by build.ps1): building against an old glibc
+# (2.28, from 2018) makes the binary work on practically any current desktop distribution:
+# Debian 10+, Ubuntu 20.04+, RHEL/Rocky/Alma 8+, Fedora, Arch/CachyOS, openSUSE...
+# (not on those that use musl instead of glibc, such as Alpine).
 #
-# Uso dentro del contenedor:  bash scripts/crear-binario-linux.sh /src /src/dist/linux
+# Usage inside the container:  bash scripts/build-linux.sh /src /src/dist/linux
 set -euo pipefail
 
 SRC="${1:-$(cd "$(dirname "$0")/.." && pwd)}"
@@ -16,7 +16,7 @@ OUT="${2:-$SRC/dist/linux}"
 WORK=/tmp/ownhost-build
 
 if command -v dnf >/dev/null && [[ $EUID -eq 0 ]]; then
-    # AlmaLinux 8: Python 3.12 viene en sus repositorios; las bibliotecas de Qt, de EPEL y del sistema.
+    # AlmaLinux 8: Python 3.12 is in its repositories; the Qt libraries come from EPEL and the system.
     dnf -y -q install epel-release >/dev/null
     dnf -y -q install python3.12 python3.12-devel binutils file findutils libatomic \
         mesa-libGL mesa-libEGL libxkbcommon libxkbcommon-x11 fontconfig dbus-libs glib2 \
@@ -25,13 +25,13 @@ elif command -v apt-get >/dev/null && [[ $EUID -eq 0 ]]; then
     export DEBIAN_FRONTEND=noninteractive
     apt-get update -qq
     if ! command -v python3.12 >/dev/null; then
-        # Ubuntu 22.04 trae Python 3.10: el 3.12 viene del PPA deadsnakes.
+        # Ubuntu 22.04 ships Python 3.10: 3.12 comes from the deadsnakes PPA.
         apt-get install -y -qq --no-install-recommends software-properties-common gpg-agent >/dev/null
         add-apt-repository -y ppa:deadsnakes/ppa >/dev/null
         apt-get update -qq
         apt-get install -y -qq --no-install-recommends python3.12 python3.12-venv python3.12-dev >/dev/null
     fi
-    # Bibliotecas que necesita Qt para dibujar ventanas; PyInstaller las incluye en el binario.
+    # Libraries Qt needs to draw windows; PyInstaller bundles them into the binary.
     apt-get install -y -qq --no-install-recommends binutils curl ca-certificates file libgl1 libegl1 libxkbcommon0 \
         libxkbcommon-x11-0 libfontconfig1 libdbus-1-3 libglib2.0-0 libxcb-cursor0 libxcb-icccm4 \
         libxcb-image0 libxcb-keysyms1 libxcb-randr0 libxcb-render-util0 libxcb-shape0 \
@@ -39,7 +39,7 @@ elif command -v apt-get >/dev/null && [[ $EUID -eq 0 ]]; then
 fi
 PYTHON=$(command -v python3.12 || command -v python3)
 
-# Se compila sobre una copia para no dejar archivos temporales en la carpeta del proyecto.
+# Build from a copy so no temporary files are left in the project folder.
 rm -rf "$WORK"
 mkdir -p "$WORK/src"
 cp -r "$SRC/ownhost" "$SRC/pyproject.toml" "$SRC/scripts" "$WORK/src/"
@@ -59,11 +59,11 @@ COMMON=(--noconfirm --clean --windowed --name Ownhost
     --paths "$WORK/src" --collect-submodules uvicorn --collect-submodules websockets --collect-submodules ownhost.locale "${HIDDEN[@]}"
     --specpath "$WORK")
 
-# 1) Binario de un solo archivo: útil para servidores sin escritorio (Ownhost --agent).
+# 1) Single-file binary: useful for servers without a desktop (Ownhost --agent).
 "$WORK/venv/bin/pyinstaller" "${COMMON[@]}" --onefile \
     --distpath "$OUT" --workpath "$WORK/build-onefile" "$WORK/src/ownhost/app/__main__.py"
 
-# 2) AppImage para escritorio: versión en carpeta (arranca más rápido) empaquetada con appimagetool.
+# 2) AppImage for desktops: one-folder build (starts faster) packaged with appimagetool.
 "$WORK/venv/bin/pyinstaller" "${COMMON[@]}" --onedir \
     --distpath "$WORK/onedir" --workpath "$WORK/build-onedir" "$WORK/src/ownhost/app/__main__.py"
 
@@ -76,7 +76,7 @@ cat > "$APPDIR/ownhost.desktop" <<'EOF'
 [Desktop Entry]
 Type=Application
 Name=Ownhost
-Comment=Servidores de Minecraft y Hytale en tu red
+Comment=Minecraft and Hytale servers on your network
 Exec=Ownhost
 Icon=ownhost
 Terminal=false
@@ -94,14 +94,14 @@ TOOL="$WORK/appimagetool"
 curl -fsSL -o "$TOOL.AppImage" \
     "https://github.com/AppImage/appimagetool/releases/download/$APPIMAGETOOL_VERSION/appimagetool-x86_64.AppImage"
 chmod +x "$TOOL.AppImage"
-# En Docker no hay FUSE: se extrae la herramienta y se ejecuta directamente.
+# Docker has no FUSE: extract the tool and run it directly.
 (cd "$WORK" && "$TOOL.AppImage" --appimage-extract >/dev/null)
 ARCH=x86_64 "$WORK/squashfs-root/AppRun" --no-appstream "$APPDIR" "$OUT/Ownhost-x86_64.AppImage"
 
-cp "$SRC/scripts/instalar-app-linux.sh" "$SRC/scripts/instalar-agente-servicio.sh" "$OUT/"
+cp "$SRC/scripts/install-app-linux.sh" "$SRC/scripts/install-agent-service.sh" "$OUT/"
 cp "$WORK/src/ownhost/app/assets/icon.png" "$OUT/ownhost.png"
-chmod +x "$OUT/Ownhost" "$OUT/Ownhost-x86_64.AppImage" "$OUT/instalar-app-linux.sh" \
-    "$OUT/instalar-agente-servicio.sh"
+chmod +x "$OUT/Ownhost" "$OUT/Ownhost-x86_64.AppImage" "$OUT/install-app-linux.sh" \
+    "$OUT/install-agent-service.sh"
 rm -rf "$WORK"
-echo "Listo: $OUT/Ownhost-x86_64.AppImage"
-echo "Listo: $OUT/Ownhost"
+echo "Done: $OUT/Ownhost-x86_64.AppImage"
+echo "Done: $OUT/Ownhost"

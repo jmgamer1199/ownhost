@@ -1,13 +1,13 @@
-"""Genera los módulos que solo existen durante la compilación (crear-exe.ps1 los borra al terminar):
+"""Generates the modules that only exist during the build (build.ps1 deletes them when it finishes):
 
-- ownhost/_build.py: identificador de esta compilación. La app lo compara con el del agente de este
-  PC para reiniciarlo si es de una versión anterior.
-- ownhost/_embedded.py: la clave de CurseForge ofuscada, si existe la variable CURSEFORGE_API_KEY o el
-  archivo `curseforge.key` en la raíz del proyecto. Ojo: es ofuscación, no cifrado; alguien con
-  tiempo podría extraerla del exe.
+- ownhost/_build.py: identifier of this build. The app compares it with the one of this PC's agent
+  to restart the agent if it is from an older version.
+- ownhost/_embedded.py: the obfuscated CurseForge key, if the CURSEFORGE_API_KEY variable or the
+  `curseforge.key` file at the project root exists. Note: this is obfuscation, not encryption; someone
+  with time could extract it from the exe.
 
-Uso:  python scripts/embed_key.py          -> genera los módulos
-      python scripts/embed_key.py --clean  -> los borra
+Usage:  python scripts/embed_key.py          -> generates the modules
+        python scripts/embed_key.py --clean  -> deletes them
 """
 
 import os
@@ -28,26 +28,26 @@ def main() -> None:
         BUILD_FILE.unlink(missing_ok=True)
         return
     build = os.environ.get("OWNHOST_BUILD") or datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S")
-    BUILD_FILE.write_text(f'# Generado al compilar por scripts/embed_key.py.\nBUILD = "{build}"\n', encoding="utf-8")
-    print(f"Compilación {build}")
+    BUILD_FILE.write_text(f'# Generated at build time by scripts/embed_key.py.\nBUILD = "{build}"\n', encoding="utf-8")
+    print(f"Build {build}")
 
     key = os.environ.get("CURSEFORGE_API_KEY") or (KEY_FILE.read_text(encoding="utf-8").strip()
                                                    if KEY_FILE.exists() else "")
     if not key:
-        print("Sin clave de CurseForge: el exe se generará sin ella.")
+        print("No CurseForge key: the exe will be built without it.")
         TARGET.unlink(missing_ok=True)
         return
     data = key.encode()
     mask = secrets.token_bytes(len(data))
     hidden = bytes(a ^ b for a, b in zip(data, mask))
     TARGET.write_text(
-        "# Generado al compilar por scripts/embed_key.py. No editar ni subir a git.\n"
+        "# Generated at build time by scripts/embed_key.py. Do not edit or commit to git.\n"
         f"_A = {list(hidden)!r}\n_B = {list(mask)!r}\n\n\n"
         "def curseforge_key() -> str:\n"
         "    return bytes(a ^ b for a, b in zip(_A, _B)).decode()\n",
         encoding="utf-8",
     )
-    print("Clave de CurseForge incluida (ofuscada) en el exe.")
+    print("CurseForge key included (obfuscated) in the exe.")
 
 
 if __name__ == "__main__":

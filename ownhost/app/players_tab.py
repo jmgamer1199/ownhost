@@ -1,4 +1,4 @@
-"""Pestaña «Jugadores»: conectados, operadores, lista blanca y baneados, sin escribir comandos."""
+"""The "Players" tab: online players, operators, whitelist and banned players, without typing commands."""
 
 from datetime import datetime, timedelta
 
@@ -9,6 +9,7 @@ from PySide6.QtWidgets import (
 
 from ownhost.app.client import AgentClient
 from ownhost.app.tasks import run_async
+from ownhost.i18n import tr
 
 ACTION_NAMES = {
     "op": "hacer operador a", "deop": "quitar operador a", "whitelist_add": "añadir a la lista blanca a",
@@ -19,18 +20,18 @@ ACTION_NAMES = {
 
 def played(seconds: int) -> str:
     h, rem = divmod(int(seconds), 3600)
-    return f"{h} h {rem // 60} min" if h else f"{rem // 60} min"
+    return tr("{hours} h {minutes} min", hours=h, minutes=rem // 60) if h else tr("{minutes} min", minutes=rem // 60)
 
 
 def last_seen(ts: float, online: bool) -> str:
     if online:
-        return "Jugando ahora"
+        return tr("Jugando ahora")
     when = datetime.fromtimestamp(ts)
     today = datetime.now().date()
     if when.date() == today:
-        return f"Hoy, {when:%H:%M}"
+        return tr("Hoy, {time}", time=f"{when:%H:%M}")
     if when.date() == today - timedelta(days=1):
-        return f"Ayer, {when:%H:%M}"
+        return tr("Ayer, {time}", time=f"{when:%H:%M}")
     return f"{when:%d/%m/%Y}"
 
 
@@ -71,21 +72,21 @@ class PlayersTab(QWidget):
             b.clicked.connect(slot)
             return b
 
-        self.btn_op_online = btn("Hacer operador", lambda: self._on_selected(self.online, "op"))
-        self.btn_kick = btn("Echar", lambda: self._on_selected(self.online, "kick"))
-        self.btn_ban_online = btn("Banear", lambda: self._on_selected(self.online, "ban", confirm=True), "danger")
-        self.btn_deop = btn("Quitar operador", lambda: self._on_selected(self.ops, "deop"))
-        self.btn_wl_remove = btn("Quitar", lambda: self._on_selected(self.whitelist, "whitelist_remove"))
-        self.btn_pardon = btn("Perdonar", lambda: self._on_selected(self.banned, "pardon"))
-        self.whitelist_on = QCheckBox("Solo pueden entrar los de la lista blanca")
+        self.btn_op_online = btn(tr("Hacer operador"), lambda: self._on_selected(self.online, "op"))
+        self.btn_kick = btn(tr("Echar"), lambda: self._on_selected(self.online, "kick"))
+        self.btn_ban_online = btn(tr("Banear"), lambda: self._on_selected(self.online, "ban", confirm=True), "danger")
+        self.btn_deop = btn(tr("Quitar operador"), lambda: self._on_selected(self.ops, "deop"))
+        self.btn_wl_remove = btn(tr("Quitar"), lambda: self._on_selected(self.whitelist, "whitelist_remove"))
+        self.btn_pardon = btn(tr("Perdonar"), lambda: self._on_selected(self.banned, "pardon"))
+        self.whitelist_on = QCheckBox(tr("Solo pueden entrar los de la lista blanca"))
         self.whitelist_on.toggled.connect(self._toggle_whitelist)
 
         self.name = QLineEdit()
-        self.name.setPlaceholderText("Nombre del jugador")
-        self.name.setToolTip("Los jugadores de Bedrock que entran por Geyser llevan un «.» delante del nombre")
-        add_op = btn("Hacer operador", lambda: self._on_name("op"))
-        add_wl = btn("Añadir a la lista blanca", lambda: self._on_name("whitelist_add"))
-        add_ban = btn("Banear", lambda: self._on_name("ban", confirm=True), "danger")
+        self.name.setPlaceholderText(tr("Nombre del jugador"))
+        self.name.setToolTip(tr("Los jugadores de Bedrock que entran por Geyser llevan un «.» delante del nombre"))
+        add_op = btn(tr("Hacer operador"), lambda: self._on_name("op"))
+        add_wl = btn(tr("Añadir a la lista blanca"), lambda: self._on_name("whitelist_add"))
+        add_ban = btn(tr("Banear"), lambda: self._on_name("ban", confirm=True), "danger")
         name_row = QHBoxLayout()
         name_row.addWidget(self.name, 1)
         for b in (add_op, add_wl, add_ban):
@@ -94,15 +95,15 @@ class PlayersTab(QWidget):
         self.name_row = name_row
         self.can_edit = True
 
-        # Estadísticas: quién ha jugado más y cuándo entró por última vez
+        # Stats: who has played the most and when they last joined
         self.stats = QTableWidget(0, 4)
-        self.stats.setHorizontalHeaderLabels(["Jugador", "Tiempo jugado", "Veces que ha entrado", "Última vez"])
+        self.stats.setHorizontalHeaderLabels([tr("Jugador"), tr("Tiempo jugado"), tr("Veces que ha entrado"), tr("Última vez")])
         self.stats.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         self.stats.verticalHeader().setVisible(False)
         self.stats.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self.stats.setSelectionMode(QAbstractItemView.SelectionMode.NoSelection)
         self.stats.setMinimumHeight(90)
-        self.stats_empty = QLabel("Todavía no ha entrado nadie. Aquí verás quién juega más y cuándo entró por última vez.")
+        self.stats_empty = QLabel(tr("Todavía no ha entrado nadie. Aquí verás quién juega más y cuándo entró por última vez."))
         self.stats_empty.setObjectName("muted")
 
         self.info = QLabel()
@@ -111,16 +112,16 @@ class PlayersTab(QWidget):
 
         grid = QGridLayout()
         grid.setSpacing(12)
-        grid.addWidget(_section("Conectados ahora", self.online,
+        grid.addWidget(_section(tr("Conectados ahora"), self.online,
                                 [self.btn_op_online, self.btn_kick, self.btn_ban_online]), 0, 0)
-        grid.addWidget(_section("Operadores", self.ops, [self.btn_deop]), 0, 1)
-        wl = _section("Lista blanca", self.whitelist, [self.btn_wl_remove])
+        grid.addWidget(_section(tr("Operadores"), self.ops, [self.btn_deop]), 0, 1)
+        wl = _section(tr("Lista blanca"), self.whitelist, [self.btn_wl_remove])
         wl.layout().insertWidget(1, self.whitelist_on)
         grid.addWidget(wl, 1, 0)
-        self.banned_section = _section("Baneados", self.banned, [self.btn_pardon])
+        self.banned_section = _section(tr("Baneados"), self.banned, [self.btn_pardon])
         grid.addWidget(self.banned_section, 1, 1)
 
-        # Con desplazamiento si no cabe (pantallas de portátil): las listas y las estadísticas ocupan mucho.
+        # Scrollable if it doesn't fit (laptop screens): the lists and the stats take up a lot of space.
         content = QWidget()
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
@@ -133,13 +134,13 @@ class PlayersTab(QWidget):
         layout = QVBoxLayout(content)
         layout.addLayout(name_row)
         layout.addLayout(grid, 1)
-        layout.addWidget(QLabel("<b>Estadísticas</b>"))
+        layout.addWidget(QLabel(tr("<b>Estadísticas</b>")))
         layout.addWidget(self.stats, 1)
         layout.addWidget(self.stats_empty)
         layout.addWidget(self.info)
 
     def set_can_edit(self, can: bool) -> None:
-        """Con el permiso «Encender y apagar» solo se ven las listas."""
+        """With the "Start and stop" permission only the lists are shown."""
         self.can_edit = can
         for i in range(self.name_row.count()):
             if w := self.name_row.itemAt(i).widget():
@@ -157,7 +158,7 @@ class PlayersTab(QWidget):
                 w.clear()
 
     def update_online(self, server: dict) -> None:
-        """Con cada sondeo de la app: los conectados cambian a menudo."""
+        """On every app poll: the online players change often."""
         if self.server and server["id"] == self.server["id"]:
             self.server = server
             names = server.get("players_online", [])
@@ -198,15 +199,16 @@ class PlayersTab(QWidget):
             b.setVisible(bans and self.can_edit)
         pending = data.get("pending") or []
         running = self.server["state"] == "running"
-        text = ("Los cambios se aplican al momento." if running else
-                "El servidor está apagado: los cambios se aplicarán en cuanto se encienda.")
+        text = (tr("Los cambios se aplican al momento.") if running else
+                tr("El servidor está apagado: los cambios se aplicarán en cuanto se encienda."))
         if not self.can_edit:
-            text = "Tu acceso solo deja ver las listas."
+            text = tr("Tu acceso solo deja ver las listas.")
         if data.get("whitelist_enabled") and not data.get("whitelist"):
-            text = ("⚠ La lista blanca está activada pero vacía: no puede entrar nadie. Añade jugadores o "
-                    "desactívala. " + text)
+            text = tr("⚠ La lista blanca está activada pero vacía: no puede entrar nadie. Añade jugadores o "
+                      "desactívala.") + " " + text
         if pending:
-            text += f" Pendientes: {', '.join(f'{ACTION_NAMES.get(a, a)} {n}'.strip() for a, n in pending)}."
+            actions = ", ".join(f"{tr(ACTION_NAMES[a]) if a in ACTION_NAMES else a} {n}".strip() for a, n in pending)
+            text += " " + tr("Pendientes: {actions}.", actions=actions)
         self.info.setText(text)
 
     def _act(self, action: str, name: str = "") -> None:
@@ -214,19 +216,21 @@ class PlayersTab(QWidget):
 
         def done(_):
             self.name.clear()
-            # El servidor tarda un momento en guardar sus listas
+            # The server takes a moment to save its lists
             from PySide6.QtCore import QTimer
             QTimer.singleShot(1200, self.reload)
 
         run_async(lambda: client.player_action(sid, action, name), done,
-                  lambda msg: QMessageBox.warning(self, "Jugadores", msg))
+                  lambda msg: QMessageBox.warning(self, tr("Jugadores"), msg))
 
     def _on_selected(self, widget: QListWidget, action: str, confirm: bool = False) -> None:
         item = widget.currentItem()
         if not item:
-            QMessageBox.information(self, "Jugadores", "Selecciona un jugador de la lista.")
+            QMessageBox.information(self, tr("Jugadores"), tr("Selecciona un jugador de la lista."))
             return
-        if confirm and QMessageBox.question(self, "Jugadores", f"¿{ACTION_NAMES[action].capitalize()} {item.text()}?") \
+        if confirm and QMessageBox.question(
+                self, tr("Jugadores"), tr("¿{action} {name}?", action=tr(ACTION_NAMES[action]).capitalize(),
+                                          name=item.text())) \
                 != QMessageBox.StandardButton.Yes:
             return
         self._act(action, item.text())
@@ -235,7 +239,7 @@ class PlayersTab(QWidget):
         name = self.name.text().strip()
         if not name:
             return
-        if confirm and QMessageBox.question(self, "Jugadores", f"¿Banear a {name}?") != QMessageBox.StandardButton.Yes:
+        if confirm and QMessageBox.question(self, tr("Jugadores"), tr("¿Banear a {name}?", name=name)) != QMessageBox.StandardButton.Yes:
             return
         self._act(action, name)
 

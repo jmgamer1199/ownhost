@@ -1,10 +1,10 @@
-"""Comprueba que un exe/binario de PyInstaller no contiene datos de quien lo compila.
+"""Checks that a PyInstaller exe/binary contains no data about whoever built it.
 
-Busca (descomprimiendo el contenido) el nombre de usuario, el nombre del equipo, la carpeta
-personal y las IPs de este PC. Lo ejecuta crear-exe.ps1 después de compilar.
+Searches (decompressing the contents) for this PC's username, computer name, home folder
+and IPs. build.ps1 runs it after building.
 
-Uso: python scripts/comprobar_privacidad.py dist/Ownhost.exe [más binarios...]
-Sale con código 1 si encuentra algo.
+Usage: python scripts/check_privacy.py dist/Ownhost.exe [more binaries...]
+Exits with code 1 if it finds anything.
 """
 
 import getpass
@@ -21,12 +21,12 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from ownhost.net import own_ips  # noqa: E402
 from ownhost.updates import REPO  # noqa: E402
 
-# Lo único que se permite: la dirección pública del repositorio (de ahí se descargan las versiones
-# nuevas). Si el nombre de la cuenta contiene el usuario de este PC, no cuenta como dato personal.
+# The only thing allowed: the repository's public address (new versions are downloaded from there).
+# If the account name contains this PC's username, it doesn't count as personal data.
 ALLOWED = [REPO.lower().encode()]
 
-# Bibliotecas de terceros: sus textos no dependen de quién compila (evita falsos positivos
-# como palabras cortas que aparecen dentro de las DLL de Qt).
+# Third-party libraries: their contents don't depend on who builds (avoids false positives
+# such as short words that appear inside the Qt DLLs).
 THIRD_PARTY = (".dll", ".so", ".pyd", ".dylib")
 
 
@@ -40,12 +40,12 @@ def personal_strings() -> list[str]:
 
 
 def contents(path: str):
-    """Recorre todo lo empaquetado: archivos y cada módulo de Python del PYZ."""
+    """Walks through everything packaged: files and every Python module in the PYZ."""
     archive = CArchiveReader(path)
     for name in archive.toc:
         try:
             data = archive.extract(name)
-        except Exception:  # noqa: BLE001 - entradas especiales sin contenido
+        except Exception:  # noqa: BLE001 - special entries with no content
             continue
         if not data:
             continue
@@ -73,13 +73,13 @@ def main() -> int:
                 low = low.replace(allowed, b"")
             for n in needles:
                 if n.lower().encode() in low:
-                    print(f"  ¡{Path(binary).name}: «{n}» aparece en {name}!")
+                    print(f"  {Path(binary).name}: '{n}' appears in {name}!")
                     problems += 1
     if problems:
-        print("AVISO: el binario contiene datos de este equipo. No lo compartas.")
+        print("WARNING: the binary contains data from this computer. Don't share it.")
         return 1
-    print(f"Privacidad OK: {len(sys.argv) - 1} binario(s) sin datos de este equipo "
-          f"(revisados {len(needles)} datos: usuario, equipo, carpeta personal, IPs).")
+    print(f"Privacy OK: {len(sys.argv) - 1} binary(ies) with no data from this computer "
+          f"(checked {len(needles)} items: username, computer name, home folder, IPs).")
     return 0
 
 

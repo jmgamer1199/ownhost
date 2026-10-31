@@ -1,4 +1,4 @@
-"""Preparar un mundo existente (y los mods de su instancia) para subirlo a un servidor."""
+"""Prepares an existing world (and the mods of its instance) for uploading to a server."""
 
 import json
 import os
@@ -9,9 +9,11 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable
 
+from ownhost.i18n import tr
+
 
 def default_saves_dir() -> Path:
-    """Carpeta de mundos del launcher oficial de Minecraft."""
+    """Worlds folder of the official Minecraft launcher."""
     if sys.platform == "win32":
         return Path(os.environ.get("APPDATA", Path.home())) / ".minecraft" / "saves"
     if sys.platform == "darwin":
@@ -22,10 +24,10 @@ def default_saves_dir() -> Path:
 @dataclass
 class WorldSource:
     world: Path
-    instance: Path | None = None  # carpeta de la instancia (con mods/ y config/) si se detecta
+    instance: Path | None = None  # instance folder (with mods/ and config/) if detected
     mods: list[Path] = field(default_factory=list)
-    client_only: list[str] = field(default_factory=list)  # mods descartados por ser solo de cliente
-    temp_dir: tempfile.TemporaryDirectory | None = None  # si venía de un .zip
+    client_only: list[str] = field(default_factory=list)  # mods skipped because they are client-only
+    temp_dir: tempfile.TemporaryDirectory | None = None  # if it came from a .zip
 
     @property
     def config(self) -> Path | None:
@@ -46,7 +48,7 @@ def _find_level_dat(root: Path) -> Path | None:
 
 
 def _is_client_only(jar: Path) -> bool:
-    """Los mods de Fabric/Quilt indican si solo funcionan en el cliente (shaders, minimapas...)."""
+    """Fabric/Quilt mods state whether they only work on the client (shaders, minimaps...)."""
     try:
         with zipfile.ZipFile(jar) as z:
             if "fabric.mod.json" in z.namelist():
@@ -58,7 +60,7 @@ def _is_client_only(jar: Path) -> bool:
 
 
 def inspect(path: Path) -> WorldSource:
-    """Acepta la carpeta de un mundo o un .zip que lo contenga."""
+    """Accepts a world folder or a .zip that contains one."""
     temp = None
     if path.is_file() and path.suffix.lower() == ".zip":
         temp = tempfile.TemporaryDirectory(prefix="ownhost-mundo-")
@@ -71,10 +73,10 @@ def inspect(path: Path) -> WorldSource:
     if not world:
         if temp:
             temp.cleanup()
-        raise ValueError("No se encontró level.dat. Elige la carpeta de un mundo de Minecraft "
-                         "(normalmente está en .minecraft\\saves).")
+        raise ValueError(tr("No se encontró level.dat. Elige la carpeta de un mundo de Minecraft "
+                            "(normalmente está en .minecraft\\saves)."))
     source = WorldSource(world=world, temp_dir=temp)
-    # Instancias de launcher (oficial, CurseForge, Prism, Modrinth...): <instancia>/saves/<mundo>
+    # Launcher instances (official, CurseForge, Prism, Modrinth...): <instance>/saves/<world>
     if world.parent.name == "saves" and (world.parent.parent / "mods").is_dir():
         source.instance = world.parent.parent
         for jar in sorted((source.instance / "mods").glob("*.jar")):
@@ -86,7 +88,7 @@ def inspect(path: Path) -> WorldSource:
 
 
 def build_zip(source: WorldSource, include_mods: bool, dest: Path, progress: Callable[[str], None]) -> None:
-    """Empaqueta world/ (+ mods/ y config/) para enviarlo al agente."""
+    """Packs world/ (+ mods/ and config/) to send it to the agent."""
     entries: list[tuple[Path, str]] = []
     for f in source.world.rglob("*"):
         if f.is_file() and f.name != "session.lock":
@@ -100,4 +102,4 @@ def build_zip(source: WorldSource, include_mods: bool, dest: Path, progress: Cal
         for i, (f, name) in enumerate(entries, 1):
             z.write(f, name)
             if i % 50 == 0 or i == len(entries):
-                progress(f"Preparando archivos... {i} / {len(entries)}")
+                progress(tr("Preparando archivos... {done} / {total}", done=i, total=len(entries)))

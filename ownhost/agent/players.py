@@ -1,16 +1,16 @@
-"""Jugadores: quién está conectado, operadores, lista blanca, baneados.
+"""Players: who is online, operators, whitelist, banned.
 
-- Los conectados se sacan de la consola (mensajes de entrada y salida del juego).
-- Las listas se leen de los archivos del servidor (ops.json, whitelist.json...).
-- Las acciones (dar op, banear...) se mandan como comandos de consola. Si el servidor está apagado
-  quedan pendientes y se aplican en cuanto se enciende: así no hace falta saber el UUID de nadie.
+- Online players come from the console (the game's join and leave messages).
+- The lists are read from the server files (ops.json, whitelist.json...).
+- Actions (op, ban...) are sent as console commands. If the server is stopped they stay pending and
+  are applied as soon as it starts: that way nobody's UUID is needed.
 """
 
 import json
 import re
 from pathlib import Path
 
-# Java (Vanilla/Paper/Fabric/Forge, con o sin Geyser) y Bedrock nativo
+# Java (Vanilla/Paper/Fabric/Forge, with or without Geyser) and native Bedrock
 JOIN_RE = [
     re.compile(r"\]: (?:\[[^\]]*\] )?(\S{1,40}) joined the game"),
     re.compile(r"Player connected: ([^,]{1,40}), xuid"),
@@ -22,13 +22,13 @@ LEAVE_RE = [
 
 ACTIONS = ("op", "deop", "whitelist_add", "whitelist_remove", "ban", "pardon", "kick",
            "whitelist_on", "whitelist_off")
-# Nombres de jugador válidos (Java: 3-16 letras/números/_; Bedrock con Floodgate lleva un "." delante
-# y puede tener espacios: en Bedrock nativo se ponen comillas y en Java se cambian por «_», como Floodgate).
+# Valid player names (Java: 3-16 letters/digits/_; Bedrock through Floodgate has a leading "." and may
+# contain spaces: native Bedrock quotes them and Java replaces them with "_", like Floodgate does).
 NAME_RE = re.compile(r"^\.?[\w .\-]{1,32}$")
 
 
 def track(online: set[str], line: str) -> bool:
-    """Actualiza `online` con una línea de consola. Devuelve True si ha cambiado."""
+    """Updates `online` with a console line. Returns True if it changed."""
     for rx in JOIN_RE:
         if m := rx.search(line):
             online.add(m.group(1))
@@ -49,7 +49,7 @@ def _names(path: Path, key: str = "name") -> list[str]:
 
 
 def lists(game_id: str, server_dir: Path) -> dict:
-    """Operadores, lista blanca y baneados que el servidor tiene guardados."""
+    """Operators, whitelist and banned players stored by the server."""
     props = server_dir / "server.properties"
     text = props.read_text(encoding="utf-8", errors="replace") if props.exists() else ""
     if game_id == "bedrock":
@@ -63,7 +63,7 @@ def lists(game_id: str, server_dir: Path) -> dict:
 
 
 def command(game_id: str, action: str, name: str = "") -> str:
-    """Comando de consola para una acción."""
+    """Console command for an action."""
     if action not in ACTIONS:
         raise ValueError(action)
     if action not in ("whitelist_on", "whitelist_off") and not NAME_RE.match(name):
@@ -71,7 +71,7 @@ def command(game_id: str, action: str, name: str = "") -> str:
     if game_id == "bedrock":
         who = f'"{name}"' if " " in name else name
     else:
-        # Java no admite comillas ni espacios: Floodgate cambia los espacios de los nombres de Bedrock por «_».
+        # Java does not allow quotes or spaces: Floodgate replaces spaces in Bedrock names with "_".
         who = name.replace(" ", "_")
     allow = "allowlist" if game_id == "bedrock" else "whitelist"
     return {

@@ -1,4 +1,4 @@
-"""Direcciones de red: IP de la red local y de Tailscale."""
+"""Network addresses: local network and Tailscale IPs."""
 
 import ipaddress
 import json
@@ -14,13 +14,13 @@ import psutil
 from ownhost.sysenv import clean_env
 
 TAILSCALE_NET = ipaddress.ip_network("100.64.0.0/10")
-# Sistemas que pueden ejecutar el agente; descarta móviles, gafas VR, etc.
+# Systems that can run the agent; rules out phones, VR headsets, etc.
 COMPUTER_OS = {"windows", "linux", "macos", "freebsd", "openbsd"}
 NO_WINDOW = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
 
 
 def lan_ip() -> str:
-    """IP de este equipo en la red local (la que deben usar los jugadores de casa)."""
+    """IP of this computer on the local network (the one players at home should use)."""
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
             s.connect(("10.255.255.255", 1))
@@ -30,7 +30,7 @@ def lan_ip() -> str:
 
 
 def is_reachable(address: str) -> bool:
-    """¿Responde el equipo al ping? (para distinguir «apagado» de «cortafuegos»)."""
+    """Does the computer answer ping? (to tell "off" from "firewall")."""
     count = ["-n", "1", "-w", "1500"] if sys.platform == "win32" else ["-c", "1", "-W", "2"]
     try:
         out = subprocess.run(["ping", *count, address], capture_output=True, timeout=5,
@@ -41,18 +41,18 @@ def is_reachable(address: str) -> bool:
 
 
 def own_ips() -> set[str]:
-    """Todas las IPv4 de este equipo (para no ofrecerse a sí mismo como equipo remoto)."""
+    """All IPv4 addresses of this computer (so it does not offer itself as a remote computer)."""
     return {a.address for addrs in psutil.net_if_addrs().values() for a in addrs if a.family == socket.AF_INET}
 
 
 def tailscale_ip() -> str | None:
-    """IP de Tailscale (100.x.y.z) de este equipo, o None si Tailscale no está activo."""
+    """Tailscale IP (100.x.y.z) of this computer, or None if Tailscale is not active."""
     candidates = []
     for name, addrs in psutil.net_if_addrs().items():
         for a in addrs:
             if a.family == socket.AF_INET and ipaddress.ip_address(a.address) in TAILSCALE_NET:
                 candidates.append((name, a.address))
-    # Algunas operadoras usan el mismo rango (CGNAT): preferimos la interfaz llamada "Tailscale".
+    # Some carriers use the same range (CGNAT): prefer the interface named "Tailscale".
     candidates.sort(key=lambda c: "tailscale" not in c[0].lower())
     stats = psutil.net_if_stats()
     for name, address in candidates:
@@ -77,7 +77,7 @@ def _tailscale_json(*args: str) -> dict | None:
     if not cli:
         return None
     try:
-        # --json va justo después del subcomando: tras un argumento (la IP de whois) ya no se leen opciones.
+        # --json goes right after the subcommand: after an argument (the whois IP) options are no longer read.
         out = subprocess.run([cli, args[0], "--json", *args[1:]], capture_output=True, text=True, timeout=4,
                              encoding="utf-8", creationflags=NO_WINDOW, env=clean_env())
         return json.loads(out.stdout) if out.returncode == 0 else None
@@ -86,10 +86,10 @@ def _tailscale_json(*args: str) -> dict | None:
 
 
 class TailscaleOwnerCheck:
-    """¿Viene una conexión de un dispositivo de Tailscale de la misma cuenta que este equipo?
+    """Does a connection come from a Tailscale device of the same account as this computer?
 
-    Tailscale autentica cada dispositivo, así que alguien con tu cuenta eres tú: el agente puede
-    dejarle entrar sin token. Los resultados se guardan unos minutos para no preguntar en cada petición.
+    Tailscale authenticates every device, so someone with your account is you: the agent can let them
+    in without a token. Results are cached for a few minutes so it does not ask on every request.
     """
 
     TTL = 300
@@ -113,7 +113,7 @@ class TailscaleOwnerCheck:
                 return False
         except ValueError:
             return False
-        # La conexión tiene que haber llegado por la interfaz de Tailscale de este equipo.
+        # The connection must have arrived through this computer's Tailscale interface.
         if local_ip is not None and local_ip.removeprefix("::ffff:") != tailscale_ip():
             return False
         hit = self._cache.get(remote_ip)
@@ -127,7 +127,7 @@ class TailscaleOwnerCheck:
 
 
 def tailscale_peers() -> list[dict]:
-    """Otros ordenadores de tu red Tailscale: [{name, ip, online, os}], los conectados primero."""
+    """Other computers on your Tailscale network: [{name, ip, online, os}], online ones first."""
     cli = _tailscale_cli()
     if not cli:
         return []

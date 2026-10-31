@@ -1,4 +1,4 @@
-"""Rutas por defecto compartidas entre el agente y la app."""
+"""Default paths shared by the agent and the app."""
 
 import os
 import sys
@@ -8,7 +8,7 @@ APP_DIR_NAME = "Ownhost"
 
 
 def default_data_dir() -> Path:
-    """Dónde guarda el agente los servidores, Java y las copias de seguridad."""
+    """Where the agent stores servers, Java and backups."""
     env = os.environ.get("OWNHOST_DATA_DIR")
     if env:
         return Path(env)
@@ -18,7 +18,7 @@ def default_data_dir() -> Path:
 
 
 def app_config_dir() -> Path:
-    """Dónde guarda la app la lista de equipos."""
+    """Where the app stores the list of computers."""
     if sys.platform == "win32":
         return Path(os.environ.get("APPDATA", Path.home())) / APP_DIR_NAME
     return Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config")) / "ownhost"

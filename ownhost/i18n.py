@@ -68,6 +68,11 @@ def reset_language(token: contextvars.Token) -> None:
     _current.reset(token)
 
 
+def decimal(number: str) -> str:
+    """A number written with a dot ("3.5"), with the decimal comma in Spanish ("3,5")."""
+    return number.replace(".", ",") if language() == "es" else number
+
+
 def tr(text: str, /, **values) -> str:
     if language() == "en":
         text = _english().get(text, text)

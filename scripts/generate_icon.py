@@ -1,9 +1,9 @@
-"""Dibuja el icono de la app y los pequeños gráficos del tema, en ownhost/app/assets/:
+"""Draws the app icon and the small theme graphics into ownhost/app/assets/:
 
     icon.png (256 px), icon.ico (Windows), arrow-down.png, arrow-up.png, check.png
 
-Solo hace falta ejecutarlo si se cambia el diseño:
-    python scripts/generar_icono.py
+Only needs to be run if the design changes:
+    python scripts/generate_icon.py
 """
 
 import struct
@@ -17,13 +17,13 @@ from PySide6.QtGui import (
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
-from ownhost.app.theme import _leaf_with_drops  # noqa: E402  (la misma hoja que el fondo de la app)
+from ownhost.app.theme import _leaf_with_drops  # noqa: E402  (the same leaf as the app's background)
 
 OUT = ROOT / "ownhost" / "app" / "assets"
 
 
 def draw(size: int) -> QImage:
-    """Icono Frutiger Aero: cielo, pradera y una hoja con gotas de rocío bajo un brillo de cristal."""
+    """Frutiger Aero icon: sky, meadow and a leaf with dew drops under a glass shine."""
     img = QImage(size, size, QImage.Format.Format_ARGB32)
     img.fill(Qt.GlobalColor.transparent)
     p = QPainter(img)
@@ -53,7 +53,7 @@ def draw(size: int) -> QImage:
 
     _leaf_with_drops(p, QPointF(36 * s, 210 * s), 200 * s, -42)
 
-    # Pequeñas burbujas
+    # Small bubbles
     for cx, cy, r in ((62, 70, 13), (196, 186, 10), (78, 196, 7)):
         g = QRadialGradient(QPointF(cx * s, cy * s), r * s)
         g.setColorAt(0, QColor(255, 255, 255, 30))
@@ -62,7 +62,7 @@ def draw(size: int) -> QImage:
         p.setBrush(g)
         p.drawEllipse(QPointF(cx * s, cy * s), r * s, r * s)
 
-    # Brillo de gota en la mitad superior
+    # Droplet shine on the top half
     shine = QPainterPath()
     shine.addRoundedRect(QRectF(18 * s, 16 * s, 220 * s, 108 * s), 54 * s, 54 * s)
     gloss = QLinearGradient(0, 16 * s, 0, 124 * s)
@@ -87,7 +87,7 @@ def png_bytes(img: QImage) -> bytes:
 
 
 def write_ico(path: Path, sizes: list[int]) -> None:
-    """ICO con las imágenes en PNG dentro (formato admitido desde Windows Vista)."""
+    """ICO with PNG images inside (format supported since Windows Vista)."""
     images = [png_bytes(draw(n)) for n in sizes]
     header = struct.pack("<HHH", 0, 1, len(images))
     offset = 6 + 16 * len(images)
@@ -124,4 +124,4 @@ if __name__ == "__main__":
     _stroke([(6, 10), (16, 22), (26, 10)], ink, 4.5).save(str(OUT / "arrow-down.png"))
     _stroke([(6, 22), (16, 10), (26, 22)], ink, 4.5).save(str(OUT / "arrow-up.png"))
     _stroke([(6, 17), (13, 24), (26, 8)], QColor("#0d3b12"), 4.5).save(str(OUT / "check.png"))
-    print(f"Gráficos generados en {OUT}")
+    print(f"Graphics generated in {OUT}")

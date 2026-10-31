@@ -1,10 +1,10 @@
-"""Entorno limpio para lanzar otros programas desde la app empaquetada.
+"""Clean environment for launching other programs from the packaged app.
 
-En Linux, PyInstaller cambia LD_LIBRARY_PATH para que la app use sus propias bibliotecas (las de
-Ubuntu 22.04, donde se compila). Si ese valor se hereda, los programas del sistema (/bin/sh, Java,
-el servidor de Bedrock...) cargan bibliotecas que no son las suyas y fallan, por ejemplo:
+On Linux, PyInstaller changes LD_LIBRARY_PATH so the app uses its own libraries (those of
+Ubuntu 22.04, where it is built). If that value is inherited, system programs (/bin/sh, Java,
+the Bedrock server...) load libraries that are not theirs and fail, for example:
     /bin/sh: symbol lookup error: undefined symbol: rl_trim_arg_from_keyseq
-PyInstaller guarda el valor original en LD_LIBRARY_PATH_ORIG: aquí se restaura.
+PyInstaller keeps the original value in LD_LIBRARY_PATH_ORIG: it is restored here.
 """
 
 import os

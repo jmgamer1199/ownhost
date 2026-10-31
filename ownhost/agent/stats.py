@@ -1,7 +1,7 @@
-"""Estadísticas de jugadores: tiempo jugado, número de sesiones y última vez que entraron.
+"""Player statistics: time played, number of sessions and last time they joined.
 
-Se apuntan con las entradas y salidas que el servidor escribe en la consola, y se guardan en
-data_dir/stats/<servidor>.json para que sobrevivan a los reinicios del agente.
+They are recorded from the joins and leaves the server writes to the console, and saved in
+data_dir/stats/<server>.json so they survive agent restarts.
 """
 
 import json
@@ -15,7 +15,7 @@ class PlayerStats:
         self.path = path
         self.lock = threading.Lock()
         self.players: dict[str, dict] = {}
-        self.open: dict[str, float] = {}  # sesiones en curso: jugador -> hora de entrada
+        self.open: dict[str, float] = {}  # sessions in progress: player -> join time
         if path.exists():
             try:
                 self.players = json.loads(path.read_text(encoding="utf-8"))
@@ -44,7 +44,7 @@ class PlayerStats:
             self._save()
 
     def all_left(self) -> None:
-        """El servidor se ha apagado: se cierran las sesiones abiertas."""
+        """The server has stopped: open sessions are closed."""
         now = time.time()
         with self.lock:
             if not self.open:
@@ -62,7 +62,7 @@ class PlayerStats:
         p["last_seen"] = now
 
     def summary(self) -> list[dict]:
-        """Jugadores ordenados por tiempo jugado (incluida la sesión en curso)."""
+        """Players sorted by time played (including the session in progress)."""
         now = time.time()
         with self.lock:
             rows = []

@@ -9,6 +9,7 @@ from PySide6.QtWidgets import (
 
 from ownhost.agent import DEFAULT_PORT
 from ownhost import i18n
+from ownhost.i18n import tr
 from ownhost.app.client import AgentClient
 from ownhost.app.hosts import Host
 from ownhost.app.memory import MemoryAdvice, count_modpack_mods
@@ -21,42 +22,42 @@ from ownhost.net import is_reachable, lan_ip, own_ips, tailscale_peers
 
 
 class HostDialog(QDialog):
-    """Añadir o editar un equipo con el agente instalado."""
+    """Add or edit a computer that has the agent installed."""
 
     def __init__(self, parent=None, host: Host | None = None):
         super().__init__(parent)
-        self.setWindowTitle("Editar equipo" if host else "Conectar a un equipo")
+        self.setWindowTitle(tr("Editar equipo") if host else tr("Conectar a un equipo"))
         self.setMinimumWidth(500)
         self.name = QLineEdit(host.name if host else "")
-        self.name.setPlaceholderText("Homelab, PC del salón...")
+        self.name.setPlaceholderText(tr("Homelab, PC del salón..."))
         self.address = QLineEdit(host.address if host else "")
-        # Ejemplo con la red real del usuario (192.168.0.x, 10.0.0.x...), no un número fijo.
+        # Example using the user's real network (192.168.0.x, 10.0.0.x...), not a fixed number.
         self.address.setPlaceholderText(lan_ip().rsplit(".", 1)[0] + ".x")
         self.port = QSpinBox(maximum=65535, value=host.port if host else DEFAULT_PORT)
         self.token = QLineEdit(host.token if host else "")
-        self.token.setPlaceholderText("Vacío si el equipo está en tu Tailscale con tu misma cuenta")
+        self.token.setPlaceholderText(tr("Vacío si el equipo está en tu Tailscale con tu misma cuenta"))
         self._host = host
 
-        help_text = QLabel("En el otro equipo abre Ownhost y pulsa «Usar este PC como servidor»: "
-                           "en la ficha de «Este PC» verás su IP y su token. En Linux, el instalador "
-                           "del agente los muestra al terminar. Si un amigo te ha dado un código de "
-                           "acceso, escríbelo como token.")
+        help_text = QLabel(tr("En el otro equipo abre Ownhost y pulsa «Usar este PC como servidor»: "
+                              "en la ficha de «Este PC» verás su IP y su token. En Linux, el instalador "
+                              "del agente los muestra al terminar. Si un amigo te ha dado un código de "
+                              "acceso, escríbelo como token."))
         help_text.setWordWrap(True)
 
-        # Equipos detectados solos: agentes que responden en la red local y equipos de Tailscale.
+        # Computers found automatically: agents answering on the local network and Tailscale machines.
         self.found_box = QComboBox()
-        self.found_box.addItem("Buscando equipos...", None)
+        self.found_box.addItem(tr("Buscando equipos..."), None)
         self.found_box.setEnabled(False)
         self.found_box.currentIndexChanged.connect(self._found_selected)
         self._found_lan: list[dict] | None = None
         self._found_tailscale: list[dict] | None = None
 
         form = QFormLayout()
-        form.addRow("Detectados", self.found_box)
-        form.addRow("Nombre", self.name)
-        form.addRow("Dirección IP", self.address)
-        form.addRow("Puerto", self.port)
-        form.addRow("Token o código", self.token)
+        form.addRow(tr("Detectados"), self.found_box)
+        form.addRow(tr("Nombre"), self.name)
+        form.addRow(tr("Dirección IP"), self.address)
+        form.addRow(tr("Puerto"), self.port)
+        form.addRow(tr("Token o código"), self.token)
         buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
         buttons.accepted.connect(self._test_and_accept)
         buttons.rejected.connect(self.reject)
@@ -76,22 +77,23 @@ class HostDialog(QDialog):
         else:
             self._found_tailscale = results
         if self._found_lan is None or self._found_tailscale is None:
-            return  # esperamos a las dos búsquedas
+            return  # wait for both searches
         self.found_box.blockSignals(True)
         self.found_box.clear()
-        options = [(f"{r['name']}  ({r['address']}, ownhost en la red local)",
+        options = [(tr("{name}  ({address}, ownhost en la red local)", name=r["name"], address=r["address"]),
                     {"name": r["name"], "ip": r["address"], "port": r.get("port", DEFAULT_PORT)})
                    for r in self._found_lan]
         lan_ips = {r["address"] for r in self._found_lan}
-        options += [(f"{p['name']}  ({p['ip']}, Tailscale, {'conectado' if p['online'] else 'desconectado'})", p)
+        options += [(tr("{name}  ({ip}, Tailscale, conectado)", name=p["name"], ip=p["ip"]) if p["online"] else
+                     tr("{name}  ({ip}, Tailscale, desconectado)", name=p["name"], ip=p["ip"]), p)
                     for p in self._found_tailscale if p["ip"] not in lan_ips]
         if options:
-            self.found_box.addItem(f"Elegir entre {len(options)} equipos encontrados...", None)
+            self.found_box.addItem(tr("Elegir entre {count} equipos encontrados...", count=len(options)), None)
             for label, data in options:
                 self.found_box.addItem(label, data)
             self.found_box.setEnabled(True)
         else:
-            self.found_box.addItem("No se encontró ningún equipo: escribe su IP abajo", None)
+            self.found_box.addItem(tr("No se encontró ningún equipo: escribe su IP abajo"), None)
         self.found_box.blockSignals(False)
 
     def _found_selected(self) -> None:
@@ -116,10 +118,10 @@ class HostDialog(QDialog):
     def _test_and_accept(self) -> None:
         host = self.result_host()
         if not host.address:
-            QMessageBox.warning(self, "Faltan datos", "Indica la dirección del equipo.")
+            QMessageBox.warning(self, tr("Faltan datos"), tr("Indica la dirección del equipo."))
             return
         self.ok_button.setEnabled(False)
-        self.ok_button.setText("Probando...")
+        self.ok_button.setText(tr("Probando..."))
         client = AgentClient(host)
 
         def done(_):
@@ -128,18 +130,20 @@ class HostDialog(QDialog):
 
         def failed(msg: str):
             client.close()
-            # Si el equipo responde al ping pero no al agente, casi siempre es su cortafuegos.
+            # If the computer answers ping but not the agent, it is almost always its firewall.
             run_async(lambda: is_reachable(host.address), lambda up: explain(msg, up), lambda _: explain(msg, False))
 
         def explain(msg: str, reachable: bool):
             self.ok_button.setEnabled(True)
-            self.ok_button.setText("OK")
-            if reachable and msg != "Token incorrecto":
-                msg = (f"El equipo {host.address} está encendido y responde, pero no deja conectar con el "
-                       f"Ownhost (puerto {host.port}). Casi seguro es su cortafuegos.\n\n"
-                       "En ese equipo, abre Ownhost y pulsa «Abrir puertos del cortafuegos» en la ficha "
-                       "«Este PC» (en Linux), o permite Ownhost en el Firewall de Windows.")
-            QMessageBox.warning(self, "No se pudo conectar", msg)
+            self.ok_button.setText(tr("OK"))
+            # The client raises ApiError(tr("Token incorrecto")): compare in the same language.
+            if reachable and msg != tr("Token incorrecto"):
+                msg = tr("El equipo {address} está encendido y responde, pero no deja conectar con el "
+                         "Ownhost (puerto {port}). Casi seguro es su cortafuegos.\n\n"
+                         "En ese equipo, abre Ownhost y pulsa «Abrir puertos del cortafuegos» en la ficha "
+                         "«Este PC» (en Linux), o permite Ownhost en el Firewall de Windows.",
+                         address=host.address, port=host.port)
+            QMessageBox.warning(self, tr("No se pudo conectar"), msg)
 
         run_async(client.info, done, failed)
 
@@ -147,7 +151,7 @@ class HostDialog(QDialog):
 class CreateServerDialog(QDialog):
     def __init__(self, parent, hosts: list[tuple[Host, AgentClient]], selected_host_id: str | None):
         super().__init__(parent)
-        self.setWindowTitle("Nuevo servidor")
+        self.setWindowTitle(tr("Nuevo servidor"))
         self.setMinimumWidth(500)
         self.hosts = hosts
         self.games: list[dict] = []
@@ -158,59 +162,59 @@ class CreateServerDialog(QDialog):
         if selected_host_id:
             self.host_box.setCurrentIndex(max(0, self.host_box.findData(selected_host_id)))
         self.name = QLineEdit()
-        self.name.setPlaceholderText("Survival con amigos")
+        self.name.setPlaceholderText(tr("Survival con amigos"))
         self.game_box = QComboBox()
         self.flavor_box = QComboBox()
         self.version_box = QComboBox()
         self.memory = QSpinBox(minimum=512, maximum=65536, singleStep=512, value=2048, suffix=" MB")
         self.players = QSpinBox(minimum=1, maximum=200, value=5)
-        self.players.setToolTip("Cuántos vais a jugar a la vez como mucho: sirve para recomendar la memoria")
+        self.players.setToolTip(tr("Cuántos vais a jugar a la vez como mucho: sirve para recomendar la memoria"))
         self.memory_help = QLabel()
         self.advice = MemoryAdvice(self.memory, self.memory_help)
         self.port = QSpinBox(minimum=0, maximum=65535, value=0)
-        self.port.setSpecialValueText("Automático")
-        self.eula = QCheckBox("Acepto el EULA de Minecraft")
-        self.eula_link = QLabel('<a href="https://aka.ms/MinecraftEULA">Leer el EULA</a>')
+        self.port.setSpecialValueText(tr("Automático"))
+        self.eula = QCheckBox(tr("Acepto el EULA de Minecraft"))
+        self.eula_link = QLabel(tr('<a href="https://aka.ms/MinecraftEULA">Leer el EULA</a>'))
         self.eula_link.setOpenExternalLinks(True)
         self.status = QLabel()
         self.status.setObjectName("muted")
 
         form = QFormLayout()
-        form.addRow("Equipo", self.host_box)
-        form.addRow("Nombre", self.name)
-        form.addRow("Juego", self.game_box)
-        form.addRow("Tipo", self.flavor_box)
-        form.addRow("Versión", self.version_box)
-        form.addRow("Jugadores a la vez", self.players)
-        form.addRow("Memoria máxima", self.memory)
+        form.addRow(tr("Equipo"), self.host_box)
+        form.addRow(tr("Nombre"), self.name)
+        form.addRow(tr("Juego"), self.game_box)
+        form.addRow(tr("Tipo"), self.flavor_box)
+        form.addRow(tr("Versión"), self.version_box)
+        form.addRow(tr("Jugadores a la vez"), self.players)
+        form.addRow(tr("Memoria máxima"), self.memory)
         form.addRow("", self.memory_help)
-        form.addRow("Puerto", self.port)
+        form.addRow(tr("Puerto"), self.port)
         self.form = form
         form.addRow(self.eula)
         form.addRow(self.eula_link)
-        self.account_note = QLabel("Necesitas una cuenta del juego: al crear el servidor se abrirá una "
-                                   "ventana para iniciar sesión con ella.")
+        self.account_note = QLabel(tr("Necesitas una cuenta del juego: al crear el servidor se abrirá una "
+                                      "ventana para iniciar sesión con ella."))
         self.account_note.setWordWrap(True)
         self.account_note.setObjectName("accent")
         form.addRow(self.account_note)
-        self.crossplay = QCheckBox("Multiplataforma: que también entren jugadores de Bedrock\n"
-                                   "(móvil, consola, Windows) con Geyser")
-        self.floodgate = QCheckBox("Sin necesitar cuenta de Java (Floodgate)")
+        self.crossplay = QCheckBox(tr("Multiplataforma: que también entren jugadores de Bedrock\n"
+                                      "(móvil, consola, Windows) con Geyser"))
+        self.floodgate = QCheckBox(tr("Sin necesitar cuenta de Java (Floodgate)"))
         self.floodgate.setChecked(True)
         self.crossplay.toggled.connect(self.floodgate.setEnabled)
         self.floodgate.setEnabled(False)
         form.addRow(self.crossplay)
         form.addRow(self.floodgate)
-        self.whitelist = QCheckBox("Solo pueden entrar los jugadores que añadas (lista blanca)")
-        self.whitelist.setToolTip("Si la activas, añade a tus amigos en la pestaña Jugadores. "
-                                  "Se puede cambiar cuando quieras.")
+        self.whitelist = QCheckBox(tr("Solo pueden entrar los jugadores que añadas (lista blanca)"))
+        self.whitelist.setToolTip(tr("Si la activas, añade a tus amigos en la pestaña Jugadores. "
+                                     "Se puede cambiar cuando quieras."))
         form.addRow(self.whitelist)
 
         self.buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
-        self.buttons.button(QDialogButtonBox.StandardButton.Ok).setText("Crear")
+        self.buttons.button(QDialogButtonBox.StandardButton.Ok).setText(tr("Crear"))
         self.want_modpack = False
-        modpack = self.buttons.addButton("Desde un modpack...", QDialogButtonBox.ButtonRole.ActionRole)
-        modpack.setToolTip("Importa un modpack de Modrinth (.mrpack) o de CurseForge (.zip)")
+        modpack = self.buttons.addButton(tr("Desde un modpack..."), QDialogButtonBox.ButtonRole.ActionRole)
+        modpack.setToolTip(tr("Importa un modpack de Modrinth (.mrpack) o de CurseForge (.zip)"))
         modpack.clicked.connect(self._choose_modpack)
         self.buttons.accepted.connect(self._create)
         self.buttons.rejected.connect(self.reject)
@@ -248,7 +252,7 @@ class CreateServerDialog(QDialog):
         return self.games[i] if 0 <= i < len(self.games) else None
 
     def _load_games(self) -> None:
-        self.status.setText("Cargando juegos...")
+        self.status.setText(tr("Cargando juegos..."))
 
         def done(games):
             self.games = games
@@ -274,7 +278,7 @@ class CreateServerDialog(QDialog):
         self.eula_link.setVisible(game["needs_eula"])
         self.account_note.setVisible(game.get("device_auth", False))
         self.whitelist.setVisible(game["id"] in ("minecraft", "bedrock"))
-        # Bedrock gestiona su memoria solo: no tiene este ajuste.
+        # Bedrock manages its memory by itself: it has no such setting.
         for w in (self.players, self.memory, self.memory_help):
             self.form.setRowVisible(w, game["id"] != "bedrock")
         self._update_memory()
@@ -282,13 +286,13 @@ class CreateServerDialog(QDialog):
         self._update_crossplay()
 
     def _update_crossplay(self) -> None:
-        # Geyser solo existe para Paper, Fabric y NeoForge.
+        # Geyser only exists for Paper, Fabric and NeoForge.
         supported = self.flavor_box.currentData() in ("paper", "fabric", "neoforge")
         self.crossplay.setVisible(supported)
         self.floodgate.setVisible(supported)
         if not supported:
             self.crossplay.setChecked(False)
-        # Sin hueco vacío abajo cuando se ocultan opciones
+        # No empty gap at the bottom when options are hidden
         QTimer.singleShot(0, lambda: self.resize(self.width(), self.sizeHint().height()))
 
     def _load_versions(self) -> None:
@@ -298,11 +302,11 @@ class CreateServerDialog(QDialog):
             return
         self.version_box.clear()
         self.version_box.setEnabled(False)
-        self.status.setText("Cargando versiones...")
+        self.status.setText(tr("Cargando versiones..."))
 
         def done(versions):
             if (self._game() or {}).get("id") != game["id"] or self.flavor_box.currentData() != flavor:
-                return  # el usuario cambió de opción mientras cargaba
+                return  # the user changed the option while loading
             self.version_box.addItems(versions)
             self.version_box.setEnabled(True)
             self.status.setText("")
@@ -314,7 +318,7 @@ class CreateServerDialog(QDialog):
         if not game or not self.version_box.currentText():
             return
         if game["needs_eula"] and not self.eula.isChecked():
-            QMessageBox.warning(self, "EULA", "Para crear un servidor de Minecraft debes aceptar el EULA.")
+            QMessageBox.warning(self, tr("EULA"), tr("Para crear un servidor de Minecraft debes aceptar el EULA."))
             return
         body = {
             "name": self.name.text().strip() or f"{game['name']} {self.version_box.currentText()}",
@@ -329,12 +333,12 @@ class CreateServerDialog(QDialog):
             "whitelist": self.whitelist.isChecked() and game["id"] in ("minecraft", "bedrock"),
         }
         self.buttons.setEnabled(False)
-        self.status.setText("Creando...")
+        self.status.setText(tr("Creando..."))
 
         def failed(msg: str):
             self.buttons.setEnabled(True)
             self.status.setText("")
-            QMessageBox.warning(self, "No se pudo crear", msg)
+            QMessageBox.warning(self, tr("No se pudo crear"), msg)
 
         self.created_host_id = self.host_box.currentData()
         run_async(lambda: self._client().create(**body), self._done, failed)
@@ -349,11 +353,11 @@ class CreateServerDialog(QDialog):
 
 
 class ImportModpackDialog(QDialog):
-    """Crea un servidor a partir de un modpack de Modrinth (.mrpack) o CurseForge (.zip)."""
+    """Create a server from a Modrinth (.mrpack) or CurseForge (.zip) modpack."""
 
     def __init__(self, parent, hosts: list[tuple[Host, AgentClient]], selected_host_id: str | None):
         super().__init__(parent)
-        self.setWindowTitle("Importar un modpack")
+        self.setWindowTitle(tr("Importar un modpack"))
         self.setMinimumWidth(540)
         self.hosts = hosts
         self.host_box = QComboBox()
@@ -362,27 +366,27 @@ class ImportModpackDialog(QDialog):
         if selected_host_id:
             self.host_box.setCurrentIndex(max(0, self.host_box.findData(selected_host_id)))
         self.path = QLineEdit()
-        self.path.setPlaceholderText("Archivo .mrpack o .zip del modpack")
-        browse = QPushButton("Elegir...")
+        self.path.setPlaceholderText(tr("Archivo .mrpack o .zip del modpack"))
+        browse = QPushButton(tr("Elegir..."))
         browse.clicked.connect(self._browse)
         file_row = QHBoxLayout()
         file_row.addWidget(self.path, 1)
         file_row.addWidget(browse)
         self.name = QLineEdit()
-        self.name.setPlaceholderText("El del modpack")
+        self.name.setPlaceholderText(tr("El del modpack"))
         self.memory = QSpinBox(minimum=1024, maximum=65536, singleStep=512, value=4096, suffix=" MB")
         self.players = QSpinBox(minimum=1, maximum=200, value=5)
         self.memory_help = QLabel()
         self.advice = MemoryAdvice(self.memory, self.memory_help)
         self.mods = 0
-        self.eula = QCheckBox("Acepto el EULA de Minecraft")
-        eula_link = QLabel('<a href="https://aka.ms/MinecraftEULA">Leer el EULA</a>')
+        self.eula = QCheckBox(tr("Acepto el EULA de Minecraft"))
+        eula_link = QLabel(tr('<a href="https://aka.ms/MinecraftEULA">Leer el EULA</a>'))
         eula_link.setOpenExternalLinks(True)
-        self.whitelist = QCheckBox("Solo pueden entrar los jugadores que añadas (lista blanca)")
-        help_text = QLabel("Descarga el modpack desde Modrinth (botón «Download» → .mrpack) o desde CurseForge "
-                           "(el archivo .zip normal, no el «Server Pack»). Los mods que solo sirven para el "
-                           "juego (shaders, minimapas...) se descartan solos. Para los de CurseForge hace falta "
-                           "tu clave de API en Ajustes.")
+        self.whitelist = QCheckBox(tr("Solo pueden entrar los jugadores que añadas (lista blanca)"))
+        help_text = QLabel(tr("Descarga el modpack desde Modrinth (botón «Download» → .mrpack) o desde CurseForge "
+                              "(el archivo .zip normal, no el «Server Pack»). Los mods que solo sirven para el "
+                              "juego (shaders, minimapas...) se descartan solos. Para los de CurseForge hace falta "
+                              "tu clave de API en Ajustes."))
         help_text.setWordWrap(True)
         help_text.setObjectName("muted")
         self.status = QLabel()
@@ -390,17 +394,17 @@ class ImportModpackDialog(QDialog):
         self.status.setWordWrap(True)
 
         form = QFormLayout()
-        form.addRow("Equipo", self.host_box)
-        form.addRow("Modpack", file_row)
-        form.addRow("Nombre", self.name)
-        form.addRow("Jugadores a la vez", self.players)
-        form.addRow("Memoria máxima", self.memory)
+        form.addRow(tr("Equipo"), self.host_box)
+        form.addRow(tr("Modpack"), file_row)
+        form.addRow(tr("Nombre"), self.name)
+        form.addRow(tr("Jugadores a la vez"), self.players)
+        form.addRow(tr("Memoria máxima"), self.memory)
         form.addRow("", self.memory_help)
         form.addRow(self.eula)
         form.addRow(eula_link)
         form.addRow(self.whitelist)
         self.buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
-        self.buttons.button(QDialogButtonBox.StandardButton.Ok).setText("Importar")
+        self.buttons.button(QDialogButtonBox.StandardButton.Ok).setText(tr("Importar"))
         self.buttons.accepted.connect(self._import)
         self.buttons.rejected.connect(self.reject)
         layout = QVBoxLayout(self)
@@ -427,8 +431,8 @@ class ImportModpackDialog(QDialog):
         self.advice.update("minecraft", "", self.players.value(), self.mods, modpack=True)
 
     def _browse(self) -> None:
-        path, _ = QFileDialog.getOpenFileName(self, "Elegir modpack", str(Path.home() / "Downloads"),
-                                              "Modpacks (*.mrpack *.zip)")
+        path, _ = QFileDialog.getOpenFileName(self, tr("Elegir modpack"), str(Path.home() / "Downloads"),
+                                              tr("Modpacks (*.mrpack *.zip)"))
         if path:
             self.path.setText(str(Path(path)))
             self._count_mods()
@@ -436,10 +440,10 @@ class ImportModpackDialog(QDialog):
     def _import(self) -> None:
         archive = Path(self.path.text().strip().strip('"'))
         if not archive.is_file():
-            QMessageBox.warning(self, "Modpack", "Elige el archivo del modpack.")
+            QMessageBox.warning(self, tr("Modpack"), tr("Elige el archivo del modpack."))
             return
         if not self.eula.isChecked():
-            QMessageBox.warning(self, "EULA", "Para crear un servidor de Minecraft debes aceptar el EULA.")
+            QMessageBox.warning(self, tr("EULA"), tr("Para crear un servidor de Minecraft debes aceptar el EULA."))
             return
         client = self.hosts[self.host_box.currentIndex()][1]
         self.created_host_id = self.host_box.currentData()
@@ -453,7 +457,8 @@ class ImportModpackDialog(QDialog):
 
         def upload(progress):
             return client.import_modpack(archive, lambda n: progress(
-                f"Enviando el modpack... {n / (1 << 20):.1f} / {total_mb:.1f} MB"), cf_key, **params)
+                tr("Enviando el modpack... {sent} / {total} MB", sent=f"{n / (1 << 20):.1f}", total=f"{total_mb:.1f}")),
+                cf_key, **params)
 
         def done(server: dict):
             self.created = server
@@ -462,7 +467,7 @@ class ImportModpackDialog(QDialog):
         def failed(msg: str):
             self.buttons.setEnabled(True)
             self.status.setText("")
-            QMessageBox.warning(self, "No se pudo importar", msg)
+            QMessageBox.warning(self, tr("No se pudo importar"), msg)
 
         run_with_progress(upload, self.status.setText, done, failed)
 
@@ -470,36 +475,36 @@ class ImportModpackDialog(QDialog):
 class SettingsDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("Ajustes")
+        self.setWindowTitle(tr("Ajustes"))
         self.setMinimumWidth(460)
         self.settings = load_settings()
         self.language_changed = False
         self.cf_key = QLineEdit(self.settings.get("curseforge_key", ""))
         self.cf_key.setEchoMode(QLineEdit.EchoMode.PasswordEchoOnEdit)
-        help_text = QLabel(
+        help_text = QLabel(tr(
             "Modrinth funciona sin configurar nada. Para buscar en <b>CurseForge</b> hace falta una "
             "clave de API gratuita: entra en "
             '<a href="https://console.curseforge.com/">console.curseforge.com</a>, inicia sesión y '
-            "copia la clave de la sección «API keys».")
+            "copia la clave de la sección «API keys»."))
         help_text.setWordWrap(True)
         help_text.setOpenExternalLinks(True)
-        form = QFormLayout()
-        form.addRow("Idioma / Language", self.language)
-        form.addRow("Clave de CurseForge", self.cf_key)
         self.language = QComboBox()
         for code, name in i18n.LANGUAGES.items():
             self.language.addItem(name, code)
         self.language.setCurrentIndex(max(0, self.language.findData(i18n.language())))
-        self.check_updates = QCheckBox("Buscar versiones nuevas de Ownhost al abrir la app")
+        form = QFormLayout()
+        form.addRow("Idioma / Language", self.language)
+        form.addRow(tr("Clave de CurseForge"), self.cf_key)
+        self.check_updates = QCheckBox(tr("Buscar versiones nuevas de Ownhost al abrir la app"))
         self.check_updates.setChecked(self.settings.get("check_updates", True))
-        self.check_now = QPushButton("Buscar ahora")
+        self.check_now = QPushButton(tr("Buscar ahora"))
         updates_row = QHBoxLayout()
         updates_row.addWidget(self.check_updates, 1)
         updates_row.addWidget(self.check_now)
         if embedded_curseforge_key():
-            self.cf_key.setPlaceholderText("Incluida en la app (opcional: pon aquí la tuya)")
-            help_text.setText("CurseForge y Modrinth ya funcionan: esta versión de la app incluye una clave "
-                              "de CurseForge. Solo necesitas rellenar el campo si quieres usar la tuya.")
+            self.cf_key.setPlaceholderText(tr("Incluida en la app (opcional: pon aquí la tuya)"))
+            help_text.setText(tr("CurseForge y Modrinth ya funcionan: esta versión de la app incluye una clave "
+                                 "de CurseForge. Solo necesitas rellenar el campo si quieres usar la tuya."))
         buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Save | QDialogButtonBox.StandardButton.Cancel)
         buttons.accepted.connect(self._save)
         buttons.rejected.connect(self.reject)
@@ -521,25 +526,25 @@ class SettingsDialog(QDialog):
 
 
 class MoveDialog(QDialog):
-    """Elegir a qué equipo mover un servidor."""
+    """Choose which computer to move a server to."""
 
     def __init__(self, parent, server: dict, targets: list[tuple[Host, AgentClient]]):
         super().__init__(parent)
-        self.setWindowTitle("Mover a otro equipo")
+        self.setWindowTitle(tr("Mover a otro equipo"))
         self.targets = targets
         self.target_box = QComboBox()
         for host, _ in targets:
             self.target_box.addItem(f"{host.name} ({host.address})")
-        self.delete_original = QCheckBox("Borrar el servidor de este equipo cuando termine")
-        text = QLabel(
-            f"Se apagará «{server['name']}», se hará una copia de seguridad y se instalará en el "
+        self.delete_original = QCheckBox(tr("Borrar el servidor de este equipo cuando termine"))
+        text = QLabel(tr(
+            "Se apagará «{name}», se hará una copia de seguridad y se instalará en el "
             "equipo elegido con la misma versión, el mundo, la configuración y los mods.<br><br>"
-            "Si no marcas la casilla, el original se queda aquí apagado por si algo falla.")
+            "Si no marcas la casilla, el original se queda aquí apagado por si algo falla.", name=server["name"]))
         text.setWordWrap(True)
         form = QFormLayout()
-        form.addRow("Destino", self.target_box)
+        form.addRow(tr("Destino"), self.target_box)
         buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
-        buttons.button(QDialogButtonBox.StandardButton.Ok).setText("Mover")
+        buttons.button(QDialogButtonBox.StandardButton.Ok).setText(tr("Mover"))
         buttons.accepted.connect(self.accept)
         buttons.rejected.connect(self.reject)
         layout = QVBoxLayout(self)
@@ -553,26 +558,27 @@ class MoveDialog(QDialog):
 
 
 class ImportWorldDialog(QDialog):
-    """Elegir un mundo (carpeta o .zip) para sustituir el del servidor."""
+    """Choose a world (folder or .zip) to replace the server's one."""
 
     def __init__(self, parent, server: dict):
         super().__init__(parent)
-        self.setWindowTitle("Importar un mundo")
+        self.setWindowTitle(tr("Importar un mundo"))
         self.setMinimumWidth(520)
         self.server = server
         self.source: WorldSource | None = None
 
-        intro = QLabel(
-            f"El mundo elegido sustituirá al de <b>{server['name']}</b> "
-            f"(Minecraft {server['version']}). Antes se hará una copia de seguridad del actual.<br>"
-            "Usa un mundo de la misma versión de Minecraft o anterior; uno más nuevo no cargará.")
+        intro = QLabel(tr(
+            "El mundo elegido sustituirá al de <b>{name}</b> "
+            "(Minecraft {version}). Antes se hará una copia de seguridad del actual.<br>"
+            "Usa un mundo de la misma versión de Minecraft o anterior; uno más nuevo no cargará.",
+            name=server["name"], version=server["version"]))
         intro.setWordWrap(True)
         self.path = QLineEdit()
         self.path.setReadOnly(True)
-        self.path.setPlaceholderText("Ningún mundo elegido")
-        pick_folder = QPushButton("Carpeta del mundo...")
+        self.path.setPlaceholderText(tr("Ningún mundo elegido"))
+        pick_folder = QPushButton(tr("Carpeta del mundo..."))
         pick_folder.clicked.connect(self._pick_folder)
-        pick_zip = QPushButton("Archivo .zip...")
+        pick_zip = QPushButton(tr("Archivo .zip..."))
         pick_zip.clicked.connect(self._pick_zip)
         self.info = QLabel()
         self.info.setWordWrap(True)
@@ -584,7 +590,7 @@ class ImportWorldDialog(QDialog):
         row.addWidget(pick_folder)
         row.addWidget(pick_zip)
         self.buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
-        self.buttons.button(QDialogButtonBox.StandardButton.Ok).setText("Importar")
+        self.buttons.button(QDialogButtonBox.StandardButton.Ok).setText(tr("Importar"))
         self.buttons.button(QDialogButtonBox.StandardButton.Ok).setEnabled(False)
         self.buttons.accepted.connect(self.accept)
         self.buttons.rejected.connect(self._cancel)
@@ -594,7 +600,7 @@ class ImportWorldDialog(QDialog):
         layout.addWidget(self.info)
         layout.addWidget(self.include_mods)
         layout.addWidget(self.buttons)
-        # Que el diálogo crezca cuando las etiquetas con texto largo ocupan más líneas.
+        # Let the dialog grow when labels with long text take more lines.
         layout.setSizeConstraint(QVBoxLayout.SizeConstraint.SetMinimumSize)
 
     def _start_dir(self) -> str:
@@ -602,14 +608,14 @@ class ImportWorldDialog(QDialog):
         return str(saves if saves.exists() else Path.home())
 
     def _pick_folder(self) -> None:
-        path = QFileDialog.getExistingDirectory(self, "Carpeta del mundo (la que contiene level.dat)",
+        path = QFileDialog.getExistingDirectory(self, tr("Carpeta del mundo (la que contiene level.dat)"),
                                                 self._start_dir())
         if path:
             self._load(Path(path))
 
     def _pick_zip(self) -> None:
-        path, _ = QFileDialog.getOpenFileName(self, "Mundo en .zip", str(Path.home() / "Downloads"),
-                                              "Archivo zip (*.zip)")
+        path, _ = QFileDialog.getOpenFileName(self, tr("Mundo en .zip"), str(Path.home() / "Downloads"),
+                                              tr("Archivo zip (*.zip)"))
         if path:
             self._load(Path(path))
 
@@ -618,7 +624,7 @@ class ImportWorldDialog(QDialog):
             self.source.cleanup()
             self.source = None
         self.path.setText(str(path))
-        self.info.setText("Analizando...")
+        self.info.setText(tr("Analizando..."))
         self.include_mods.setVisible(False)
         self.buttons.button(QDialogButtonBox.StandardButton.Ok).setEnabled(False)
         run_async(lambda: inspect_world(path), self._loaded,
@@ -626,20 +632,22 @@ class ImportWorldDialog(QDialog):
 
     def _loaded(self, source: WorldSource) -> None:
         self.source = source
-        lines = [f"Mundo encontrado: <b>{source.world.name}</b>"]
+        lines = [tr("Mundo encontrado: <b>{name}</b>", name=source.world.name)]
         server_has_mods = bool(self.server.get("mods_label"))
         if source.instance and (source.mods or source.config):
-            lines.append(f"Viene de la instancia «{source.instance.name}», que tiene {len(source.mods)} mods.")
-            self.include_mods.setText("Copiar también sus mods y su configuración (sustituyen a los actuales)")
+            lines.append(tr("Viene de la instancia «{instance}», que tiene {count} mods.",
+                            instance=source.instance.name, count=len(source.mods)))
+            self.include_mods.setText(tr("Copiar también sus mods y su configuración (sustituyen a los actuales)"))
             self.include_mods.setVisible(True)
             self.include_mods.setChecked(server_has_mods)
             self.include_mods.setEnabled(server_has_mods)
             if not server_has_mods:
-                lines.append("El mundo viene de una instancia con mods, pero este servidor no admite mods: "
-                             "crea uno Fabric, Forge o NeoForge con la misma versión.")
+                lines.append(tr("El mundo viene de una instancia con mods, pero este servidor no admite mods: "
+                                "crea uno Fabric, Forge o NeoForge con la misma versión."))
             if source.client_only:
-                lines.append(f"Se omiten {len(source.client_only)} mods que solo funcionan en el cliente "
-                             f"({', '.join(source.client_only[:4])}{'...' if len(source.client_only) > 4 else ''}).")
+                names = ", ".join(source.client_only[:4]) + ("..." if len(source.client_only) > 4 else "")
+                lines.append(tr("Se omiten {count} mods que solo funcionan en el cliente ({names}).",
+                                count=len(source.client_only), names=names))
         self.info.setText("<br>".join(lines))
         self.buttons.button(QDialogButtonBox.StandardButton.Ok).setEnabled(True)
         self.adjustSize()
@@ -651,11 +659,11 @@ class ImportWorldDialog(QDialog):
 
 
 class AccountLoginDialog(QDialog):
-    """Ventana para iniciar sesión con la cuenta del juego (Hytale) mediante un código."""
+    """Window to sign in with the game account (Hytale) using a code."""
 
     def __init__(self, parent, server_name: str, game_name: str):
         super().__init__(parent)
-        self.setWindowTitle(f"Iniciar sesión en {game_name}")
+        self.setWindowTitle(tr("Iniciar sesión en {game}", game=game_name))
         self.setMinimumWidth(460)
         self.url = ""
         self.code = ""
@@ -673,12 +681,12 @@ class AccountLoginDialog(QDialog):
         self.code_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.code_label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
 
-        self.open_btn = QPushButton("Abrir página de inicio de sesión")
+        self.open_btn = QPushButton(tr("Abrir página de inicio de sesión"))
         self.open_btn.setDefault(True)
         self.open_btn.clicked.connect(self._open)
-        self.copy_btn = QPushButton("Copiar código")
+        self.copy_btn = QPushButton(tr("Copiar código"))
         self.copy_btn.clicked.connect(lambda: QApplication.clipboard().setText(self.code))
-        waiting = QLabel("Esperando a que inicies sesión... Esta ventana se cerrará sola.")
+        waiting = QLabel(tr("Esperando a que inicies sesión... Esta ventana se cerrará sola."))
         waiting.setObjectName("muted")
 
         row = QHBoxLayout()
@@ -694,20 +702,23 @@ class AccountLoginDialog(QDialog):
         self.url, self.code = auth["url"], auth.get("code") or ""
         self.kind = auth.get("kind", "game")
         if self.kind == "xbox":
-            self.setWindowTitle("Iniciar sesión con Microsoft (amigos de Xbox)")
-            self.explanation.setText(
-                f"El servidor <b>{self.server_name}</b> va a aparecer en la pestaña Amigos de las consolas.<br>"
+            self.setWindowTitle(tr("Iniciar sesión con Microsoft (amigos de Xbox)"))
+            self.explanation.setText(tr(
+                "El servidor <b>{server}</b> va a aparecer en la pestaña Amigos de las consolas.<br>"
                 "Para eso necesita una <b>cuenta de Microsoft secundaria</b> (no uses la tuya).<br><br>"
                 "1. Pulsa <b>Abrir página de inicio de sesión</b>.<br>"
-                "2. Introduce este código y entra con la cuenta secundaria:")
+                "2. Introduce este código y entra con la cuenta secundaria:", server=self.server_name))
         else:
-            purpose = ("descargar los archivos del juego" if auth.get("source") == "downloader"
-                       else "que el servidor pueda aceptar jugadores")
-            self.explanation.setText(
-                f"El servidor <b>{self.server_name}</b> necesita tu cuenta de {self.game_name} para {purpose}.<br><br>"
+            if auth.get("source") == "downloader":
+                text = tr("El servidor <b>{server}</b> necesita tu cuenta de {game} para descargar los archivos "
+                          "del juego.<br><br>", server=self.server_name, game=self.game_name)
+            else:
+                text = tr("El servidor <b>{server}</b> necesita tu cuenta de {game} para que el servidor pueda "
+                          "aceptar jugadores.<br><br>", server=self.server_name, game=self.game_name)
+            self.explanation.setText(text + tr(
                 "1. Pulsa <b>Abrir página de inicio de sesión</b>.<br>"
-                "2. Entra con tu cuenta e introduce este código si te lo pide:")
-        self.code_label.setText(self.code or "(el código aparece en la página)")
+                "2. Entra con tu cuenta e introduce este código si te lo pide:"))
+        self.code_label.setText(self.code or tr("(el código aparece en la página)"))
         self.copy_btn.setEnabled(bool(self.code))
 
     def _open(self) -> None:
@@ -720,9 +731,9 @@ class AccountLoginDialog(QDialog):
 def ask_version(parent, versions: list[str], current: str) -> str | None:
     index = versions.index(current) if current in versions else 0
     version, ok = QInputDialog.getItem(
-        parent, "Actualizar servidor",
-        "Versión (elegir la misma descarga la última build de esa versión).\n"
-        "Se hará una copia de seguridad antes de actualizar.",
+        parent, tr("Actualizar servidor"),
+        tr("Versión (elegir la misma descarga la última build de esa versión).\n"
+           "Se hará una copia de seguridad antes de actualizar."),
         versions, index, False, Qt.WindowType.Dialog,
     )
     return version if ok else None

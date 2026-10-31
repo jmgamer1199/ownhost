@@ -8,9 +8,10 @@ from pathlib import Path
 from ownhost.agent.downloads import Log
 from ownhost.agent.models import ServerMeta
 from ownhost.agent.mods import ModTarget
+from ownhost.i18n import tr
 from ownhost.sysenv import clean_env
 
-# Evita que se abra una ventana de consola por cada proceso en Windows.
+# Prevents a console window from opening for every process on Windows.
 NO_WINDOW = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
 
 
@@ -37,20 +38,20 @@ class GameAdapter(ABC):
     flavors: list[Flavor]
     needs_eula: bool = False
     stop_command = "stop"
-    # Línea de la consola que indica que el servidor ya acepta jugadores.
+    # Console line that tells the server now accepts players.
     ready_pattern: re.Pattern | None = None
     properties_file: str | None = None
     backup_pre_commands: list[str] = []
     backup_post_commands: list[str] = []
-    # Juegos cuyo servidor necesita iniciar sesión con una cuenta (código en el navegador).
+    # Games whose server needs to log in with an account (code in the browser).
     device_auth = False
-    # Bedrock trae su propio ejecutable: no necesita Java.
+    # Bedrock ships its own executable: it does not need Java.
     uses_java = True
-    # Carpetas del mundo dentro del servidor (para importar un mundo); None si no se admite.
+    # World folders inside the server (to import a world); None if not supported.
     supports_world_import = False
 
     def world_dirs(self, server_dir: Path) -> list[str]:
-        """Carpetas que forman el mundo actual (la primera es la principal)."""
+        """Folders that make up the current world (the first one is the main one)."""
         return []
     auth_login_command: str | None = None
     auth_persist_command: str | None = None
@@ -62,56 +63,57 @@ class GameAdapter(ABC):
             "default_port": self.default_port,
             "needs_eula": self.needs_eula,
             "device_auth": self.device_auth,
-            "flavors": [f.__dict__ for f in self.flavors],
+            # Flavor names are translated here, not in the class table (that is built at import time).
+            "flavors": [{**f.__dict__, "name": tr(f.name)} for f in self.flavors],
         }
 
     @abstractmethod
     def versions(self, flavor: str) -> list[str]:
-        """Versiones disponibles, la más reciente primero."""
+        """Available versions, newest first."""
 
     @abstractmethod
     def java_major(self, flavor: str, version: str) -> int: ...
 
     @abstractmethod
     def install(self, ctx: InstallContext) -> None:
-        """Descarga/actualiza los archivos del servidor. Puede ajustar ctx.meta (p. ej. build)."""
+        """Downloads/updates the server files. May adjust ctx.meta (e.g. build)."""
 
     @abstractmethod
     def command(self, meta: ServerMeta, server_dir: Path, java: Path) -> list[str]: ...
 
     def read_config(self, server_dir: Path) -> dict[str, str]:
-        """Ajustes del archivo de configuración del juego, como texto (pestaña «Propiedades»)."""
+        """Settings of the game's configuration file, as text ("Properties" tab)."""
         return read_properties(server_dir / self.properties_file)
 
     def write_config(self, server_dir: Path, updates: dict[str, str]) -> None:
         write_properties(server_dir / self.properties_file, updates)
 
     def apply_settings(self, meta: ServerMeta, server_dir: Path) -> None:
-        """Aplica nombre/puerto a los archivos de configuración del juego."""
+        """Applies name/port to the game's configuration files."""
 
     def mod_target(self, meta: ServerMeta) -> ModTarget | None:
-        """Tipo de mods/plugins que admite el servidor, o None si no admite."""
+        """Kind of mods/plugins the server supports, or None if it supports none."""
         return None
 
     def env(self, meta: ServerMeta, server_dir: Path) -> dict[str, str] | None:
-        """Variables de entorno extra para el proceso del servidor."""
+        """Extra environment variables for the server process."""
         return None
 
     def extra_ports(self, meta: ServerMeta) -> list[int]:
-        """Puertos adicionales que ocupa el servidor (además de meta.port)."""
+        """Additional ports the server uses (besides meta.port)."""
         return []
 
     def available_update(self, meta: ServerMeta, tools_dir: Path) -> str | None:
-        """Si hay una versión más nueva *compatible* (sin romper mundos ni mods), su descripción.
+        """If there is a newer *compatible* version (not breaking worlds or mods), its description.
 
-        Por defecto no se comprueba nada. Para Minecraft Java solo se actualizan las builds de la
-        misma versión; cambiar de versión de Minecraft sigue siendo manual.
+        Nothing is checked by default. For Minecraft Java only builds of the same version are
+        updated; changing the Minecraft version is still manual.
         """
         return None
 
 
 def run_logged(cmd: list[str], cwd: Path, log: Log) -> None:
-    """Ejecuta un comando volcando su salida al log; lanza error si falla."""
+    """Runs a command, writing its output to the log; raises an error if it fails."""
     proc = subprocess.Popen(
         cmd, cwd=cwd, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
         text=True, encoding="utf-8", errors="replace", creationflags=NO_WINDOW, env=clean_env(),
@@ -120,7 +122,7 @@ def run_logged(cmd: list[str], cwd: Path, log: Log) -> None:
     for line in proc.stdout:
         log(line.rstrip())
     if proc.wait() != 0:
-        raise RuntimeError(f"{Path(cmd[0]).name} terminó con código {proc.returncode}")
+        raise RuntimeError(tr("{program} terminó con código {code}", program=Path(cmd[0]).name, code=proc.returncode))
 
 
 def read_properties(path: Path) -> dict[str, str]:
@@ -136,7 +138,7 @@ def read_properties(path: Path) -> dict[str, str]:
 
 
 def write_properties(path: Path, updates: dict[str, str]) -> None:
-    """Actualiza claves manteniendo el orden y los comentarios del archivo."""
+    """Updates keys keeping the order and comments of the file."""
     lines = path.read_text(encoding="utf-8", errors="replace").splitlines() if path.exists() else []
     pending = dict(updates)
     for i, line in enumerate(lines):

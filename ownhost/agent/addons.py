@@ -1,19 +1,20 @@
-"""Complementos que se instalan con un clic: mapa web del mundo (BlueMap) y pregeneración (Chunky).
+"""One-click add-ons: web map of the world (BlueMap) and pregeneration (Chunky).
 
-Los dos existen como plugin de Paper y como mod de Fabric, Forge y NeoForge, y se descargan de Modrinth.
+Both exist as a Paper plugin and as a Fabric, Forge and NeoForge mod, and are downloaded from Modrinth.
 """
 
 import re
 from pathlib import Path
 
 from ownhost.agent.errors import UserError
+from ownhost.i18n import tr
 
 MAP_PROJECT = "bluemap"
 PREGEN_PROJECT = "chunky"
 DEFAULT_MAP_PORT = 8100
 SUPPORTED = ("paper", "fabric", "forge", "neoforge")
 
-# Chunky escribe cosas como:
+# Chunky writes things like:
 #   [Chunky] Task running for minecraft:overworld. Processed: 3000 chunks (11.94%), ETA: 0:01:15, Rate: ...
 #   [Chunky] Task finished for minecraft:overworld. Processed: 25129 chunks (100.00%), Total time: 0:10:21
 CHUNKY_RE = re.compile(r"Task (running|finished|stopped|cancelled|paused) for (\S+?)\.? Processed: (\d+) chunks "
@@ -22,7 +23,7 @@ CHUNKY_RE = re.compile(r"Task (running|finished|stopped|cancelled|paused) for (\
 
 def check_supported(flavor: str) -> None:
     if flavor not in SUPPORTED:
-        raise UserError("Solo está disponible en servidores Paper, Fabric, Forge o NeoForge")
+        raise UserError(tr("Solo está disponible en servidores Paper, Fabric, Forge o NeoForge"))
 
 
 def bluemap_dir(server_dir: Path, flavor: str) -> Path:
@@ -30,8 +31,8 @@ def bluemap_dir(server_dir: Path, flavor: str) -> Path:
 
 
 def configure_map(server_dir: Path, flavor: str, port: int) -> None:
-    """Antes de cada arranque: acepta la descarga de recursos de Mojang (BlueMap la pide para dibujar el mapa)
-    y pone el puerto de la web. Si BlueMap aún no ha creado su configuración, se crea la mínima."""
+    """Before each start: accepts the download of Mojang's resources (BlueMap needs it to draw the map)
+    and sets the web port. If BlueMap has not created its configuration yet, a minimal one is created."""
     folder = bluemap_dir(server_dir, flavor)
     folder.mkdir(parents=True, exist_ok=True)
     _set(folder / "core.conf", r"^(\s*accept-download\s*:\s*).*$", "accept-download: true", r"\g<1>true")
@@ -53,6 +54,6 @@ def parse_chunky(line: str) -> dict | None:
     if not m:
         return None
     state, world, chunks, percent, eta = m.groups()
-    # Según el idioma del sistema, Java escribe «64,89%» o «64.89%».
+    # Depending on the system language, Java writes "64,89%" or "64.89%".
     return {"state": state.lower(), "world": world, "chunks": int(chunks),
             "percent": float(percent.replace(",", ".")), "eta": eta}

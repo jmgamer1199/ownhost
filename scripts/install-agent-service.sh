@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
-# Convierte este equipo Linux en servidor: instala el agente de Ownhost como servicio, que arranca
-# solo al encender el equipo aunque nadie inicie sesión. Se gestiona desde la app de otro PC.
+# Turns this Linux computer into a server: installs the Ownhost agent as a service that starts
+# automatically when the computer boots, even if nobody logs in. It is managed from the app on another PC.
 #
-# Uso (en la carpeta donde está el binario Ownhost):
-#     sudo bash instalar-agente-servicio.sh
+# Usage (in the folder that contains the Ownhost binary):
+#     sudo bash install-agent-service.sh
 set -euo pipefail
 
 if [[ $EUID -ne 0 ]]; then
-    echo "Ejecuta este script con sudo:  sudo bash $0" >&2
+    echo "Run this script with sudo:  sudo bash $0" >&2
     exit 1
 fi
 
@@ -18,7 +18,7 @@ USER_NAME=ownhost
 PORT=8765
 
 if [[ ! -f "$HERE/Ownhost" ]]; then
-    echo "No encuentro el archivo Ownhost junto a este script." >&2
+    echo "Can't find the Ownhost file next to this script." >&2
     exit 1
 fi
 
@@ -31,7 +31,7 @@ chown -R "$USER_NAME:$USER_NAME" "$DATA_DIR"
 
 cat > /etc/systemd/system/ownhost-agent.service <<EOF
 [Unit]
-Description=Ownhost - agente
+Description=Ownhost - agent
 After=network-online.target
 Wants=network-online.target
 
@@ -39,7 +39,7 @@ Wants=network-online.target
 User=$USER_NAME
 Environment=OWNHOST_DATA_DIR=$DATA_DIR
 ExecStart=$APP_DIR/Ownhost --agent --bind 0.0.0.0 --port $PORT
-# Solo el agente recibe la orden de parar: él apaga cada servidor con "stop" para que guarde el mundo.
+# Only the agent receives the stop signal: it stops each server with "stop" so the world gets saved.
 KillMode=mixed
 TimeoutStopSec=120
 Restart=on-failure
@@ -52,20 +52,20 @@ EOF
 systemctl daemon-reload
 systemctl enable --now ownhost-agent
 
-# Cortafuegos (solo si ufw está activo): agente, Minecraft Java, Bedrock/Geyser y Hytale.
+# Firewall (only if ufw or firewalld is active): agent, Minecraft Java, Bedrock/Geyser and Hytale.
 if command -v ufw >/dev/null && ufw status | grep -q "Status: active"; then
-    ufw allow $PORT/tcp >/dev/null      # la app se conecta al agente
-    ufw allow $PORT/udp >/dev/null      # la app encuentra el equipo en la red
+    ufw allow $PORT/tcp >/dev/null      # the app connects to the agent
+    ufw allow $PORT/udp >/dev/null      # the app finds the computer on the network
     ufw allow 25565:25575/tcp >/dev/null  # Minecraft Java
     ufw allow 19132:19140/udp >/dev/null  # Bedrock / Geyser
     ufw allow 19132:19140/tcp >/dev/null  # Geyser (NetherNet)
     ufw allow 5520:5530/udp >/dev/null    # Hytale
-    echo "Cortafuegos (ufw): puertos abiertos."
+    echo "Firewall (ufw): ports opened."
 elif command -v firewall-cmd >/dev/null && systemctl is-active --quiet firewalld; then
     firewall-cmd --permanent --add-port=$PORT/tcp --add-port=$PORT/udp --add-port=25565-25575/tcp \
         --add-port=19132-19140/udp --add-port=19132-19140/tcp --add-port=5520-5530/udp >/dev/null
     firewall-cmd --reload >/dev/null
-    echo "Cortafuegos (firewalld): puertos abiertos."
+    echo "Firewall (firewalld): ports opened."
 fi
 
 for _ in $(seq 1 15); do
@@ -73,17 +73,17 @@ for _ in $(seq 1 15); do
     sleep 1
 done
 TOKEN=$(runuser -u "$USER_NAME" -- env OWNHOST_DATA_DIR="$DATA_DIR" "$APP_DIR/Ownhost" --agent --show-token 2>/dev/null | tail -1)
-# "hostname -I" no existe en todas las distribuciones (p. ej. Arch): se usa "ip" si está.
+# "hostname -I" doesn't exist on every distribution (e.g. Arch): use "ip" if available.
 LAN_IP=$(ip -4 route get 1.1.1.1 2>/dev/null | awk '{for(i=1;i<NF;i++) if ($i=="src") print $(i+1)}' | head -1)
 [[ -z "$LAN_IP" ]] && LAN_IP=$(hostname -I 2>/dev/null | awk '{print $1}')
 
 echo
-echo "Listo: el agente está en marcha y arrancará solo con el equipo."
-echo "  IP en tu red:  ${LAN_IP:-desconocida}   Puerto: $PORT"
+echo "Done: the agent is running and will start automatically with the computer."
+echo "  Network IP:    ${LAN_IP:-unknown}   Port: $PORT"
 if command -v tailscale >/dev/null && TS_IP=$(tailscale ip -4 2>/dev/null); then
-    echo "  IP Tailscale:  $TS_IP   (para gestionarlo desde fuera de casa)"
+    echo "  Tailscale IP:  $TS_IP   (to manage it from outside your home)"
 fi
 echo "  Token:         $TOKEN"
 echo
-echo "En la app del otro PC: «Conectar a un equipo», elige este equipo en «Detectados» y pega el token."
-echo "Para ver lo que hace:  journalctl -u ownhost-agent -f"
+echo "In the app on the other PC: \"Connect to a computer\", pick this computer under \"Found on your network\" and paste the token."
+echo "To see what it's doing:  journalctl -u ownhost-agent -f"

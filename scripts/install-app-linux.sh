@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Instala el AppImage de Ownhost para el usuario actual y lo añade al menú de aplicaciones.
-# Uso: bash instalar-app-linux.sh   (en la carpeta donde está Ownhost-x86_64.AppImage)
+# Installs the Ownhost AppImage for the current user and adds it to the applications menu.
+# Usage: bash install-app-linux.sh   (in the folder that contains Ownhost-x86_64.AppImage)
 #
-# Funciona en cualquier distribución con glibc 2.28 o más reciente (Debian, Ubuntu, Mint, Fedora,
-# RHEL/Rocky/Alma, Arch/Manjaro/CachyOS, openSUSE...). Si faltan las pocas bibliotecas gráficas del
-# sistema que la ventana necesita (OpenGL/EGL, fontconfig), las instala con el administrador de paquetes.
+# Works on any distribution with glibc 2.28 or newer (Debian, Ubuntu, Mint, Fedora,
+# RHEL/Rocky/Alma, Arch/Manjaro/CachyOS, openSUSE...). If the few system graphics libraries the
+# window needs (OpenGL/EGL, fontconfig) are missing, it installs them with the package manager.
 set -euo pipefail
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
@@ -12,23 +12,23 @@ DEST="$HOME/Applications"
 APPS="$HOME/.local/share/applications"
 ICONS="$HOME/.local/share/icons/hicolor/256x256/apps"
 
-# --- Bibliotecas del sistema que no van dentro del AppImage -------------------------------------
-falta_lib() {
-    # ldconfig puede estar en /sbin y no en el PATH de un usuario normal. La lista se guarda antes
-    # de buscar: con pipefail, "ldconfig | grep -q" falla por SIGPIPE aunque la biblioteca esté.
+# --- System libraries that are not bundled in the AppImage ---------------------------------------
+lib_missing() {
+    # ldconfig may be in /sbin and not in a regular user's PATH. The list is saved before
+    # searching: with pipefail, "ldconfig | grep -q" fails due to SIGPIPE even if the library is there.
     local ldc
     ldc=$(command -v ldconfig || echo /sbin/ldconfig)
-    [[ -z "${LIBS_SISTEMA:-}" ]] && LIBS_SISTEMA=$("$ldc" -p 2>/dev/null || true)
-    ! grep -q "$1" <<<"$LIBS_SISTEMA"
+    [[ -z "${SYSTEM_LIBS:-}" ]] && SYSTEM_LIBS=$("$ldc" -p 2>/dev/null || true)
+    ! grep -q "$1" <<<"$SYSTEM_LIBS"
 }
 
-FALTAN=()
+MISSING=()
 for lib in libGL.so.1 libEGL.so.1 libfontconfig.so.1; do
-    falta_lib "$lib" && FALTAN+=("$lib")
+    lib_missing "$lib" && MISSING+=("$lib")
 done
 
-if (( ${#FALTAN[@]} )); then
-    echo "Faltan bibliotecas gráficas: ${FALTAN[*]}"
+if (( ${#MISSING[@]} )); then
+    echo "Missing graphics libraries: ${MISSING[*]}"
     SUDO=""
     [[ $EUID -ne 0 ]] && SUDO="sudo"
     if command -v apt-get >/dev/null; then
@@ -49,23 +49,23 @@ if (( ${#FALTAN[@]} )); then
         CMD=""
     fi
     if [[ -n "$CMD" ]]; then
-        echo "Instalándolas con: $CMD"
+        echo "Installing them with: $CMD"
         if command -v apt-get >/dev/null; then
             $SUDO apt-get update -qq || true
         fi
-        $CMD || echo "No se pudieron instalar. Instálalas a mano con: $CMD" >&2
+        $CMD || echo "They could not be installed. Install them by hand with: $CMD" >&2
     else
-        echo "Instálalas con el administrador de paquetes de tu distribución (paquetes de Mesa OpenGL/EGL y fontconfig)." >&2
+        echo "Install them with your distribution's package manager (Mesa OpenGL/EGL and fontconfig packages)." >&2
     fi
 fi
 
-# --- AppImage + acceso en el menú ---------------------------------------------------------------
+# --- AppImage + menu entry ----------------------------------------------------------------------
 mkdir -p "$DEST" "$APPS" "$ICONS"
 install -m 755 "$HERE/Ownhost-x86_64.AppImage" "$DEST/Ownhost.AppImage"
 install -m 644 "$HERE/ownhost.png" "$ICONS/ownhost.png"
 
-# Sin FUSE (contenedores, algunas instalaciones mínimas) el AppImage no puede montarse: se le pide
-# que se extraiga a sí mismo al arrancar, que funciona en cualquier sistema.
+# Without FUSE (containers, some minimal installs) the AppImage can't be mounted: ask it to
+# extract itself on startup, which works on any system.
 EXEC="$DEST/Ownhost.AppImage"
 if [[ ! -e /dev/fuse ]] || { ! command -v fusermount >/dev/null && ! command -v fusermount3 >/dev/null; }; then
     EXEC="env APPIMAGE_EXTRACT_AND_RUN=1 $EXEC"
@@ -75,7 +75,7 @@ cat > "$APPS/ownhost.desktop" <<EOF
 [Desktop Entry]
 Type=Application
 Name=Ownhost
-Comment=Servidores de Minecraft y Hytale en tu red
+Comment=Minecraft and Hytale servers on your network
 Exec=$EXEC
 Icon=ownhost
 Terminal=false
@@ -83,4 +83,4 @@ Categories=Game;Utility;
 EOF
 command -v update-desktop-database >/dev/null && update-desktop-database "$APPS" 2>/dev/null || true
 
-echo "Instalado. Búscalo como «Ownhost» en el menú, o ejecuta: $EXEC"
+echo "Installed. Look for \"Ownhost\" in the menu, or run: $EXEC"

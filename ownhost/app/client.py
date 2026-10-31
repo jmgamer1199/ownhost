@@ -6,6 +6,7 @@ import httpx
 
 from ownhost import i18n
 from ownhost.app.hosts import Host
+from ownhost.i18n import tr
 
 
 class ApiError(Exception):
@@ -16,7 +17,7 @@ class AgentClient:
     def __init__(self, host: Host):
         self.host = host
         self.base = f"http://{host.address}:{host.port}/api"
-        # Conexión corta: si un equipo está apagado no queremos esperar 15 s.
+        # Short connect timeout: if a computer is off we do not want to wait 15 s.
         self.http = httpx.Client(timeout=httpx.Timeout(15, connect=3),
                                  headers={"Authorization": f"Bearer {host.token}", i18n.HEADER: i18n.language()})
 
@@ -27,17 +28,18 @@ class AgentClient:
         try:
             r = self.http.request(method, self.base + path, **kwargs)
         except httpx.ConnectError:
-            raise ApiError(f"No se puede conectar con {self.host.address}:{self.host.port}") from None
+            raise ApiError(tr("No se puede conectar con {address}:{port}", address=self.host.address,
+                              port=self.host.port)) from None
         except httpx.TimeoutException:
-            raise ApiError("El agente no responde") from None
+            raise ApiError(tr("El agente no responde")) from None
         if r.status_code == 401:
-            raise ApiError("Token incorrecto")
+            raise ApiError(tr("Token incorrecto"))
         if r.status_code >= 400:
             try:
                 detail = r.json().get("detail")
             except ValueError:
                 detail = r.text
-            raise ApiError(str(detail) if detail else f"Error {r.status_code}")
+            raise ApiError(str(detail) if detail else tr("Error {code}", code=r.status_code))
         return r.json() if r.content else None
 
     def ws_url(self, server_id: str) -> str:
@@ -100,14 +102,14 @@ class AgentClient:
     def server(self, sid: str):
         return self._req("GET", f"/servers/{sid}")
 
-    # ---------- transferencias (mover servidores entre equipos) ----------
+    # ---------- transfers (moving servers between computers) ----------
 
     def download_backup(self, sid: str, name: str, dest: Path, progress: Callable[[int], None]) -> None:
         url = f"{self.base}/servers/{sid}/backups/{quote(name)}/download"
         try:
             with self.http.stream("GET", url, timeout=httpx.Timeout(None, connect=5)) as r:
                 if r.status_code >= 400:
-                    raise ApiError(f"No se pudo descargar la copia (error {r.status_code})")
+                    raise ApiError(tr("No se pudo descargar la copia (error {code})", code=r.status_code))
                 done = 0
                 with open(dest, "wb") as f:
                     for chunk in r.iter_bytes(1 << 20):
@@ -115,7 +117,7 @@ class AgentClient:
                         done += len(chunk)
                         progress(done)
         except httpx.TransportError as e:
-            raise ApiError(f"Conexión interrumpida al descargar: {e}") from None
+            raise ApiError(tr("Conexión interrumpida al descargar: {error}", error=e)) from None
 
     def _upload(self, path: str, archive: Path, progress: Callable[[int], None], headers: dict | None = None,
                 **params):
@@ -133,7 +135,7 @@ class AgentClient:
             return self._req("POST", path, params=params or None, content=chunks(),
                              headers=headers, timeout=httpx.Timeout(None, connect=5))
         except httpx.TransportError as e:
-            raise ApiError(f"Conexión interrumpida al enviar: {e}") from None
+            raise ApiError(tr("Conexión interrumpida al enviar: {error}", error=e)) from None
 
     def import_server(self, archive: Path, name: str, progress: Callable[[int], None]):
         return self._upload("/servers/import", archive, progress, name=name)
@@ -145,7 +147,7 @@ class AgentClient:
         return self._upload("/modpacks/import", archive, progress, headers=self._cf_headers(cf_key), **params)
 
     def mod_updates(self, sid: str, cf_key: str | None):
-        # Con CurseForge se consulta mod a mod: puede tardar con muchos mods.
+        # CurseForge is queried mod by mod: it can take a while with many mods.
         return self._req("GET", f"/servers/{sid}/mods/updates", headers=self._cf_headers(cf_key), timeout=120)
 
     def update_mods(self, sid: str, filenames: list[str], cf_key: str | None):
@@ -159,7 +161,7 @@ class AgentClient:
         return {"X-CurseForge-Key": cf_key} if cf_key else {}
 
     def metrics(self, sid: str, hours: float):
-        # La primera vez el agente mide el tamaño del mundo, que puede tardar en mundos grandes.
+        # The first time, the agent measures the world size, which can take a while for large worlds.
         return self._req("GET", f"/servers/{sid}/metrics", params={"hours": hours}, timeout=60)
 
     def clone(self, sid: str, name: str):
@@ -169,7 +171,8 @@ class AgentClient:
         try:
             r = self.http.get(f"{self.base}/servers/{sid}/icon")
         except httpx.HTTPError:
-            raise ApiError(f"No se puede conectar con {self.host.address}:{self.host.port}") from None
+            raise ApiError(tr("No se puede conectar con {address}:{port}", address=self.host.address,
+                              port=self.host.port)) from None
         return r.content if r.status_code == 200 else None
 
     def set_icon(self, sid: str, png: bytes):
@@ -197,7 +200,7 @@ class AgentClient:
         return self._req("PUT", f"/servers/{sid}/file", json={"path": path, "content": content})
 
     def set_addon(self, sid: str, key: str, enabled: bool):
-        # Descarga de Modrinth: puede tardar un poco
+        # Downloads from Modrinth: it can take a moment
         return self._req("PUT", f"/servers/{sid}/addons/{key}", json={"enabled": enabled}, timeout=120)
 
     def pregenerate(self, sid: str, action: str, radius: int = 0):

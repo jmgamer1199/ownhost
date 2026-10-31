@@ -1,7 +1,7 @@
-"""Multiplataforma con Geyser: jugadores de Bedrock (móvil, consola, Windows) en servidores Java.
+"""Crossplay with Geyser: Bedrock players (phone, console, Windows) on Java servers.
 
-Geyser traduce el protocolo de Bedrock y escucha en un puerto UDP propio (19132 por defecto).
-Floodgate permite entrar a los jugadores de Bedrock sin tener cuenta de Java.
+Geyser translates the Bedrock protocol and listens on its own UDP port (19132 by default).
+Floodgate lets Bedrock players join without a Java account.
 """
 
 import json
@@ -12,15 +12,16 @@ from ownhost.agent import mods
 from ownhost.agent.downloads import Log, download, get_json
 from ownhost.agent.errors import UserError
 from ownhost.agent.mods import ModTarget
+from ownhost.i18n import tr
 
-GEYSER = "wKkoqHrH"       # proyectos en Modrinth
+GEYSER = "wKkoqHrH"       # projects on Modrinth
 FLOODGATE = "bWrNNfkb"
 VIAVERSION = "P1OZGk5p"
 FLOODGATE_SPIGOT = "https://download.geysermc.org/v2/projects/floodgate/versions/latest/builds/latest/downloads/spigot"
 DEFAULT_BEDROCK_PORT = 19132
 SUPPORTED = ("paper", "fabric", "neoforge")
 
-# Dónde guarda Geyser su configuración en cada plataforma.
+# Where Geyser stores its configuration on each platform.
 CONFIG_PATHS = {
     "paper": Path("plugins") / "Geyser-Spigot" / "config.yml",
     "fabric": Path("config") / "Geyser-Fabric" / "config.yml",
@@ -30,26 +31,27 @@ CONFIG_PATHS = {
 
 def check_supported(flavor: str) -> None:
     if flavor not in SUPPORTED:
-        raise UserError("Geyser solo funciona con servidores Paper, Fabric o NeoForge. "
-                        "Crea uno de esos tipos para tener multiplataforma.")
+        raise UserError(tr("Geyser solo funciona con servidores Paper, Fabric o NeoForge. "
+                           "Crea uno de esos tipos para tener multiplataforma."))
 
 
 def install(flavor: str, target: ModTarget, game_version: str, latest_release: str, folder: Path,
             floodgate: bool, log: Log) -> list[str]:
-    """Instala Geyser (y Floodgate/ViaVersion si hacen falta). Devuelve los archivos añadidos."""
+    """Installs Geyser (and Floodgate/ViaVersion if needed). Returns the files added."""
     check_supported(flavor)
-    log("Instalando Geyser para jugadores de Bedrock...")
+    log(tr("Instalando Geyser para jugadores de Bedrock..."))
     try:
         added = mods.install("modrinth", GEYSER, target, game_version, folder, None, log)
     except UserError:
-        raise UserError(f"Geyser no tiene versión para {flavor} {game_version}. "
-                        "Prueba con un servidor Paper o con una versión más reciente.") from None
+        raise UserError(tr("Geyser no tiene versión para {flavor} {version}. "
+                           "Prueba con un servidor Paper o con una versión más reciente.",
+                           flavor=flavor, version=game_version)) from None
     if flavor == "paper" and game_version != latest_release:
-        # Geyser habla el protocolo de la última versión de Java; ViaVersion hace de puente.
-        log("El servidor no es de la última versión: instalando ViaVersion para Geyser...")
+        # Geyser speaks the latest Java version's protocol; ViaVersion acts as a bridge.
+        log(tr("El servidor no es de la última versión: instalando ViaVersion para Geyser..."))
         added += mods.install("modrinth", VIAVERSION, target, game_version, folder, None, log)
     if floodgate:
-        log("Instalando Floodgate (entrar sin cuenta de Java)...")
+        log(tr("Instalando Floodgate (entrar sin cuenta de Java)..."))
         if flavor == "paper":
             added.append(_install_floodgate_spigot(folder, log))
         else:
@@ -58,7 +60,7 @@ def install(flavor: str, target: ModTarget, game_version: str, latest_release: s
 
 
 def _install_floodgate_spigot(folder: Path, log: Log) -> str:
-    # Floodgate para Paper no está en Modrinth: se usa la descarga oficial de GeyserMC.
+    # Floodgate for Paper is not on Modrinth: GeyserMC's official download is used.
     name = "floodgate-spigot.jar"
     download(FLOODGATE_SPIGOT, folder / name, log)
     meta = mods.load_metadata(folder)
@@ -68,16 +70,16 @@ def _install_floodgate_spigot(folder: Path, log: Log) -> str:
 
 
 def set_bedrock_port(server_dir: Path, flavor: str, port: int) -> None:
-    """Configura los puertos y el transporte de Bedrock en Geyser.
+    """Configures the Bedrock ports and transport in Geyser.
 
-    - `port`: RakNet (UDP) y señalización de NetherNet (TCP).
-    - `webrtc-port` = port + 1: el juego por NetherNet (UDP).
-    - `transport: both`: habla NetherNet (Bedrock 26.60+) y RakNet a la vez. Con solo NetherNet,
-      Geyser no responde a la búsqueda clásica de partidas en red local y las consolas (Switch...)
-      no ven el servidor en la pestaña de Amigos.
+    - `port`: RakNet (UDP) and NetherNet signaling (TCP).
+    - `webrtc-port` = port + 1: the game over NetherNet (UDP).
+    - `transport: both`: speaks NetherNet (Bedrock 26.60+) and RakNet at the same time. With NetherNet
+      only, Geyser does not answer the classic LAN game discovery and consoles (Switch...) do not see
+      the server in the Friends tab.
 
-    Si Geyser aún no ha arrancado nunca, se crea una configuración mínima: Geyser completa
-    el resto de opciones con sus valores por defecto la primera vez que se carga.
+    If Geyser has never started yet, a minimal configuration is created: Geyser fills in the
+    remaining options with their defaults the first time it loads.
     """
     path = server_dir / CONFIG_PATHS[flavor]
     wanted = {"port": str(port), "webrtc-port": str(port + 1), "transport": "both"}
@@ -94,7 +96,7 @@ def set_bedrock_port(server_dir: Path, flavor: str, port: int) -> None:
 
 
 def _set_bedrock_key(text: str, key: str, value: str) -> str:
-    """Cambia (o añade) una clave de primer nivel dentro de la sección `bedrock:` del YAML."""
+    """Changes (or adds) a top-level key inside the `bedrock:` section of the YAML."""
     return _set_key(text, "bedrock", key, value)
 
 
@@ -103,7 +105,7 @@ def _section(text: str, section: str) -> re.Match | None:
 
 
 def _indent(body: str) -> str:
-    """Sangría de las claves de una sección (la de su primera línea con contenido)."""
+    """Indentation of a section's keys (that of its first non-empty line)."""
     for line in body.splitlines():
         if line.strip():
             return re.match(r"[ \t]*", line).group(0) or "  "
@@ -115,7 +117,7 @@ def _key_re(indent: str, key: str) -> re.Pattern:
 
 
 def _get_key(text: str, section: str | None, key: str) -> str | None:
-    """Lee una clave de primer nivel (section=None) o de una sección. Devuelve el texto sin comillas."""
+    """Reads a top-level key (section=None) or a section key. Returns the text without quotes."""
     if section is None:
         found = _key_re("", key).search(text)
     else:
@@ -125,7 +127,7 @@ def _get_key(text: str, section: str | None, key: str) -> str | None:
 
 
 def _set_key(text: str, section: str | None, key: str, value: str) -> str:
-    """Cambia (o añade) una clave de primer nivel (section=None) o dentro de una sección del YAML."""
+    """Changes (or adds) a top-level key (section=None) or one inside a section of the YAML."""
     if text and not text.endswith("\n"):
         text += "\n"
     if section is None:
@@ -149,21 +151,21 @@ def _unquote(raw: str) -> str:
         return raw[1:-1].replace('\\"', '"').replace("\\\\", "\\")
     if len(raw) >= 2 and raw[0] == raw[-1] == "'":
         return raw[1:-1].replace("''", "'")
-    return re.sub(r"\s+#.*$", "", raw)  # comentario al final de la línea
+    return re.sub(r"\s+#.*$", "", raw)  # comment at the end of the line
 
 
 def _quote(value: str) -> str:
     return '"' + value.replace("\\", "\\\\").replace('"', '\\"') + '"'
 
 
-# ---------- lo que ven los jugadores de Bedrock (descripción, nombre, jugadores...) ----------
+# ---------- what Bedrock players see (description, name, players...) ----------
 #
-# Geyser cambió el formato de su configuración en la versión 5 (`config-version`): las opciones que
-# antes estaban sueltas o dentro de `bedrock:` pasaron a las secciones `motd:` y `gameplay:`.
-# Si el archivo no dice su versión (Geyser aún no ha arrancado nunca) se escribe en el formato
-# antiguo: las versiones antiguas lo leen tal cual y las nuevas lo migran solas al arrancar.
+# Geyser changed its configuration format in version 5 (`config-version`): options that used to be
+# top-level or inside `bedrock:` moved to the `motd:` and `gameplay:` sections.
+# If the file does not state its version (Geyser has never started yet) the old format is written:
+# old versions read it as is and new ones migrate it by themselves on start.
 
-# clave de Ownhost -> (sección y clave en el formato nuevo, sección y clave en el antiguo, tipo)
+# Ownhost key -> (section and key in the new format, section and key in the old one, type)
 APPEARANCE = {
     "server_name": (("gameplay", "server-name"), ("bedrock", "server-name"), str),
     "motd1": (("motd", "primary-motd"), ("bedrock", "motd1"), str),
@@ -173,7 +175,7 @@ APPEARANCE = {
     "passthrough_player_counts": (("motd", "passthrough-player-counts"), (None, "passthrough-player-counts"), bool),
     "show_coordinates": (("gameplay", "show-coordinates"), (None, "show-coordinates"), bool),
     "command_suggestions": (("gameplay", "command-suggestions"), (None, "command-suggestions"), bool),
-    "emotes_enabled": (("gameplay", "emotes-enabled"), (None, "emotes-enabled"), bool),  # solo formato nuevo
+    "emotes_enabled": (("gameplay", "emotes-enabled"), (None, "emotes-enabled"), bool),  # new format only
 }
 APPEARANCE_DEFAULTS = {
     "server_name": "Geyser", "motd1": "Geyser", "motd2": "Another Geyser server.",
@@ -188,14 +190,14 @@ def _new_format(text: str) -> bool:
 
 
 def get_appearance(server_dir: Path, flavor: str) -> dict:
-    """Lo que Geyser enseña a los jugadores de Bedrock, con los valores por defecto de Geyser."""
+    """What Geyser shows Bedrock players, with Geyser's defaults."""
     path = server_dir / CONFIG_PATHS[flavor]
     text = path.read_text(encoding="utf-8") if path.exists() else ""
     new = _new_format(text)
     result = dict(APPEARANCE_DEFAULTS)
     for name, (new_loc, old_loc, kind) in APPEARANCE.items():
         if name == "emotes_enabled" and not new:
-            continue  # en el formato antiguo no existe: se deja el valor por defecto
+            continue  # does not exist in the old format: the default is kept
         raw = _get_key(text, *(new_loc if new else old_loc))
         if raw is None or raw == "":
             continue
@@ -209,7 +211,7 @@ def get_appearance(server_dir: Path, flavor: str) -> dict:
 
 
 def set_appearance(server_dir: Path, flavor: str, values: dict) -> None:
-    """Guarda en la configuración de Geyser las opciones recibidas (solo las conocidas)."""
+    """Saves the received options (only known ones) in the Geyser configuration."""
     path = server_dir / CONFIG_PATHS[flavor]
     path.parent.mkdir(parents=True, exist_ok=True)
     text = path.read_text(encoding="utf-8") if path.exists() else ""
@@ -229,18 +231,18 @@ def set_appearance(server_dir: Path, flavor: str, values: dict) -> None:
 
 
 def sync_appearance(server_dir: Path, flavor: str, name: str, java_motd: str, java_max_players: int) -> None:
-    """Lo que ven los jugadores de Bedrock, igual que en Java. Se llama en cada arranque.
+    """What Bedrock players see, same as on Java. Called on every start.
 
-    La copia «automática» de Geyser (passthrough) no sirve con Paper 26.x: la integrada no copia
-    nada y la de red deja la descripción entre comillas. Por eso la descripción y el límite de
-    jugadores se copian aquí desde server.properties, y Geyser solo pregunta al servidor de Java
-    (por la red, el método que funciona) cuántos jugadores hay conectados.
+    Geyser's "automatic" copy (passthrough) does not work with Paper 26.x: the integrated one copies
+    nothing and the network one leaves the description in quotes. So the description and player limit
+    are copied here from server.properties, and Geyser only asks the Java server (over the network,
+    the method that works) how many players are online.
     """
     first_line = java_motd.split("\n")[0].strip() or name
     set_appearance(server_dir, flavor, {
         "server_name": name,
         "motd1": first_line,
-        "motd2": name,  # segunda línea: en la red local de Bedrock se ve como nombre de la partida
+        "motd2": name,  # second line: on Bedrock's LAN list it shows as the game name
         "max_players": java_max_players,
         "passthrough_motd": False,
         "passthrough_player_counts": True,
@@ -250,12 +252,12 @@ def sync_appearance(server_dir: Path, flavor: str, name: str, java_motd: str, ja
     if _new_format(text):
         text = _set_key(text, "motd", "integrated-ping-passthrough", "false")
     else:
-        text = _set_key(text, None, "legacy-ping-passthrough", "true")  # nombre antiguo de lo mismo
+        text = _set_key(text, None, "legacy-ping-passthrough", "true")  # old name of the same thing
     path.write_text(text, encoding="utf-8")
 
 
 def decode_motd(raw: str) -> str:
-    """El motd de server.properties tal cual lo guarda Java (\\uXXXX, \\n, \\:, \\=)."""
+    """The server.properties motd as Java stores it (\\uXXXX, \\n, \\:, \\=)."""
     raw = re.sub(r"\\u([0-9a-fA-F]{4})", lambda m: chr(int(m.group(1), 16)), raw)
     return raw.replace("\\n", "\n").replace("\\:", ":").replace("\\=", "=").replace("\\\\", "\\")
 
@@ -265,18 +267,18 @@ def remove(folder: Path, files: list[str]) -> None:
         mods.remove(folder, name)
 
 
-# ---------- extras de Geyser (extensiones en la carpeta `extensions` de Geyser) ----------
+# ---------- Geyser extras (extensions in Geyser's `extensions` folder) ----------
 #
-# El paquete que acerca Bedrock a Java (GeyserIntegratedPack, antes GeyserOptionalPack) ya viene
-# dentro de Geyser: no hace falta instalarlo.
+# The pack that brings Bedrock closer to Java (GeyserIntegratedPack, formerly GeyserOptionalPack) is
+# already included in Geyser: no need to install it.
 
 GEYSERMC_API = "https://download.geysermc.org/v2/projects"
 EXTRAS = {
-    # Hace que el servidor aparezca en la pestaña Amigos de las consolas a través de Xbox Live.
+    # Makes the server appear in the consoles' Friends tab through Xbox Live.
     "xbox": {"source": "github", "repo": "MCXboxBroadcast/Broadcaster", "asset": "MCXboxBroadcastExtension.jar"},
-    # Muestra a los jugadores de Bedrock las capas y orejas de los jugadores de Java.
+    # Shows Bedrock players the capes and ears of Java players.
     "cosmetics": {"source": "geysermc", "project": "thirdpartycosmetics"},
-    # Los jugadores de Bedrock cambian el objeto de la mano secundaria haciendo un gesto.
+    # Bedrock players swap the off-hand item with an emote.
     "emote_offhand": {"source": "geysermc", "project": "emoteoffhand"},
 }
 
@@ -300,10 +302,10 @@ def _latest_github(repo: str, asset: str) -> tuple[str, str]:
 
 
 def install_extra(key: str, server_dir: Path, flavor: str, log: Log) -> str:
-    """Descarga la última versión de un extra en la carpeta de extensiones. Devuelve el nombre del archivo."""
+    """Downloads the latest version of an extra into the extensions folder. Returns the file name."""
     spec = EXTRAS.get(key)
     if not spec:
-        raise UserError(f"Extra desconocido: {key}")
+        raise UserError(tr("Extra desconocido: {key}", key=key))
     check_supported(flavor)
     if spec["source"] == "github":
         url, name = _latest_github(spec["repo"], spec["asset"])

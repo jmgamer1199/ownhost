@@ -5,6 +5,8 @@ from typing import Callable
 
 import httpx
 
+from ownhost.i18n import tr
+
 Log = Callable[[str], None]
 
 USER_AGENT = "ownhost/0.1 (+https://github.com/)"
@@ -22,10 +24,10 @@ def get_json(url: str, **params):
 
 
 def download(url: str, dest: Path, log: Log, user_agent: str | None = None) -> Path:
-    """Descarga `url` en `dest` informando del progreso cada 10 %."""
+    """Downloads `url` to `dest`, reporting progress every 10 %."""
     dest.parent.mkdir(parents=True, exist_ok=True)
     tmp = dest.with_suffix(dest.suffix + ".part")
-    log(f"Descargando {url}")
+    log(tr("Descargando {url}", url=url))
     headers = {"User-Agent": user_agent} if user_agent else None
     with http() as c, c.stream("GET", url, headers=headers) as r:
         r.raise_for_status()

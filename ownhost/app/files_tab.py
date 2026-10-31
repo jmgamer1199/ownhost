@@ -1,4 +1,4 @@
-"""Pestaña «Archivos»: editar la configuración de mods y plugins sin abrir la carpeta del servidor."""
+"""“Files” tab: edit the mod and plugin configuration without opening the server folder."""
 
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QFontDatabase
@@ -9,6 +9,7 @@ from PySide6.QtWidgets import (
 
 from ownhost.app.client import AgentClient
 from ownhost.app.tasks import run_async
+from ownhost.i18n import tr
 
 PATH = Qt.ItemDataRole.UserRole
 IS_DIR = Qt.ItemDataRole.UserRole + 1
@@ -28,20 +29,20 @@ class FilesTab(QWidget):
         self.tree.itemExpanded.connect(self._expand)
         self.tree.itemClicked.connect(self._open)
 
-        self.title = QLabel("Elige un archivo de la izquierda")
+        self.title = QLabel(tr("Elige un archivo de la izquierda"))
         self.editor = QPlainTextEdit()
         self.editor.setObjectName("console")
         self.editor.setFont(QFontDatabase.systemFont(QFontDatabase.SystemFont.FixedFont))
         self.editor.setLineWrapMode(QPlainTextEdit.LineWrapMode.NoWrap)
         self.editor.setEnabled(False)
         self.editor.textChanged.connect(self._changed)
-        self.save_btn = QPushButton("Guardar")
+        self.save_btn = QPushButton(tr("Guardar"))
         self.save_btn.setProperty("kind", "primary")
         self.save_btn.setEnabled(False)
         self.save_btn.clicked.connect(self._save)
-        reload_btn = QPushButton("Recargar")
+        reload_btn = QPushButton(tr("Recargar"))
         reload_btn.clicked.connect(self.reload)
-        note = QLabel("Configuración de mods, plugins y del servidor. Reinicia el servidor para aplicar los cambios.")
+        note = QLabel(tr("Configuración de mods, plugins y del servidor. Reinicia el servidor para aplicar los cambios."))
         note.setObjectName("muted")
         note.setWordWrap(True)
 
@@ -76,7 +77,7 @@ class FilesTab(QWidget):
 
     def reload(self) -> None:
         if self.current and self.editor.toPlainText() != self.saved_text and QMessageBox.question(
-                self, "Archivos", "Hay cambios sin guardar. ¿Descartarlos?") != QMessageBox.StandardButton.Yes:
+                self, tr("Archivos"), tr("Hay cambios sin guardar. ¿Descartarlos?")) != QMessageBox.StandardButton.Yes:
             return
         self.tree.clear()
         self._close_file()
@@ -93,12 +94,12 @@ class FilesTab(QWidget):
                 item.setData(0, PATH, f"{path}/{e['name']}".lstrip("/"))
                 item.setData(0, IS_DIR, e["dir"])
                 if e["dir"]:
-                    item.addChild(QTreeWidgetItem(["..."]))  # se carga al abrirla
+                    item.addChild(QTreeWidgetItem(["..."]))  # loaded when expanded
                 (parent.addChild if parent is not None else self.tree.addTopLevelItem)(item)
             if parent is None and not entries:
-                self.title.setText("Este servidor aún no tiene archivos de configuración (se crean al encenderlo).")
+                self.title.setText(tr("Este servidor aún no tiene archivos de configuración (se crean al encenderlo)."))
 
-        run_async(lambda: client.files(sid, path), done, lambda msg: QMessageBox.warning(self, "Archivos", msg))
+        run_async(lambda: client.files(sid, path), done, lambda msg: QMessageBox.warning(self, tr("Archivos"), msg))
 
     def _expand(self, item: QTreeWidgetItem) -> None:
         if item.childCount() == 1 and item.child(0).data(0, PATH) is None:
@@ -109,7 +110,7 @@ class FilesTab(QWidget):
             return
         path = item.data(0, PATH)
         if self.current and self.editor.toPlainText() != self.saved_text and QMessageBox.question(
-                self, "Archivos", "Hay cambios sin guardar. ¿Descartarlos?") != QMessageBox.StandardButton.Yes:
+                self, tr("Archivos"), tr("Hay cambios sin guardar. ¿Descartarlos?")) != QMessageBox.StandardButton.Yes:
             return
         sid, client = self.server["id"], self.client
 
@@ -121,13 +122,13 @@ class FilesTab(QWidget):
             self.editor.setEnabled(True)
             self._changed()
 
-        run_async(lambda: client.read_file(sid, path), done, lambda msg: QMessageBox.warning(self, "Archivos", msg))
+        run_async(lambda: client.read_file(sid, path), done, lambda msg: QMessageBox.warning(self, tr("Archivos"), msg))
 
     def _changed(self) -> None:
         dirty = bool(self.current) and self.editor.toPlainText() != self.saved_text
         self.save_btn.setEnabled(dirty)
         if self.current:
-            self.title.setText(f"<b>{self.current}</b>" + ("  · sin guardar" if dirty else ""))
+            self.title.setText(f"<b>{self.current}</b>" + ("  · " + tr("sin guardar") if dirty else ""))
 
     def _save(self) -> None:
         sid, client, path, text = self.server["id"], self.client, self.current, self.editor.toPlainText()
@@ -135,10 +136,10 @@ class FilesTab(QWidget):
         def done(_):
             self.saved_text = text
             self._changed()
-            self.window().statusBar().showMessage(f"Guardado {path}. Reinicia el servidor para aplicarlo.", 8000)
+            self.window().statusBar().showMessage(tr("Guardado {path}. Reinicia el servidor para aplicarlo.", path=path), 8000)
 
         run_async(lambda: client.write_file(sid, path, text), done,
-                  lambda msg: QMessageBox.warning(self, "No se pudo guardar", msg))
+                  lambda msg: QMessageBox.warning(self, tr("No se pudo guardar"), msg))
 
     def _close_file(self) -> None:
         self.current, self.saved_text = None, ""
@@ -147,4 +148,4 @@ class FilesTab(QWidget):
         self.editor.blockSignals(False)
         self.editor.setEnabled(False)
         self.save_btn.setEnabled(False)
-        self.title.setText("Elige un archivo de la izquierda")
+        self.title.setText(tr("Elige un archivo de la izquierda"))

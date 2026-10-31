@@ -1,16 +1,16 @@
-"""Detecta en la consola los inicios de sesión por código (OAuth device flow).
+"""Detects code-based logins in the console (OAuth device flow).
 
-Hytale muestra algo como:
+Hytale shows something like:
     Visit: https://oauth.accounts.hytale.com/oauth2/device/verify
     Enter code: AbCd1234
-y al terminar "Authentication successful!". El formato exacto ha cambiado entre
-versiones, así que las expresiones son deliberadamente tolerantes.
+and when done "Authentication successful!". The exact format has changed between
+versions, so the expressions are deliberately lenient.
 """
 
 import re
 
-# Hytale y la cuenta de Microsoft de la extensión MCXboxBroadcast («...open the page
-# https://www.microsoft.com/link and enter the code XXXXXXXX to authenticate.»).
+# Hytale and the Microsoft account of the MCXboxBroadcast extension ("...open the page
+# https://www.microsoft.com/link and enter the code XXXXXXXX to authenticate.").
 URL_RE = re.compile(r"https?://[^\s\"'<>]*(?:hytale|microsoft\.com/link|microsoft\.com/devicelogin)[^\s\"'<>]*",
                     re.IGNORECASE)
 CODE_RE = re.compile(r"(?:code\s*[:=]|enter the code)\s*([A-Za-z0-9]{4,}(?:-[A-Za-z0-9]{2,})*)", re.IGNORECASE)
@@ -27,7 +27,7 @@ class DeviceAuthWatcher:
         self.pending: dict | None = None
 
     def feed(self, line: str) -> str | None:
-        """Procesa una línea. Devuelve 'pending', 'success', 'failed' o None."""
+        """Processes a line. Returns 'pending', 'success', 'failed' or None."""
         event = None
         url = URL_RE.search(line)
         if url and any(h in url.group(0).lower() for h in AUTH_URL_HINTS):

@@ -2,8 +2,8 @@ import sys
 
 
 def main() -> None:
-    # El mismo ejecutable hace de agente cuando se lanza con --agent
-    # (así el .exe no necesita Python instalado para hospedar servidores).
+    # The same executable acts as the agent when launched with --agent
+    # (so the .exe does not need Python installed to host servers).
     if "--agent" in sys.argv[1:]:
         from ownhost.agent.__main__ import main as agent_main
 
@@ -25,7 +25,7 @@ def main() -> None:
 
     app = QApplication(sys.argv)
     app.setApplicationName("Ownhost")
-    app.setDesktopFileName("ownhost")  # enlaza la ventana con su .desktop en Linux
+    app.setDesktopFileName("ownhost")  # links the window to its .desktop file on Linux
     app.setWindowIcon(QIcon(str(ASSETS / "icon.png")))
     # Standard buttons (OK, Cancel, Close...) in the app's language: Qt's own texts are English.
     if i18n.language() == "es":

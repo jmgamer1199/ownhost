@@ -1,17 +1,18 @@
-"""Abrir los puertos de Ownhost en el cortafuegos de Linux (ufw o firewalld).
+"""Opens Ownhost's ports in the Linux firewall (ufw or firewalld).
 
-Cada distribución trae uno distinto y suele estar activo (CachyOS, Fedora, openSUSE...): sin abrir
-los puertos, los demás equipos no pueden conectar con el agente ni los jugadores con los servidores.
-Se usa `pkexec`, que pide la contraseña con la ventana normal del sistema.
+Each distribution ships a different one and it is usually active (CachyOS, Fedora, openSUSE...): without
+opening the ports, other computers cannot reach the agent and players cannot reach the servers.
+It uses `pkexec`, which asks for the password with the system's usual window.
 """
 
 import shutil
 import subprocess
 import sys
 
+from ownhost.i18n import tr
 from ownhost.sysenv import clean_env
 
-# Agente (TCP + UDP para que lo encuentren), Minecraft Java, Bedrock/Geyser, Hytale y el mapa web (BlueMap).
+# Agent (TCP + UDP so it can be found), Minecraft Java, Bedrock/Geyser, Hytale and the web map (BlueMap).
 UFW_RULES = ["8765", "25565:25575/tcp", "19132:19140/udp", "19132:19140/tcp", "5520:5530/udp", "8100:8110/tcp"]
 FIREWALLD_PORTS = ["8765/tcp", "8765/udp", "25565-25575/tcp", "19132-19140/udp", "19132-19140/tcp",
                    "5520-5530/udp", "8100-8110/tcp"]
@@ -27,7 +28,7 @@ def _active(service: str) -> bool:
 
 
 def detect() -> str | None:
-    """'ufw', 'firewalld' o None (sin cortafuegos conocido activo, o no es Linux)."""
+    """'ufw', 'firewalld' or None (no known firewall active, or not Linux)."""
     if not sys.platform.startswith("linux"):
         return None
     if _active("ufw") and shutil.which("ufw"):
@@ -38,7 +39,7 @@ def detect() -> str | None:
 
 
 def commands(kind: str) -> str:
-    """Comando para pegar en una terminal (también lo que se ejecuta con pkexec)."""
+    """Command to paste into a terminal (also what runs with pkexec)."""
     if kind == "ufw":
         return " && ".join(f"ufw allow {rule}" for rule in UFW_RULES)
     ports = " ".join(f"--add-port={p}" for p in FIREWALLD_PORTS)
@@ -46,16 +47,16 @@ def commands(kind: str) -> str:
 
 
 def open_ports(kind: str) -> tuple[bool, str]:
-    """Abre los puertos pidiendo la contraseña con pkexec. Devuelve (ok, mensaje)."""
+    """Opens the ports, asking for the password with pkexec. Returns (ok, message)."""
     if not shutil.which("pkexec"):
-        return False, "No se encontró pkexec. Ejecuta en una terminal:\nsudo sh -c '" + commands(kind) + "'"
+        return False, tr("No se encontró pkexec. Ejecuta en una terminal:") + "\nsudo sh -c '" + commands(kind) + "'"
     try:
         out = subprocess.run(["pkexec", "sh", "-c", commands(kind)], capture_output=True, text=True,
                              timeout=300, env=clean_env())
     except (OSError, subprocess.SubprocessError) as e:
         return False, str(e)
     if out.returncode == 0:
-        return True, "Puertos abiertos en el cortafuegos."
+        return True, tr("Puertos abiertos en el cortafuegos.")
     if out.returncode in (126, 127):
-        return False, "Cancelado (no se introdujo la contraseña)."
-    return False, (out.stderr or out.stdout).strip() or f"Error {out.returncode}"
+        return False, tr("Cancelado (no se introdujo la contraseña).")
+    return False, (out.stderr or out.stdout).strip() or tr("Error {code}", code=out.returncode)

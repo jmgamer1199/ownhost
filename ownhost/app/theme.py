@@ -1,7 +1,7 @@
-"""Tema visual Frutiger Aero, al estilo de Windows Vista / 7.
+"""Frutiger Aero visual theme, in the style of Windows Vista / 7.
 
-Cielo azul con nubes, pradera iluminada por el sol, un árbol y una hoja con gotas de agua;
-paneles de cristal translúcido bien separados y botones-píldora brillantes.
+Blue sky with clouds, a sunlit meadow, a tree and a leaf with water drops;
+well-spaced translucent glass panels and glossy pill buttons.
 """
 
 import math
@@ -18,7 +18,7 @@ from PySide6.QtWidgets import (
 
 from ownhost.app import ASSETS
 
-TEXT = "#06324a"          # azul marino: legible sobre cristal claro
+TEXT = "#06324a"          # navy blue: readable on light glass
 TEXT_SOFT = "#2f5f78"
 AQUA = "#1aa7e8"
 DANGER_TEXT = "#b42318"
@@ -33,7 +33,7 @@ STATUS_DOT = {
 
 
 def _gloss(top, upper, lower, bottom) -> str:
-    # Brillo de Vista: mitad superior casi blanca, corte nítido a media altura y base saturada.
+    # Vista gloss: almost white top half, sharp cut at mid-height and a saturated base.
     return (f"qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 {top}, stop:0.48 {upper}, "
             f"stop:0.5 {lower}, stop:1 {bottom})")
 
@@ -46,7 +46,7 @@ PRIMARY_HOVER = _gloss("#ffffff", "#cdf5b3", "#3fb51f", "#8cdc66")
 DANGER = _gloss("#fff2ef", "#ffcfc4", "#ee6a4f", "#f9ad9a")
 DANGER_HOVER = _gloss("#ffffff", "#ffdad1", "#e65233", "#f79c85")
 SELECTED = _gloss("rgba(255,255,255,250)", "rgba(214,240,255,240)", "rgba(120,200,250,230)", "rgba(190,232,255,240)")
-# Cristal de los paneles: translúcido para que se vea el paisaje, con brillo arriba.
+# Panel glass: translucent so the landscape shows through, with a gloss on top.
 GLASS = ("qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 rgba(255,255,255,170), stop:0.12 rgba(240,250,255,120), "
          "stop:1 rgba(215,238,255,105))")
 ROW = "rgba(255,255,255,95)"
@@ -63,7 +63,7 @@ QDialog, QMessageBox, QProgressDialog, QInputDialog {{
 QToolTip {{ color: {TEXT}; background: #f7fcff; border: 1px solid {AQUA}; border-radius: 8px; padding: 4px 6px; }}
 QLabel {{ background: transparent; }}
 
-/* ---------- paneles de cristal ---------- */
+/* ---------- glass panels ---------- */
 QFrame#glass {{
     background: {GLASS};
     border: 1px solid rgba(255, 255, 255, 230);
@@ -76,7 +76,7 @@ QLabel#subtitle, QLabel#muted {{ color: {TEXT_SOFT}; }}
 QLabel#error {{ color: {DANGER_TEXT}; }}
 QLabel#accent {{ color: #0369a1; }}
 
-/* ---------- barra superior sobre el cielo ---------- */
+/* ---------- top bar over the sky ---------- */
 QPushButton#top {{
     background: {BTN}; border: 1px solid rgba(255,255,255,240); border-radius: 17px; padding: 7px 20px;
     color: {TEXT}; font-weight: 600;
@@ -84,7 +84,7 @@ QPushButton#top {{
 QPushButton#top:hover {{ background: {BTN_HOVER}; border-color: #ffffff; }}
 QPushButton#top:pressed {{ background: {BTN_PRESSED}; }}
 
-/* ---------- botones-píldora ---------- */
+/* ---------- pill buttons ---------- */
 QPushButton {{
     background: {BTN}; border: 1px solid rgba(70, 150, 200, 170); border-radius: 15px;
     padding: 6px 18px; min-height: 18px; color: {TEXT};
@@ -106,7 +106,7 @@ QPushButton::menu-indicator {{
 }}
 QPushButton[menu="true"] {{ padding-right: 28px; }}
 
-/* ---------- campos ---------- */
+/* ---------- fields ---------- */
 QLineEdit, QAbstractSpinBox, QComboBox {{
     background: rgba(255,255,255,225); border: 1px solid rgba(90, 160, 205, 160); border-radius: 13px;
     padding: 5px 12px; min-height: 18px;
@@ -135,7 +135,7 @@ QCheckBox::indicator:hover, QAbstractItemView::indicator:hover {{ border-color: 
 QCheckBox::indicator:checked, QAbstractItemView::indicator:checked {{ image: url("{{ASSETS}}/check.png"); background: {PRIMARY}; border-color: #3a9e22; }}
 QCheckBox:disabled {{ color: {DISABLED}; }}
 
-/* ---------- pestañas ---------- */
+/* ---------- tabs ---------- */
 QTabWidget::pane {{
     background: rgba(255,255,255,85); border: 1px solid rgba(255,255,255,210); border-radius: 18px; top: -1px;
 }}
@@ -148,7 +148,7 @@ QTabBar::tab:hover {{ background: rgba(255,255,255,185); color: {TEXT}; }}
 QTabBar::tab:selected {{ background: {BTN}; color: {TEXT}; font-weight: 600; border-color: rgba(70,150,200,170); }}
 QTabBar::tab:disabled {{ color: rgba(47,95,120,90); }}
 
-/* ---------- listas: cada fila es su propia píldora de cristal ---------- */
+/* ---------- lists: each row is its own glass pill ---------- */
 QTreeWidget, QTableWidget, QListView {{
     background: rgba(255,255,255,120); border: 1px solid rgba(255,255,255,210); border-radius: 16px;
     alternate-background-color: rgba(225,243,255,110); gridline-color: rgba(255,255,255,150); outline: none;
@@ -179,14 +179,14 @@ QHeaderView::section {{
 }}
 QTableCornerButton::section {{ background: transparent; border: none; }}
 
-/* ---------- consola: cristal oscuro como el agua profunda ---------- */
+/* ---------- console: dark glass like deep water ---------- */
 QPlainTextEdit#console {{
     background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 rgba(8, 50, 90, 225), stop:1 rgba(3, 25, 50, 235));
     color: #c8f1ff; border: 1px solid rgba(255, 255, 255, 200); border-radius: 16px; padding: 10px;
     selection-background-color: rgba(26, 167, 232, 150); selection-color: #ffffff;
 }}
 
-/* ---------- barras de desplazamiento ---------- */
+/* ---------- scroll bars ---------- */
 QScrollBar:vertical {{ background: transparent; width: 12px; margin: 4px; }}
 QScrollBar:horizontal {{ background: transparent; height: 12px; margin: 4px; }}
 QScrollBar::handle {{
@@ -239,17 +239,17 @@ def apply(app: QApplication) -> None:
     for role in (QPalette.ColorRole.Text, QPalette.ColorRole.WindowText, QPalette.ColorRole.ButtonText):
         palette.setColor(QPalette.ColorGroup.Disabled, role, QColor(6, 50, 74, 90))
     app.setPalette(palette)
-    # Las imágenes del tema necesitan ruta absoluta (también dentro del exe/AppImage).
+    # The theme's images need an absolute path (also inside the exe/AppImage).
     app.setStyleSheet(STYLESHEET.replace("{ASSETS}", ASSETS.as_posix()))
-    app._field_fixes = FieldFixes(app)  # se guarda para que no lo borre el recolector
+    app._field_fixes = FieldFixes(app)  # kept so the garbage collector does not delete it
     app.installEventFilter(app._field_fixes)
 
 
 class FieldFixes(QObject):
-    """Arreglos de los campos en toda la app:
-    - La rueda del ratón no cambia números ni desplegables si no tienen el foco: al bajar por una
-      página de ajustes se cambiaba la memoria o el puerto sin querer. La página se desplaza.
-    - El texto de los campos numéricos con el mismo margen que el resto (Qt ignora el padding)."""
+    """App-wide field fixes:
+    - The mouse wheel does not change numbers or drop-downs unless they have focus: scrolling down a
+      settings page used to change the memory or the port by accident. The page scrolls instead.
+    - Text in numeric fields gets the same margin as the rest (Qt ignores the padding)."""
 
     def eventFilter(self, obj, event) -> bool:
         if event.type() == QEvent.Type.Polish and isinstance(obj, (QAbstractSpinBox, QComboBox)):
@@ -268,11 +268,11 @@ class FieldFixes(QObject):
 
 
 # ---------------------------------------------------------------------------------------------
-# Paisaje del fondo
+# Background landscape
 # ---------------------------------------------------------------------------------------------
 
 def _cloud(p: QPainter, x: float, y: float, size: float, rnd: random.Random) -> None:
-    """Nube esponjosa: varias bolas blancas con la base ligeramente azulada."""
+    """Fluffy cloud: several white balls with a slightly bluish base."""
     puffs = [(x + dx * size, y + dy * size, r * size) for dx, dy, r in
              ((-0.9, 0.15, 0.45), (-0.35, -0.2, 0.62), (0.3, -0.32, 0.7), (0.95, 0.0, 0.5), (0.2, 0.2, 0.55))]
     for px, py, r in puffs:
@@ -312,7 +312,7 @@ def _tree(p: QPainter, x: float, ground: float, height: float) -> None:
 
 
 def _drop(p: QPainter, c: QPointF, r: float) -> None:
-    """Gota de agua brillante (lente con reflejo)."""
+    """Shiny water drop (a lens with a reflection)."""
     g = QRadialGradient(c + QPointF(r * 0.2, r * 0.3), r * 1.1)
     g.setColorAt(0, QColor(255, 255, 255, 60))
     g.setColorAt(0.7, QColor(180, 230, 255, 70))
@@ -342,7 +342,7 @@ def _leaf_with_drops(p: QPainter, base: QPointF, length: float, angle: float) ->
     p.setBrush(g)
     p.drawPath(shape)
     p.save()
-    p.setClipPath(shape, Qt.ClipOperation.IntersectClip)  # nervios y brillo dentro de la hoja
+    p.setClipPath(shape, Qt.ClipOperation.IntersectClip)  # veins and gloss inside the leaf
     p.setPen(QPen(QColor(230, 255, 200, 170), max(1.5, length * 0.008)))
     p.drawLine(QPointF(length * 0.02, 0), QPointF(length * 0.95, 0))
     for k in range(1, 6):
@@ -365,7 +365,7 @@ def paint_scene(p: QPainter, w: int, h: int) -> None:
     rnd = random.Random(2007)
     p.setPen(Qt.PenStyle.NoPen)
 
-    # Cielo
+    # Sky
     sky = QLinearGradient(0, 0, 0, h * 0.75)
     sky.setColorAt(0, QColor("#0563c9"))
     sky.setColorAt(0.45, QColor("#2fa0ef"))
@@ -373,7 +373,7 @@ def paint_scene(p: QPainter, w: int, h: int) -> None:
     sky.setColorAt(1, QColor("#e4f7ff"))
     p.fillRect(QRectF(0, 0, w, h), sky)
 
-    # Sol arriba a la derecha con rayos hacia abajo y a la izquierda (el título queda sobre azul limpio)
+    # Sun at the top right with rays down and to the left (the title sits on clean blue)
     sun = QPointF(w * 0.9, h * 0.02)
     for i in range(14):
         a = math.radians(95 + i * 7)
@@ -395,13 +395,13 @@ def paint_scene(p: QPainter, w: int, h: int) -> None:
     halo.setColorAt(1, QColor(255, 255, 255, 0))
     p.fillRect(QRectF(0, 0, w, h), halo)
 
-    # Nubes
-    # (ninguna en la franja superior izquierda, donde va el título de la app)
+    # Clouds
+    # (none in the top-left strip, where the app's title goes)
     for cx, cy, size in ((0.42, 0.24, 0.07), (0.66, 0.16, 0.08), (0.88, 0.32, 0.07), (0.5, 0.44, 0.05),
                          (0.12, 0.42, 0.06)):
         _cloud(p, w * cx, h * cy, min(w, h) * size * 1.6, rnd)
 
-    # Colinas lejanas con bruma
+    # Distant hills with haze
     far_hill = QPainterPath(QPointF(0, h))
     far_hill.lineTo(0, h * 0.66)
     far_hill.cubicTo(QPointF(w * 0.3, h * 0.6), QPointF(w * 0.6, h * 0.7), QPointF(w, h * 0.62))
@@ -412,7 +412,7 @@ def paint_scene(p: QPainter, w: int, h: int) -> None:
     p.setBrush(g)
     p.drawPath(far_hill)
 
-    # Pradera iluminada
+    # Sunlit meadow
     meadow = QPainterPath(QPointF(0, h))
     meadow.lineTo(0, h * 0.74)
     meadow.cubicTo(QPointF(w * 0.35, h * 0.66), QPointF(w * 0.65, h * 0.8), QPointF(w, h * 0.7))
@@ -432,16 +432,16 @@ def paint_scene(p: QPainter, w: int, h: int) -> None:
 
     _tree(p, w * 0.78, h * 0.76, h * 0.42)
 
-    # Hoja con gotas de rocío en la esquina inferior derecha
+    # Leaf with dew drops in the bottom-right corner
     _leaf_with_drops(p, QPointF(w * 1.02, h * 0.98), min(w, h) * 0.42, -150)
 
-    # Gotas y burbujas sueltas
+    # Loose drops and bubbles
     for _ in range(16):
         _drop(p, QPointF(rnd.uniform(0, w), rnd.uniform(0, h * 0.7)), rnd.uniform(5, 18))
 
 
 class Backdrop(QWidget):
-    """Fondo de la ventana. Se dibuja una vez por tamaño y se guarda: el resto del tiempo solo se copia."""
+    """Window background. Drawn once per size and cached: the rest of the time it is just copied."""
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -450,7 +450,7 @@ class Backdrop(QWidget):
         self._scene_size = QSize()
 
     def eventFilter(self, obj, event) -> bool:
-        # Si un panel se mueve o cambia de tamaño, hay que repintar su sombra.
+        # If a panel moves or resizes, its shadow has to be repainted.
         if event.type() in (QEvent.Type.Move, QEvent.Type.Resize, QEvent.Type.Show, QEvent.Type.Hide):
             self.update()
         return False
@@ -471,7 +471,7 @@ class Backdrop(QWidget):
         p = QPainter(self)
         p.drawPixmap(0, 0, self._ensure_scene())
         p.setRenderHint(QPainter.RenderHint.Antialiasing)
-        # Sombra suave bajo los paneles de cristal
+        # Soft shadow under the glass panels
         p.setPen(Qt.PenStyle.NoPen)
         for frame in self.findChildren(QFrame, "glass"):
             if not frame.isVisible():
@@ -487,7 +487,7 @@ class Backdrop(QWidget):
 
 
 def glass(content: QWidget, title: str | None = None, margins: int = 14) -> QFrame:
-    """Envuelve un widget en un panel de cristal."""
+    """Wraps a widget in a glass panel."""
     frame = QFrame()
     frame.setObjectName("glass")
     layout = QVBoxLayout(frame)

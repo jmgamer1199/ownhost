@@ -10,6 +10,7 @@ from ownhost.agent.games.base import (
 )
 from ownhost.agent.models import ServerMeta
 from ownhost.agent.mods import ModTarget
+from ownhost.i18n import tr
 
 MOJANG_MANIFEST = "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json"
 PAPER_API = "https://fill.papermc.io/v3/projects/paper"
@@ -23,14 +24,14 @@ LOADERS = ("forge", "neoforge")
 
 
 def version_key(version: str) -> tuple[int, ...]:
-    """'1.21.1' -> (1, 21, 1); ignora sufijos como '-beta'."""
+    """'1.21.1' -> (1, 21, 1); ignores suffixes like '-beta'."""
     return tuple(int(p) for p in re.findall(r"\d+", version.split("-")[0]))
 
 
 def neoforge_mc_version(neo: str) -> str:
-    """Versión de Minecraft a la que corresponde una versión de NeoForge.
+    """Minecraft version a NeoForge version belongs to.
 
-    Antiguo: 21.1.77 -> 1.21.1, 21.0.5 -> 1.21.  Nuevo (desde MC 26): 26.1.2.123 -> 26.1.2, 26.3.0.99 -> 26.3.
+    Old: 21.1.77 -> 1.21.1, 21.0.5 -> 1.21.  New (since MC 26): 26.1.2.123 -> 26.1.2, 26.3.0.99 -> 26.3.
     """
     parts = version_key(neo) + (0, 0, 0)
     if parts[0] >= 25:
@@ -76,7 +77,7 @@ class MinecraftAdapter(GameAdapter):
             for v in self._manifest()["versions"]:
                 if v["id"] == version:
                     return get_json(v["url"])
-            raise ValueError(f"Versión de Minecraft desconocida: {version}")
+            raise ValueError(tr("Versión de Minecraft desconocida: {version}", version=version))
         return self._cached(f"version:{version}", fetch)
 
     def _forge_promos(self) -> dict[str, str]:
@@ -95,7 +96,7 @@ class MinecraftAdapter(GameAdapter):
             return [v["id"] for v in self._manifest()["versions"] if v["type"] == "release"]
         if flavor == "paper":
             groups = self._cached("paper", lambda: get_json(PAPER_API))["versions"]
-            # Solo versiones estables (sin -rc, -pre...).
+            # Stable versions only (no -rc, -pre...).
             return [v for group in groups.values() for v in group if "-" not in v]
         if flavor == "fabric":
             games = self._cached("fabric", lambda: get_json(f"{FABRIC_META}/versions/game"))
@@ -105,33 +106,33 @@ class MinecraftAdapter(GameAdapter):
                 mcs = {key.rsplit("-", 1)[0] for key in self._forge_promos()}
             else:
                 mcs = {neoforge_mc_version(v) for v in self._neoforge_versions()}
-            # Descarta versiones raras (snapshots, bromas de abril...) que no son releases de Mojang.
+            # Drops odd versions (snapshots, April Fools...) that are not Mojang releases.
             releases = set(self.versions("vanilla"))
             return sorted(mcs & releases, key=version_key, reverse=True)
-        raise ValueError(f"Tipo desconocido: {flavor}")
+        raise ValueError(tr("Tipo desconocido: {flavor}", flavor=flavor))
 
     def java_major(self, flavor: str, version: str) -> int:
         return self._version_json(version).get("javaVersion", {}).get("majorVersion", 8)
 
     def _loader_version(self, flavor: str, mc: str) -> str:
-        """Última versión del loader (estable si la hay) para una versión de Minecraft."""
+        """Latest loader version (stable if any) for a Minecraft version."""
         if flavor == "forge":
             promos = self._forge_promos()
             version = promos.get(f"{mc}-recommended") or promos.get(f"{mc}-latest")
             if not version:
-                raise ValueError(f"No hay Forge para Minecraft {mc}")
+                raise ValueError(tr("No hay Forge para Minecraft {version}", version=mc))
             return version
         candidates = [v for v in self._neoforge_versions() if neoforge_mc_version(v) == mc]
         if not candidates:
-            raise ValueError(f"No hay NeoForge para Minecraft {mc}")
+            raise ValueError(tr("No hay NeoForge para Minecraft {version}", version=mc))
         stable = [v for v in candidates if "beta" not in v and "alpha" not in v]
         return max(stable or candidates, key=version_key)
 
     def available_update(self, meta: ServerMeta, tools_dir: Path) -> str | None:
-        # Solo builds nuevas de la MISMA versión de Minecraft: cambiar de versión puede romper
-        # mundos y mods, así que eso se hace a mano con «Actualizar...».
+        # Only new builds of the SAME Minecraft version: changing version can break
+        # worlds and mods, so that is done by hand with "Update...".
         if meta.extra.get("loader_version"):
-            return None  # modpack: se queda con el loader que pide el modpack
+            return None  # modpack: keeps the loader the modpack asks for
         if meta.flavor == "paper":
             latest = str(get_json(f"{PAPER_API}/versions/{meta.version}/builds/latest")["id"])
             return f"Paper build {latest}" if latest != meta.build else None
@@ -141,7 +142,7 @@ class MinecraftAdapter(GameAdapter):
         if meta.flavor in LOADERS:
             loader = self._loader_version(meta.flavor, meta.version)
             return f"{meta.flavor} {loader}" if loader != meta.build else None
-        return None  # Vanilla: cada versión de Minecraft tiene un único servidor
+        return None  # Vanilla: each Minecraft version has a single server
 
     def install(self, ctx: InstallContext) -> None:
         meta = ctx.meta
@@ -161,16 +162,16 @@ class MinecraftAdapter(GameAdapter):
                 url = f"{FABRIC_META}/versions/loader/{meta.version}/{loader}/{installer}/server/jar"
                 meta.build = f"loader {loader}"
             else:
-                raise ValueError(f"Tipo desconocido: {meta.flavor}")
+                raise ValueError(tr("Tipo desconocido: {flavor}", flavor=meta.flavor))
             download(url, ctx.server_dir / "server.jar", ctx.log)
 
         if ctx.first_install:
-            # La app solo crea el servidor si el usuario ha aceptado el EULA.
+            # The app only creates the server if the user has accepted the EULA.
             (ctx.server_dir / "eula.txt").write_text("eula=true\n", encoding="utf-8")
         self.apply_settings(meta, ctx.server_dir)
 
     def _install_loader(self, ctx: InstallContext) -> None:
-        """Forge y NeoForge se instalan ejecutando su instalador oficial en modo servidor."""
+        """Forge and NeoForge are installed by running their official installer in server mode."""
         meta = ctx.meta
         loader = meta.extra.get("loader_version") or self._loader_version(meta.flavor, meta.version)
         if meta.flavor == "forge":
@@ -180,7 +181,8 @@ class MinecraftAdapter(GameAdapter):
             url = f"{NEOFORGE_MAVEN}/{loader}/neoforge-{loader}-installer.jar"
         installer = ctx.server_dir / "installer.jar"
         download(url, installer, ctx.log)
-        ctx.log(f"Ejecutando el instalador de {meta.flavor} {loader} (puede tardar unos minutos)...")
+        ctx.log(tr("Ejecutando el instalador de {flavor} {loader} (puede tardar unos minutos)...",
+                   flavor=meta.flavor, loader=loader))
         try:
             run_logged([str(ctx.java), "-jar", installer.name, "--installServer"], ctx.server_dir, ctx.log)
         finally:
@@ -200,7 +202,7 @@ class MinecraftAdapter(GameAdapter):
 
     def world_dirs(self, server_dir: Path) -> list[str]:
         level = read_properties(server_dir / self.properties_file).get("level-name") or "world"
-        # Paper/Spigot guardan el Nether y el End en carpetas aparte.
+        # Paper/Spigot keep the Nether and the End in separate folders.
         return [level, f"{level}_nether", f"{level}_the_end"]
 
     def mod_target(self, meta: ServerMeta) -> ModTarget | None:
@@ -226,7 +228,7 @@ class MinecraftAdapter(GameAdapter):
 
     @staticmethod
     def _loader_launch(meta: ServerMeta, server_dir: Path) -> list[str]:
-        # Forge 1.17+ y NeoForge dejan un archivo con los argumentos de Java en libraries/.
+        # Forge 1.17+ and NeoForge leave a file with the Java arguments in libraries/.
         args_name = "win_args.txt" if sys.platform == "win32" else "unix_args.txt"
         if meta.flavor == "neoforge":
             base = server_dir / "libraries" / "net" / "neoforged" / "neoforge" / (meta.build or "")
@@ -235,9 +237,9 @@ class MinecraftAdapter(GameAdapter):
         args_file = base / args_name
         if args_file.exists():
             return [f"@{args_file.relative_to(server_dir).as_posix()}"]
-        # Forge antiguo (1.16 y anteriores) genera un jar ejecutable.
+        # Old Forge (1.16 and earlier) generates an executable jar.
         jars = [p for p in server_dir.glob("forge-*.jar") if "installer" not in p.name]
         if jars:
             return ["-jar", max(jars, key=lambda p: p.stat().st_mtime).name]
-        raise RuntimeError("No se encuentran los archivos de arranque de Forge/NeoForge; "
-                           "prueba a actualizar el servidor")
+        raise RuntimeError(tr("No se encuentran los archivos de arranque de Forge/NeoForge; "
+                              "prueba a actualizar el servidor"))

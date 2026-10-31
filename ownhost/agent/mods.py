@@ -1,4 +1,4 @@
-"""Búsqueda e instalación de mods/plugins desde Modrinth y CurseForge."""
+"""Searching and installing mods/plugins from Modrinth and CurseForge."""
 
 import hashlib
 import json
@@ -10,27 +10,28 @@ import httpx
 
 from ownhost.agent.downloads import USER_AGENT, Log, download
 from ownhost.agent.errors import UserError
+from ownhost.i18n import tr
 
 MODRINTH = "https://api.modrinth.com/v2"
 CURSEFORGE = "https://api.curseforge.com/v1"
 CF_MINECRAFT = 432
-CF_REQUIRED = 3  # relationType de una dependencia obligatoria
+CF_REQUIRED = 3  # relationType of a required dependency
 MAX_DEPENDENCY_DEPTH = 4
 METADATA_FILE = ".ownhost-mods.json"
 
 
 @dataclass
 class ModTarget:
-    """Qué tipo de mods acepta un servidor y dónde se guardan."""
-    folder: str                  # "mods" o "plugins"
-    label: str                   # texto para la interfaz
-    modrinth_type: str           # project_type en Modrinth
+    """What kind of mods a server accepts and where they are stored."""
+    folder: str                  # "mods" or "plugins"
+    label: str                   # text for the interface
+    modrinth_type: str           # project_type on Modrinth
     modrinth_loaders: list[str]
-    cf_class: int | str | None   # classId en CurseForge (6 = mods, 5 = plugins Bukkit) o su slug
-    cf_loader: int | None = None  # modLoaderType en CurseForge (4 = Fabric)
-    server_side_only: bool = False  # descartar mods que solo funcionan en el cliente
-    cf_game: int | str = CF_MINECRAFT  # id del juego en CurseForge, o su slug («hytale»)
-    match_version: bool = True   # filtrar por la versión del juego (Hytale no tiene versiones fijas)
+    cf_class: int | str | None   # classId on CurseForge (6 = mods, 5 = Bukkit plugins) or its slug
+    cf_loader: int | None = None  # modLoaderType on CurseForge (4 = Fabric)
+    server_side_only: bool = False  # skip mods that only work on the client
+    cf_game: int | str = CF_MINECRAFT  # game id on CurseForge, or its slug ("hytale")
+    match_version: bool = True   # filter by game version (Hytale has no fixed versions)
     sources: tuple[str, ...] = ("modrinth", "curseforge")
     extensions: tuple[str, ...] = (".jar",)
 
@@ -49,21 +50,21 @@ def _get(url: str, cf_key: str | None = None, **params):
     with _client(cf_key) as c:
         r = c.get(url, params=params)
     if r.status_code in (401, 403) and url.startswith(CURSEFORGE):
-        raise UserError("CurseForge ha rechazado la clave de API. Revísala en Ajustes.")
+        raise UserError(tr("CurseForge ha rechazado la clave de API. Revísala en Ajustes."))
     r.raise_for_status()
     return r.json()
 
 
 @lru_cache(maxsize=8)
 def _cf_ids(cf_key: str, game: int | str, cls: int | str | None) -> tuple[int, int | None]:
-    """Ids numéricos del juego y de la clase en CurseForge (los de Hytale se buscan por su nombre)."""
+    """Numeric ids of the game and class on CurseForge (Hytale's are looked up by name)."""
     if isinstance(game, int):
         game_id = game
     else:
         games = _get(f"{CURSEFORGE}/games", cf_key, pageSize=50)["data"]
         game_id = next((g["id"] for g in games if g["slug"] == game), None)
         if game_id is None:
-            raise UserError(f"CurseForge no tiene mods de {game} para tu clave de API")
+            raise UserError(tr("CurseForge no tiene mods de {game} para tu clave de API", game=game))
     if cls is None or isinstance(cls, int):
         return game_id, cls
     classes = _get(f"{CURSEFORGE}/categories", cf_key, gameId=game_id, classesOnly="true")["data"]
@@ -72,22 +73,22 @@ def _cf_ids(cf_key: str, game: int | str, cls: int | str | None) -> tuple[int, i
 
 def _require_cf_key(cf_key: str | None) -> str:
     if not cf_key:
-        raise UserError("Para usar CurseForge necesitas una clave de API gratuita. "
-                        "Consíguela en console.curseforge.com y ponla en Ajustes.")
+        raise UserError(tr("Para usar CurseForge necesitas una clave de API gratuita. "
+                           "Consíguela en console.curseforge.com y ponla en Ajustes."))
     return cf_key
 
 
-# ---------- búsqueda ----------
+# ---------- search ----------
 
 def search(source: str, target: ModTarget, game_version: str, query: str,
            cf_key: str | None, offset: int = 0) -> list[dict]:
     if source not in target.sources:
-        raise UserError(f"Este servidor no admite mods de {source}")
+        raise UserError(tr("Este servidor no admite mods de {source}", source=source))
     if source == "modrinth":
         return _search_modrinth(target, game_version, query, offset)
     if source == "curseforge":
         return _search_curseforge(target, game_version, query, _require_cf_key(cf_key), offset)
-    raise UserError(f"Origen desconocido: {source}")
+    raise UserError(tr("Origen desconocido: {source}", source=source))
 
 
 def _search_modrinth(target: ModTarget, game_version: str, query: str, offset: int) -> list[dict]:
@@ -132,7 +133,7 @@ def _search_curseforge(target: ModTarget, game_version: str, query: str, cf_key:
     } for m in data["data"]]
 
 
-# ---------- instalación ----------
+# ---------- installation ----------
 
 def load_metadata(folder: Path) -> dict[str, dict]:
     path = folder / METADATA_FILE
@@ -147,7 +148,7 @@ def save_metadata(folder: Path, meta: dict[str, dict]) -> None:
 
 def install(source: str, project_id: str, target: ModTarget, game_version: str, folder: Path,
             cf_key: str | None, log: Log) -> list[str]:
-    """Instala el proyecto y sus dependencias obligatorias. Devuelve los archivos añadidos."""
+    """Installs the project and its required dependencies. Returns the files added."""
     folder.mkdir(parents=True, exist_ok=True)
     meta = load_metadata(folder)
     installed_ids = {(m["source"], m["project_id"]) for m in meta.values()}
@@ -170,11 +171,11 @@ def install(source: str, project_id: str, target: ModTarget, game_version: str, 
         save_metadata(folder, meta)
         added.append(info["filename"])
         for dep in info["dependencies"]:
-            log(f"Instalando dependencia de {info['title']}...")
+            log(tr("Instalando dependencia de {title}...", title=info["title"]))
             try:
                 visit(dep, depth + 1)
             except UserError as e:
-                log(f"AVISO: no se pudo instalar una dependencia: {e}")
+                log(tr("AVISO: no se pudo instalar una dependencia: {error}", error=e))
 
     visit(project_id, 0)
     return added
@@ -184,8 +185,8 @@ def _modrinth_file(project_id: str, target: ModTarget, game_version: str) -> dic
     versions = _get(f"{MODRINTH}/project/{project_id}/version",
                     loaders=json.dumps(target.modrinth_loaders), game_versions=json.dumps([game_version]))
     if not versions:
-        raise UserError(f"No hay una versión de este proyecto para {game_version}")
-    # Si hay versión para el loader exacto (p. ej. la de Paper y no la de Spigot), esa primero.
+        raise UserError(tr("No hay una versión de este proyecto para {version}", version=game_version))
+    # If there is a version for the exact loader (e.g. Paper's rather than Spigot's), that one first.
     preferred = [v for v in versions if target.modrinth_loaders[0] in v.get("loaders", [])] or versions
     version = next((v for v in preferred if v["version_type"] == "release"), preferred[0])
     file = next((f for f in version["files"] if f["primary"]), version["files"][0])
@@ -208,15 +209,16 @@ def _curseforge_file(mod_id: str, target: ModTarget, game_version: str, cf_key: 
         params["modLoaderType"] = target.cf_loader
     files = _get(f"{CURSEFORGE}/mods/{mod_id}/files", cf_key, **params)["data"]
     if not files:
-        raise UserError(f"No hay una versión de este proyecto para {game_version}" if target.match_version
-                        else "Este proyecto no tiene archivos para descargar")
+        raise UserError(tr("No hay una versión de este proyecto para {version}", version=game_version)
+                        if target.match_version else tr("Este proyecto no tiene archivos para descargar"))
     files.sort(key=lambda f: f["fileDate"], reverse=True)
     file = next((f for f in files if f["releaseType"] == 1), files[0])
     mod = _get(f"{CURSEFORGE}/mods/{mod_id}", cf_key)["data"]
     if not file.get("downloadUrl"):
-        # El autor ha desactivado las descargas desde apps de terceros.
-        raise UserError(f"El autor de «{mod['name']}» no permite descargarlo desde otras apps. "
-                        f"Descárgalo desde su página: {(mod.get('links') or {}).get('websiteUrl', '')}")
+        # The author has disabled downloads from third-party apps.
+        raise UserError(tr("El autor de «{name}» no permite descargarlo desde otras apps. "
+                           "Descárgalo desde su página: {url}",
+                           name=mod["name"], url=(mod.get("links") or {}).get("websiteUrl", "")))
     return {
         "filename": file["fileName"],
         "url": file["downloadUrl"],
@@ -227,7 +229,7 @@ def _curseforge_file(mod_id: str, target: ModTarget, game_version: str, cf_key: 
     }
 
 
-# ---------- listar / borrar ----------
+# ---------- list / delete ----------
 
 def list_installed(folder: Path, target: ModTarget) -> list[dict]:
     if not folder.exists():
@@ -253,7 +255,7 @@ def list_installed(folder: Path, target: ModTarget) -> list[dict]:
 def _mod_path(folder: Path, filename: str) -> Path:
     path = (folder / filename).resolve()
     if path.parent != folder.resolve():
-        raise UserError("Nombre de archivo no válido")
+        raise UserError(tr("Nombre de archivo no válido"))
     return path
 
 
@@ -275,17 +277,17 @@ def set_enabled(folder: Path, filename: str, enabled: bool) -> None:
         on.rename(off)
 
 
-# ---------- actualizaciones ----------
+# ---------- updates ----------
 
 def _mod_files(folder: Path, target: ModTarget) -> list[Path]:
     return sorted(p for p in folder.iterdir() if p.is_file() and target.is_mod_file(p.name))
 
 
 def check_updates(folder: Path, target: ModTarget, game_version: str, cf_key: str | None) -> list[dict]:
-    """Mods con una versión más nueva para esta versión de Minecraft y este loader.
+    """Mods with a newer version for this Minecraft version and this loader.
 
-    Los de Modrinth se reconocen por su hash, aunque no se instalaran desde la app (p. ej. los de un
-    modpack o copiados a mano). Los de CurseForge, por lo que apuntó la app al instalarlos.
+    Modrinth ones are recognized by their hash, even if they were not installed from the app (e.g. from a
+    modpack or copied by hand). CurseForge ones, by what the app recorded when installing them.
     """
     if not folder.exists():
         return []
@@ -313,7 +315,7 @@ def check_updates(folder: Path, target: ModTarget, game_version: str, cf_key: st
             seen.add(name)
             file = next((f for f in version["files"] if f["primary"]), version["files"][0])
             if file["hashes"].get("sha1") == h:
-                continue  # ya es la última
+                continue  # already the latest
             updates.append({"filename": name, "title": titles.get(version["project_id"], name),
                             "current": meta.get(name, {}).get("version", ""), "latest": version["version_number"],
                             "source": "modrinth", "project_id": version["project_id"],
@@ -337,7 +339,7 @@ def check_updates(folder: Path, target: ModTarget, game_version: str, cf_key: st
 
 
 def apply_update(folder: Path, update: dict) -> None:
-    """Cambia un mod por su versión nueva, conservando si estaba desactivado."""
+    """Replaces a mod with its new version, keeping it disabled if it was."""
     old = _mod_path(folder, update["filename"])
     disabled = not old.exists() and _mod_path(folder, update["filename"] + ".disabled").exists()
     new_name = _mod_path(folder, update["new_filename"]).name

@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "ownhost"
 version = "0.1.0"
-description = "Crea y gestiona tus propios servidores de Minecraft y Hytale en tus equipos"
+description = "Create and manage your own Minecraft and Hytale servers on your own computers"
 license = "GPL-3.0-or-later"
 license-files = ["LICENSE"]
 requires-python = ">=3.11"
@@ -18,8 +18,8 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-# La interfaz gráfica solo hace falta en los PCs desde los que gestionas,
-# no en los que solo hospedan servidores (p. ej. el homelab).
+# The GUI is only needed on the PCs you manage from,
+# not on the ones that only host servers (e.g. the homelab).
 app = ["PySide6>=6.7"]
 
 [project.scripts]

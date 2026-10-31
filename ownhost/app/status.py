@@ -1,3 +1,6 @@
+from ownhost.i18n import tr
+
+# Spanish labels (the catalog keys): show them with tr(label).
 STATUS = {
     "stopped": ("Apagado", "#7f8c8d"),
     "starting": ("Arrancando", "#e67e22"),
@@ -17,4 +20,4 @@ STATUS = {
 def format_uptime(seconds: int) -> str:
     h, rem = divmod(seconds, 3600)
     m, _ = divmod(rem, 60)
-    return f"encendido {h} h {m} min" if h else f"encendido {m} min"
+    return tr("encendido {hours} h {minutes} min", hours=h, minutes=m) if h else tr("encendido {minutes} min", minutes=m)

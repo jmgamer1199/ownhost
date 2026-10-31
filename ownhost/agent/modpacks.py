@@ -1,9 +1,9 @@
-"""Importar modpacks: .mrpack de Modrinth y .zip de CurseForge.
+"""Importing modpacks: Modrinth .mrpack and CurseForge .zip.
 
-Un modpack trae la versión de Minecraft, el loader (Fabric, Forge o NeoForge) y su versión, la lista de
-mods (con su enlace o su id de CurseForge) y una carpeta «overrides» con la configuración. Aquí se lee
-todo eso, se descargan los mods que hacen falta en un servidor (los de solo cliente se descartan) y se
-copian los overrides.
+A modpack has the Minecraft version, the loader (Fabric, Forge or NeoForge) and its version, the list of
+mods (with their link or CurseForge id) and an "overrides" folder with the configuration. Here all that
+is read, the mods a server needs are downloaded (client-only ones are skipped) and the overrides are
+copied.
 """
 
 import hashlib
@@ -16,16 +16,17 @@ from pathlib import Path, PurePosixPath
 from ownhost.agent.downloads import Log, download
 from ownhost.agent.errors import UserError
 from ownhost.agent.mods import CURSEFORGE, _client, _require_cf_key, load_metadata, save_metadata
+from ownhost.i18n import tr
 
 CF_SERVER_TAG = "Server"
 CF_CLIENT_TAG = "Client"
-# Dominios desde los que un .mrpack puede descargar archivos (lo exige el formato de Modrinth).
+# Domains a .mrpack may download files from (required by the Modrinth format).
 MRPACK_HOSTS = ("cdn.modrinth.com", "github.com", "raw.githubusercontent.com", "gitlab.com")
 
 
 @dataclass
 class PackFile:
-    path: str               # ruta dentro del servidor, p. ej. "mods/sodium.jar"
+    path: str               # path inside the server, e.g. "mods/sodium.jar"
     url: str | None = None
     sha1: str | None = None
     size: int = 0
@@ -37,21 +38,21 @@ class PackFile:
 
 @dataclass
 class Pack:
-    kind: str                # "modrinth" o "curseforge"
+    kind: str                # "modrinth" or "curseforge"
     name: str
-    version: str             # versión del modpack
+    version: str             # modpack version
     minecraft: str
-    flavor: str              # fabric, forge o neoforge
+    flavor: str              # fabric, forge or neoforge
     loader_version: str
     files: list[PackFile] = field(default_factory=list)
-    overrides: list[str] = field(default_factory=list)  # carpetas dentro del zip, en orden
+    overrides: list[str] = field(default_factory=list)  # folders inside the zip, in order
 
 
 def _safe_path(rel: str) -> str:
-    """Ruta relativa sin trucos (../, absolutas, unidades de Windows)."""
+    """Relative path without tricks (../, absolute paths, Windows drives)."""
     p = PurePosixPath(rel.replace("\\", "/"))
     if p.is_absolute() or ".." in p.parts or not p.parts or ":" in p.parts[0]:
-        raise UserError(f"El modpack tiene una ruta no válida: {rel}")
+        raise UserError(tr("El modpack tiene una ruta no válida: {path}", path=rel))
     return str(p)
 
 
@@ -59,34 +60,34 @@ def read(archive: Path) -> Pack:
     try:
         z = zipfile.ZipFile(archive)
     except zipfile.BadZipFile:
-        raise UserError("El archivo no es un modpack (.mrpack o .zip de CurseForge)") from None
+        raise UserError(tr("El archivo no es un modpack (.mrpack o .zip de CurseForge)")) from None
     with z:
         names = set(z.namelist())
         if "modrinth.index.json" in names:
             return _read_mrpack(json.loads(z.read("modrinth.index.json")))
         if "manifest.json" in names:
             return _read_curseforge(json.loads(z.read("manifest.json")))
-    raise UserError("No encuentro la descripción del modpack (modrinth.index.json o manifest.json). "
-                    "Si es de CurseForge, descarga el modpack completo, no solo el servidor.")
+    raise UserError(tr("No encuentro la descripción del modpack (modrinth.index.json o manifest.json). "
+                       "Si es de CurseForge, descarga el modpack completo, no solo el servidor."))
 
 
 def _read_mrpack(index: dict) -> Pack:
     if index.get("game") != "minecraft":
-        raise UserError("El modpack no es de Minecraft")
+        raise UserError(tr("El modpack no es de Minecraft"))
     deps = index.get("dependencies", {})
     for key, flavor in (("fabric-loader", "fabric"), ("neoforge", "neoforge"), ("forge", "forge")):
         if key in deps:
             break
     else:
         if "quilt-loader" in deps:
-            raise UserError("Los modpacks de Quilt no están soportados (solo Fabric, Forge y NeoForge)")
-        raise UserError("El modpack no indica Fabric, Forge ni NeoForge")
+            raise UserError(tr("Los modpacks de Quilt no están soportados (solo Fabric, Forge y NeoForge)"))
+        raise UserError(tr("El modpack no indica Fabric, Forge ni NeoForge"))
     pack = Pack(kind="modrinth", name=index.get("name") or "Modpack", version=index.get("versionId", ""),
                 minecraft=deps["minecraft"], flavor=flavor, loader_version=deps[key],
                 overrides=["overrides", "server-overrides"])
     for f in index.get("files", []):
         if (f.get("env") or {}).get("server") == "unsupported":
-            continue  # solo cliente (shaders, minimapas...)
+            continue  # client only (shaders, minimaps...)
         urls = [u for u in f.get("downloads", []) if u.split("/")[2] in MRPACK_HOSTS]
         if not urls:
             continue
@@ -101,7 +102,7 @@ def _read_curseforge(manifest: dict) -> Pack:
     loader = next((l["id"] for l in loaders if l.get("primary")), loaders[0]["id"] if loaders else "")
     kind, _, version = loader.partition("-")
     if kind not in ("fabric", "forge", "neoforge"):
-        raise UserError(f"Loader no soportado en el modpack: {loader or 'ninguno'}")
+        raise UserError(tr("Loader no soportado en el modpack: {loader}", loader=loader or tr("ninguno")))
     pack = Pack(kind="curseforge", name=manifest.get("name") or "Modpack", version=manifest.get("version", ""),
                 minecraft=mc.get("version", ""), flavor=kind, loader_version=version,
                 overrides=[manifest.get("overrides") or "overrides"])
@@ -112,7 +113,7 @@ def _read_curseforge(manifest: dict) -> Pack:
 
 
 def install(pack: Pack, archive: Path, server_dir: Path, cf_key: str | None, log: Log) -> list[str]:
-    """Descarga los mods y copia los overrides. Devuelve los mods que hay que bajar a mano."""
+    """Downloads the mods and copies the overrides. Returns the mods that must be downloaded by hand."""
     manual: list[str] = []
     if pack.kind == "curseforge" and pack.files:
         _resolve_curseforge(pack, _require_cf_key(cf_key), manual, log)
@@ -124,11 +125,11 @@ def install(pack: Pack, archive: Path, server_dir: Path, cf_key: str | None, log
         download(f.url, dest, lambda _msg: None)
         if f.sha1 and hashlib.sha1(dest.read_bytes()).hexdigest() != f.sha1:
             dest.unlink(missing_ok=True)
-            raise UserError(f"El archivo {f.path} no coincide con el del modpack (descarga corrupta). "
-                            "Vuelve a intentarlo.")
+            raise UserError(tr("El archivo {path} no coincide con el del modpack (descarga corrupta). "
+                               "Vuelve a intentarlo.", path=f.path))
 
-    # Los de CurseForge se apuntan con su proyecto, para poder buscarles actualizaciones luego.
-    # (Los de Modrinth no hace falta: se reconocen por su hash.)
+    # CurseForge ones are recorded with their project, so updates can be looked up later.
+    # (Not needed for Modrinth ones: they are recognized by their hash.)
     mods_dir = server_dir / "mods"
     meta = load_metadata(mods_dir) if mods_dir.exists() else {}
     for f in files:
@@ -143,7 +144,7 @@ def install(pack: Pack, archive: Path, server_dir: Path, cf_key: str | None, log
     if meta:
         save_metadata(mods_dir, meta)
 
-    log("Copiando la configuración del modpack...")
+    log(tr("Copiando la configuración del modpack..."))
     with zipfile.ZipFile(archive) as z:
         for prefix in pack.overrides:
             for info in z.infolist():
@@ -158,13 +159,13 @@ def install(pack: Pack, archive: Path, server_dir: Path, cf_key: str | None, log
 
 
 def _resolve_curseforge(pack: Pack, cf_key: str, manual: list[str], log: Log) -> None:
-    """Convierte los ids de CurseForge en enlaces de descarga y descarta los mods de solo cliente."""
-    log(f"Consultando {len(pack.files)} mods en CurseForge...")
+    """Turns CurseForge ids into download links and drops client-only mods."""
+    log(tr("Consultando {count} mods en CurseForge...", count=len(pack.files)))
     ids = [f.cf_file for f in pack.files]
     with _client(cf_key) as c:
         r = c.post(f"{CURSEFORGE}/mods/files", json={"fileIds": ids})
         if r.status_code in (401, 403):
-            raise UserError("CurseForge ha rechazado la clave de API. Revísala en Ajustes.")
+            raise UserError(tr("CurseForge ha rechazado la clave de API. Revísala en Ajustes."))
         r.raise_for_status()
         files = {f["id"]: f for f in r.json()["data"]}
         r = c.post(f"{CURSEFORGE}/mods", json={"modIds": list({f.cf_project for f in pack.files})})
@@ -179,13 +180,13 @@ def _resolve_curseforge(pack: Pack, cf_key: str, manual: list[str], log: Log) ->
             continue
         tags = set(info.get("gameVersions") or [])
         if CF_CLIENT_TAG in tags and CF_SERVER_TAG not in tags:
-            continue  # solo cliente
-        # Paquetes de recursos y shaders van en otras carpetas y no los usa el servidor
+            continue  # client only
+        # Resource packs and shaders go in other folders and the server does not use them
         folder = {12: "resourcepacks", 6552: "shaderpacks"}.get(mod.get("classId"), "mods")
         if folder != "mods":
             continue
         if not info.get("downloadUrl"):
-            # El autor no deja descargarlo desde otras apps: hay que bajarlo a mano.
+            # The author does not allow downloading it from other apps: it must be downloaded by hand.
             link = (mod.get("links") or {}).get("websiteUrl", "")
             manual.append(f"{mod.get('name', info['fileName'])} ({link}/files/{f.cf_file})")
             continue

@@ -1,10 +1,10 @@
-"""Busca otros equipos con Ownhost en la red local y en Tailscale.
+"""Looks for other computers running Ownhost on the local network and on Tailscale.
 
-- Red local: difusión UDP (ver ownhost.discovery).
-- Tailscale: no hay difusión, así que se pregunta a cada dispositivo conectado por /api/hello.
+- Local network: UDP broadcast (see ownhost.discovery).
+- Tailscale: there is no broadcast, so each connected device is asked via /api/hello.
 
-Si un equipo de Tailscale deja entrar sin token (es de la misma cuenta que este), se marca como
-«de confianza» y la app lo añade sola. El resto se muestra para conectarlo con su token.
+If a Tailscale computer lets us in without a token (it belongs to the same account as this one), it is
+marked as "trusted" and the app adds it on its own. The rest are shown to connect with their token.
 """
 
 from concurrent.futures import ThreadPoolExecutor
@@ -25,7 +25,7 @@ def _hello(address: str, port: int) -> dict | None:
 
 
 def _trusted(address: str, port: int) -> bool:
-    """¿Nos deja entrar sin token? (dispositivo de Tailscale de la misma cuenta)."""
+    """Does it let us in without a token? (a Tailscale device on the same account)."""
     try:
         r = httpx.get(f"http://{address}:{port}/api/info", headers={"Authorization": "Bearer "}, timeout=4)
         return r.status_code == 200
@@ -34,7 +34,7 @@ def _trusted(address: str, port: int) -> bool:
 
 
 def scan(port: int = DEFAULT_PORT) -> list[dict]:
-    """[{name, hostname, port, lan, tailscale, trusted}] de los equipos encontrados (sin contar este)."""
+    """[{name, hostname, port, lan, tailscale, trusted}] of the computers found (not counting this one)."""
     own = own_ips()
     found: dict[str, dict] = {}
     for r in discover(port):

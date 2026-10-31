@@ -1,8 +1,8 @@
-"""Servidor dedicado de Minecraft Bedrock (BDS) oficial de Mojang.
+"""Mojang's official Minecraft Bedrock Dedicated Server (BDS).
 
-No usa Java: trae su propio ejecutable. Los jugadores de Bedrock (móvil, consola, Windows) se
-conectan por UDP. El cliente de Bedrock se actualiza solo, así que el servidor tiene que ir siempre
-a la última versión: por eso la actualización automática viene activada.
+It does not use Java: it ships its own executable. Bedrock players (phone, console, Windows) connect
+over UDP. The Bedrock client updates itself, so the server must always be on the latest version:
+that is why automatic updates are on.
 """
 
 import re
@@ -14,9 +14,10 @@ from pathlib import Path
 from ownhost.agent.downloads import download, get_json
 from ownhost.agent.games.base import Flavor, GameAdapter, InstallContext, read_properties, write_properties
 from ownhost.agent.models import ServerMeta
+from ownhost.i18n import tr
 
 LINKS_API = "https://net-secondary.web.minecraft-services.net/api/v1.0/download/links"
-# Archivos del usuario que una actualización no debe sobrescribir.
+# User files an update must not overwrite.
 KEEP_ON_UPDATE = {"server.properties", "permissions.json", "allowlist.json", "whitelist.json"}
 CACHE_SECONDS = 600
 BROWSER_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36"
@@ -29,12 +30,12 @@ class BedrockAdapter(GameAdapter):
     needs_eula = True
     uses_java = False
     flavors = [
-        Flavor("release", "Oficial (Bedrock Dedicated Server)"),
+        Flavor("release", "Oficial (Bedrock Dedicated Server)"),  # translated in describe()
         Flavor("preview", "Preview (versión de pruebas)"),
     ]
     ready_pattern = re.compile(r"Server started\.")
     properties_file = "server.properties"
-    # "save hold" deja los archivos del mundo listos para copiar sin apagar el servidor.
+    # "save hold" leaves the world files ready to copy without stopping the server.
     backup_pre_commands = ["save hold"]
     backup_post_commands = ["save resume"]
 
@@ -54,7 +55,7 @@ class BedrockAdapter(GameAdapter):
         key = f"serverBedrock{'Preview' if flavor == 'preview' else ''}{system}"
         url = self._links().get(key)
         if not url:
-            raise RuntimeError("Mojang no ofrece el servidor de Bedrock para este sistema")
+            raise RuntimeError(tr("Mojang no ofrece el servidor de Bedrock para este sistema"))
         return url
 
     @staticmethod
@@ -63,7 +64,7 @@ class BedrockAdapter(GameAdapter):
         return m.group(1) if m else "latest"
 
     def versions(self, flavor: str) -> list[str]:
-        # Mojang solo publica la última: los clientes de Bedrock no pueden entrar en versiones viejas.
+        # Mojang only publishes the latest: Bedrock clients cannot join old versions.
         return [self._version_of(self._url(flavor))]
 
     def java_major(self, flavor: str, version: str) -> int | None:
@@ -76,12 +77,12 @@ class BedrockAdapter(GameAdapter):
     def install(self, ctx: InstallContext) -> None:
         url = self._url(ctx.meta.flavor)
         ctx.meta.version = self._version_of(url)
-        # minecraft.net deja colgadas las descargas que no se presentan como un navegador.
+        # minecraft.net stalls downloads that do not present themselves as a browser.
         archive = download(url, ctx.server_dir / "bedrock-server.zip", ctx.log, user_agent=BROWSER_UA)
-        ctx.log("Extrayendo el servidor de Bedrock...")
+        ctx.log(tr("Extrayendo el servidor de Bedrock..."))
         with zipfile.ZipFile(archive) as z:
             for member in z.infolist():
-                # En una actualización se conservan la configuración y los permisos del usuario.
+                # On an update the user's configuration and permissions are kept.
                 if not ctx.first_install and member.filename in KEEP_ON_UPDATE \
                         and (ctx.server_dir / member.filename).exists():
                     continue
@@ -103,11 +104,11 @@ class BedrockAdapter(GameAdapter):
         return [meta.port + 1]  # IPv6
 
     def env(self, meta: ServerMeta, server_dir: Path) -> dict[str, str] | None:
-        # En Linux el servidor busca sus bibliotecas en su propia carpeta.
+        # On Linux the server looks for its libraries in its own folder.
         return None if sys.platform == "win32" else {"LD_LIBRARY_PATH": "."}
 
     def command(self, meta: ServerMeta, server_dir: Path, java: Path | None) -> list[str]:
         exe = server_dir / ("bedrock_server.exe" if sys.platform == "win32" else "bedrock_server")
         if not exe.exists():
-            raise RuntimeError("No se encuentra el ejecutable del servidor; prueba a actualizarlo")
+            raise RuntimeError(tr("No se encuentra el ejecutable del servidor; prueba a actualizarlo"))
         return [str(exe)]

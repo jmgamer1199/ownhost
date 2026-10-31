@@ -1,4 +1,4 @@
-"""Pestaña «Rendimiento»: CPU, RAM y jugadores de las últimas horas, y uso de disco."""
+"""“Performance” tab: CPU, RAM and players over the last hours, and disk usage."""
 
 import math
 import time
@@ -14,8 +14,9 @@ from PySide6.QtWidgets import (
 from ownhost.app import theme
 from ownhost.app.client import AgentClient
 from ownhost.app.tasks import run_async
+from ownhost.i18n import language, tr
 
-SERIES = QColor("#0b7fc0")       # validado: contraste >= 3:1 sobre SURFACE
+SERIES = QColor("#0b7fc0")       # validated: contrast >= 3:1 on SURFACE
 SURFACE = QColor("#f4fbff")
 GRID = QColor(6, 50, 74, 28)
 TEXT = QColor(theme.TEXT)
@@ -25,8 +26,13 @@ CRITICAL = QColor("#d03b3b")
 RANGES = [(1, "1 h"), (6, "6 h"), (24, "24 h")]
 
 
+def _decimal(text: str) -> str:
+    """Decimal comma in Spanish, decimal point in English."""
+    return text.replace(".", ",") if language() == "es" else text
+
+
 def nice_ceiling(value: float) -> float:
-    """Techo «redondo» del eje: 1, 2, 2.5, 5 o 10 por una potencia de 10."""
+    """“Round” axis ceiling: 1, 2, 2.5, 5 or 10 times a power of 10."""
     if value <= 0:
         return 1
     exp = 10 ** math.floor(math.log10(value))
@@ -37,25 +43,25 @@ def nice_ceiling(value: float) -> float:
 
 
 def compact(value: float) -> str:
-    """1.234 -> «1,2K»; 12.5 -> «12,5»; 0.25 -> «0,25» (coma decimal, como se escribe en español)."""
+    """1234 -> "1.2K"; 12.5 -> "12.5"; 0.25 -> "0.25" (decimal comma in Spanish)."""
     if value >= 1000:
         text = f"{value / 1000:.1f}".rstrip("0").rstrip(".") + "K"
     elif value >= 100:
         text = f"{value:.0f}"
     else:
         text = f"{value:.2f}".rstrip("0").rstrip(".")
-    return text.replace(".", ",")
+    return _decimal(text)
 
 
 def size_text(n: int) -> str:
     for unit, div in (("GB", 1 << 30), ("MB", 1 << 20), ("KB", 1 << 10)):
         if n >= div:
-            return f"{n / div:.1f} {unit}".replace(".0 ", " ").replace(".", ",")
+            return _decimal(f"{n / div:.1f} {unit}".replace(".0 ", " "))
     return f"{n} B"
 
 
 class LineChart(QWidget):
-    """Una sola serie y un solo eje. Los huecos (servidor apagado) cortan la línea."""
+    """A single series and a single axis. Gaps (server stopped) break the line."""
 
     PAD_L, PAD_R, PAD_T, PAD_B = 46, 58, 10, 24
 
@@ -78,7 +84,7 @@ class LineChart(QWidget):
         self.hover = None
         self.update()
 
-    # geometría
+    # geometry
     def _plot(self) -> QRectF:
         return QRectF(self.PAD_L, self.PAD_T, self.width() - self.PAD_L - self.PAD_R,
                       self.height() - self.PAD_T - self.PAD_B)
@@ -86,7 +92,7 @@ class LineChart(QWidget):
     def _ymax(self) -> float:
         top = max([v * 1.05 for _, v in self.points] + [self.floor_max] +
                   ([self.reference[0] * 1.05] if self.reference else []))
-        # 4 divisiones de un paso redondo (1, 2, 2,5, 5...): marcas como 0/1/2/3/4, nunca 1,88
+        # 4 divisions of a round step (1, 2, 2.5, 5...): ticks like 0/1/2/3/4, never 1.88
         return nice_ceiling(top / 4) * 4
 
     def _xy(self, t: float, v: float, plot: QRectF, ymax: float) -> QPointF:
@@ -115,7 +121,7 @@ class LineChart(QWidget):
         small.setPointSizeF(max(7.5, self.font().pointSizeF() - 1))
         p.setFont(small)
 
-        # rejilla y eje Y (4 divisiones)
+        # grid and Y axis (4 divisions)
         for i in range(5):
             v = ymax * i / 4
             y = plot.bottom() - plot.height() * i / 4
@@ -124,7 +130,7 @@ class LineChart(QWidget):
             p.setPen(TEXT_SOFT)
             p.drawText(QRectF(0, y - 8, self.PAD_L - 6, 16), Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter,
                        compact(v))
-        # eje X: horas redondas
+        # X axis: round hours
         step = self._time_step()
         t = math.ceil(self.start / step) * step
         while t <= self.end:
@@ -133,7 +139,7 @@ class LineChart(QWidget):
                        datetime.fromtimestamp(t).strftime("%H:%M"))
             t += step
 
-        # línea de referencia (p. ej. memoria asignada), etiquetada
+        # labelled reference line (e.g. allocated memory)
         if self.reference:
             value, label = self.reference
             y = self._xy(0, value, plot, ymax).y()
@@ -145,10 +151,10 @@ class LineChart(QWidget):
         if not self.points:
             p.setPen(TEXT_SOFT)
             p.drawText(plot, Qt.AlignmentFlag.AlignCenter | Qt.TextFlag.TextWordWrap,
-                       "Sin datos en este periodo. Se guarda una muestra por minuto mientras el servidor está encendido.")
+                       tr("Sin datos en este periodo. Se guarda una muestra por minuto mientras el servidor está encendido."))
             return
 
-        # tramos continuos (un hueco de más de 2,5 muestras corta la línea)
+        # continuous segments (a gap of more than 2.5 samples breaks the line)
         segments, current, last_t = [], [], None
         for t, v in self.points:
             if last_t is not None and t - last_t > self.interval * 2.5:
@@ -183,7 +189,7 @@ class LineChart(QWidget):
             p.setBrush(Qt.BrushStyle.NoBrush)
             p.drawPath(line)
 
-        # último valor: punto con anillo del color del fondo y etiqueta al final
+        # last value: dot with a background-coloured ring and a label at the end
         t, v = self.points[-1]
         end = self._xy(t, v, plot, ymax)
         self._dot(p, end)
@@ -195,7 +201,7 @@ class LineChart(QWidget):
                    f"{compact(v)}{self.unit}")
         p.setFont(small)
 
-        # hover: cruz vertical + punto + tooltip
+        # hover: vertical crosshair + dot + tooltip
         if self.hover is not None:
             t, v = self.points[self.hover]
             pt = self._xy(t, v, plot, ymax)
@@ -230,7 +236,7 @@ class LineChart(QWidget):
         span = max(self.end - self.start, 1)
         t = self.start + (x - plot.left()) / plot.width() * span
         i = min(range(len(self.points)), key=lambda k: abs(self.points[k][0] - t))
-        # lejos de cualquier muestra (servidor apagado): sin tooltip
+        # far from any sample (server stopped): no tooltip
         self._set_hover(i if abs(self.points[i][0] - t) <= max(self.interval * 2, span / 60) else None)
 
     def leaveEvent(self, event) -> None:
@@ -243,7 +249,7 @@ class LineChart(QWidget):
 
 
 class Meter(QWidget):
-    """Barra de uso de disco: azul normal, ámbar desde el 80 %, rojo desde el 90 %."""
+    """Disk usage bar: blue normally, amber from 80 %, red from 90 %."""
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -298,7 +304,7 @@ class MetricsTab(QWidget):
         self.hours = 1
         self._loading = False
 
-        # periodo (una fila de botones encima de las gráficas)
+        # period (a row of buttons above the charts)
         top = QHBoxLayout()
         self.range_group = QButtonGroup(self)
         for hours, text in RANGES:
@@ -313,23 +319,23 @@ class MetricsTab(QWidget):
         self.updated.setObjectName("muted")
         top.addWidget(self.updated)
 
-        # disco
+        # disk
         disk = QHBoxLayout()
-        w1, self.server_size, self.server_note = _tile("Servidor (mundo, mods y ajustes)")
-        w2, self.backups_size, self.backups_note = _tile("Copias de seguridad")
-        w3, self.free_size, self.free_note = _tile("Espacio libre en el disco")
+        w1, self.server_size, self.server_note = _tile(tr("Servidor (mundo, mods y ajustes)"))
+        w2, self.backups_size, self.backups_note = _tile(tr("Copias de seguridad"))
+        w3, self.free_size, self.free_note = _tile(tr("Espacio libre en el disco"))
         self.meter = Meter()
         w3.layout().insertWidget(2, self.meter)
         for w in (w1, w2, w3):
             disk.addWidget(w, 1)
 
-        # gráficas: una por medida, cada una con su propia escala
+        # charts: one per measure, each with its own scale
         self.cpu = LineChart("%", floor_max=5)
         self.ram = LineChart(" GB", floor_max=0.5)
         self.players = LineChart("", floor_max=4)
-        self.cpu_title = QLabel("<b>CPU</b> <span>· % del procesador del equipo</span>")
-        self.ram_title = QLabel("<b>Memoria RAM</b>")
-        self.players_title = QLabel("<b>Jugadores conectados</b>")
+        self.cpu_title = QLabel(tr("<b>CPU</b> <span>· % del procesador del equipo</span>"))
+        self.ram_title = QLabel(tr("<b>Memoria RAM</b>"))
+        self.players_title = QLabel(tr("<b>Jugadores conectados</b>"))
         charts = QGridLayout()
         charts.setVerticalSpacing(4)
         for row, (title, chart) in enumerate(((self.cpu_title, self.cpu), (self.ram_title, self.ram),
@@ -338,7 +344,7 @@ class MetricsTab(QWidget):
             charts.addWidget(chart, row * 2 + 1, 0)
             charts.setRowStretch(row * 2 + 1, 1)
 
-        # Disco y gráficas con desplazamiento: en ventanas bajas no obligan a agrandar la ventana.
+        # Disk and charts scroll: in short windows they don't force the window to grow.
         content = QWidget()
         inner = QVBoxLayout(content)
         inner.setContentsMargins(0, 0, 6, 0)
@@ -401,21 +407,23 @@ class MetricsTab(QWidget):
         pts, step = data["points"], data.get("interval", 60)
         self.cpu.set_data([(p[0], p[1]) for p in pts], start, end, step)
         limit = data.get("memory_limit_mb")
-        # RAM en GB: «1.3 GB» se lee mejor que «1.3K MB»
+        # RAM in GB: "1.3 GB" reads better than "1.3K MB"
         self.ram.set_data([(p[0], p[2] / 1024) for p in pts], start, end, step,
-                          (limit / 1024, f"Asignada: {compact(limit / 1024)} GB") if limit else None)
+                          (limit / 1024, tr("Asignada: {size} GB", size=compact(limit / 1024))) if limit else None)
         self.players.set_data([(p[0], p[3]) for p in pts], start, end, step)
         maxp = data.get("max_players")
-        self.players_title.setText("<b>Jugadores conectados</b>" + (f" · máximo {maxp}" if maxp else ""))
-        self.ram_title.setText("<b>Memoria RAM</b> · la que usa el proceso (Java usa algo más que la asignada)"
-                               if self.server["game"] == "minecraft" else "<b>Memoria RAM</b>")
+        self.players_title.setText(tr("<b>Jugadores conectados</b> · máximo {max}", max=maxp) if maxp
+                                   else tr("<b>Jugadores conectados</b>"))
+        self.ram_title.setText(tr("<b>Memoria RAM</b> · la que usa el proceso (Java usa algo más que la asignada)")
+                               if self.server["game"] == "minecraft" else tr("<b>Memoria RAM</b>"))
 
         d = data["disk"]
         self.server_size.setText(size_text(d["server_bytes"]))
-        self.backups_size.setText(size_text(d["backups_bytes"]) if d["backups_bytes"] else "Ninguna")
+        self.backups_size.setText(size_text(d["backups_bytes"]) if d["backups_bytes"] else tr("Ninguna"))
         self.free_size.setText(size_text(d["disk_free"]))
         used = 1 - d["disk_free"] / d["disk_total"] if d["disk_total"] else 0
         self.meter.set_fraction(used)
-        warn = " · ⚠ Queda poco espacio" if used >= 0.9 else ""
-        self.free_note.setText(f"de {size_text(d['disk_total'])} ({used:.0%} usado){warn}")
-        self.updated.setText(f"Actualizado a las {datetime.now():%H:%M}")
+        warn = " · " + tr("⚠ Queda poco espacio") if used >= 0.9 else ""
+        self.free_note.setText(tr("de {total} ({percent} usado)", total=size_text(d["disk_total"]),
+                                  percent=f"{used:.0%}") + warn)
+        self.updated.setText(tr("Actualizado a las {time}", time=f"{datetime.now():%H:%M}"))

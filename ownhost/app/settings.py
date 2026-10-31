@@ -1,4 +1,4 @@
-"""Ajustes de la app (por ahora, la clave de API de CurseForge)."""
+"""App settings (for now, the CurseForge API key)."""
 
 import json
 
@@ -23,7 +23,7 @@ def save_settings(settings: dict) -> None:
 
 
 def embedded_curseforge_key() -> str | None:
-    """Clave incluida al compilar el exe (ver scripts/embed_key.py), si la hay."""
+    """Key embedded when building the exe (see scripts/embed_key.py), if any."""
     try:
         from ownhost._embedded import curseforge_key as embedded
     except ImportError:
@@ -32,5 +32,5 @@ def embedded_curseforge_key() -> str | None:
 
 
 def curseforge_key() -> str | None:
-    # La clave propia del usuario (Ajustes) tiene prioridad sobre la incluida en el exe.
+    # The user's own key (Settings) takes priority over the one embedded in the exe.
     return load_settings().get("curseforge_key") or embedded_curseforge_key()

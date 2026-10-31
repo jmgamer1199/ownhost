@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Instala el agente como servicio en un equipo Linux (p. ej. el homelab).
-# Uso:  sudo bash scripts/instalar-agente-linux.sh
+# Installs the agent as a service on a Linux computer (e.g. the homelab), from source with Python.
+# Usage:  sudo bash scripts/install-agent-linux.sh
 set -euo pipefail
 
 if [[ $EUID -ne 0 ]]; then
-    echo "Ejecuta este script con sudo." >&2
+    echo "Run this script with sudo." >&2
     exit 1
 fi
 
@@ -14,7 +14,7 @@ DATA_DIR=/var/lib/ownhost
 USER_NAME=ownhost
 
 if ! command -v python3 >/dev/null; then
-    echo "Instala Python 3.11+ primero (sudo apt install python3 python3-venv)." >&2
+    echo "Install Python 3.11+ first (sudo apt install python3 python3-venv)." >&2
     exit 1
 fi
 
@@ -32,13 +32,13 @@ systemctl enable --now ownhost-agent
 
 sleep 2
 echo
-echo "Agente instalado y en marcha."
-echo "IP de este equipo: $(hostname -I | awk '{print $1}')   Puerto: 8765"
+echo "Agent installed and running."
+echo "This computer's IP: $(hostname -I | awk '{print $1}')   Port: 8765"
 if command -v tailscale >/dev/null && TS_IP=$(tailscale ip -4 2>/dev/null); then
-    echo "IP de Tailscale:   $TS_IP   (para conectar desde fuera de casa)"
+    echo "Tailscale IP:        $TS_IP   (to connect from outside your home)"
 fi
 echo "Token: $(sudo -u "$USER_NAME" OWNHOST_DATA_DIR="$DATA_DIR" "$APP_DIR/venv/bin/python" -m ownhost.agent --show-token)"
 echo
-echo "Añádelo en la app con 'Añadir equipo'. Si usas ufw:"
+echo "Add it in the app with 'Connect to a computer'. If you use ufw:"
 echo "  sudo ufw allow 8765/tcp && sudo ufw allow 25565/tcp && sudo ufw allow 5520/udp"
-echo "  sudo ufw allow 19132/udp   # solo si usas multiplataforma (Geyser)"
+echo "  sudo ufw allow 19132/udp   # only if you use crossplay (Geyser)"

@@ -1,4 +1,4 @@
-"""Ejecuta llamadas de red fuera del hilo de la interfaz para que no se congele."""
+"""Runs network calls off the UI thread so it does not freeze."""
 
 from typing import Any, Callable
 
@@ -22,12 +22,12 @@ class _Job(QRunnable):
         try:
             try:
                 result = self.fn(self.signals.progress.emit) if self.with_progress else self.fn()
-            except Exception as e:  # noqa: BLE001 - se muestra al usuario
+            except Exception as e:  # noqa: BLE001 - shown to the user
                 self.signals.failed.emit(str(e))
                 return
             self.signals.done.emit(result)
         except RuntimeError:
-            pass  # la app se cerró mientras la tarea seguía en curso
+            pass  # the app closed while the task was still running
 
 
 _alive: set[_Signals] = set()
@@ -57,5 +57,5 @@ def run_async(fn: Callable[[], Any], on_done: Callable[[Any], None] | None = Non
 def run_with_progress(fn: Callable[[Callable[[str], None]], Any], on_progress: Callable[[str], None],
                       on_done: Callable[[Any], None] | None = None,
                       on_error: Callable[[str], None] | None = None) -> None:
-    """Como run_async, pero `fn` recibe una función para informar del progreso."""
+    """Like run_async, but `fn` receives a function to report progress."""
     _start(fn, True, on_done, on_error, on_progress)

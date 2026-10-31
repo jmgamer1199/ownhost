@@ -1,4 +1,4 @@
-"""Descarga automática de Java (Eclipse Temurin, vía la API de Adoptium)."""
+"""Automatic Java download (Eclipse Temurin, via the Adoptium API)."""
 
 import platform
 import shutil
@@ -7,6 +7,7 @@ import threading
 from pathlib import Path
 
 from ownhost.agent.downloads import Log, download, extract, get_json
+from ownhost.i18n import tr
 
 ADOPTIUM = "https://api.adoptium.net/v3/assets/latest/{major}/hotspot"
 
@@ -39,18 +40,18 @@ class JavaManager:
         return None
 
     def ensure(self, major: int, log: Log) -> Path:
-        """Devuelve la ruta a `java` de la versión `major`, descargándola si hace falta."""
+        """Returns the path to `java` of version `major`, downloading it if needed."""
         with self._lock:
             found = self._find_java(major)
             if found:
                 return found
-            log(f"Java {major} no está instalado; descargándolo...")
+            log(tr("Java {major} no está instalado; descargándolo...", major=major))
             assets = get_json(
                 ADOPTIUM.format(major=major),
                 architecture=_arch(), image_type="jre", os=_os(), vendor="eclipse",
             )
             if not assets:
-                raise RuntimeError(f"Adoptium no ofrece Java {major} para {_os()}/{_arch()}")
+                raise RuntimeError(tr("Adoptium no ofrece Java {major} para {system}", major=major, system=f"{_os()}/{_arch()}"))
             package = assets[0]["binary"]["package"]
             target = self.root / str(major)
             if target.exists():
@@ -60,6 +61,6 @@ class JavaManager:
             archive.unlink()
             found = self._find_java(major)
             if not found:
-                raise RuntimeError("Java descargado pero no se encontró el ejecutable")
-            log(f"Java {major} instalado.")
+                raise RuntimeError(tr("Java descargado pero no se encontró el ejecutable"))
+            log(tr("Java {major} instalado.", major=major))
             return found

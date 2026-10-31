@@ -1,8 +1,8 @@
-"""Accesos para amigos: cada uno con su código, un nivel de permisos y los servidores que puede ver.
+"""Access for friends: each with their own code, a permission level and the servers they can see.
 
-El dueño del equipo usa el token del agente (o entra por Tailscale desde su cuenta) y puede hacerlo todo.
-Los códigos de los amigos no se guardan tal cual, solo su hash: si alguien copia la carpeta del agente
-no puede entrar con ellos.
+The computer's owner uses the agent token (or comes in through Tailscale from their account) and can do
+everything. Friends' codes are not stored as is, only their hash: if someone copies the agent's folder
+they cannot log in with them.
 """
 
 import hashlib
@@ -14,14 +14,15 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
 from ownhost.agent.errors import UserError
+from ownhost.i18n import tr
 
-# Niveles: cada uno incluye lo de los anteriores. BACKUP_ONLY no ve nada: solo puede enviar copias.
+# Levels: each includes the previous ones. BACKUP_ONLY sees nothing: it can only send backups.
 BACKUP_ONLY, PLAY, MODERATE, MANAGE, OWNER = 0, 1, 2, 3, 9
 ROLES = {
-    "backup": BACKUP_ONLY,  # otro equipo tuyo que guarda aquí sus copias de seguridad
-    "play": PLAY,          # ver el estado, encender, apagar y reiniciar
-    "moderate": MODERATE,  # + consola, jugadores (operador, lista blanca, baneos) y copias
-    "manage": MANAGE,      # + ajustes, propiedades, mods, actualizar, restaurar copias e importar mundos
+    "backup": BACKUP_ONLY,  # another computer of yours that stores its backups here
+    "play": PLAY,          # see the status, start, stop and restart
+    "moderate": MODERATE,  # + console, players (operator, whitelist, bans) and backups
+    "manage": MANAGE,      # + settings, properties, mods, updating, restoring backups and importing worlds
 }
 
 
@@ -30,7 +31,7 @@ class Guest:
     id: str
     name: str
     role: str
-    servers: list[str] | None  # None = todos, también los que se creen después
+    servers: list[str] | None  # None = all, including those created later
     token_hash: str
     created: float = field(default_factory=time.time)
 
@@ -41,7 +42,7 @@ class Guest:
 
 @dataclass
 class Principal:
-    """Quién hace la petición."""
+    """Who makes the request."""
     level: int
     name: str = ""
     role: str = "owner"
@@ -85,11 +86,11 @@ class GuestStore:
     def create(self, name: str, role: str, servers: list[str] | None) -> tuple[Guest, str]:
         name = name.strip()
         if not name:
-            raise UserError("Ponle un nombre al acceso (p. ej. el de tu amigo)")
+            raise UserError(tr("Ponle un nombre al acceso (p. ej. el de tu amigo)"))
         if role not in ROLES:
-            raise UserError(f"Permiso desconocido: {role}")
+            raise UserError(tr("Permiso desconocido: {role}", role=role))
         if servers is not None and not servers:
-            raise UserError("Elige al menos un servidor")
+            raise UserError(tr("Elige al menos un servidor"))
         token = "oh-" + secrets.token_urlsafe(18)
         guest = Guest(id=secrets.token_hex(4), name=name[:60], role=role, servers=servers, token_hash=_hash(token))
         with self.lock:
@@ -102,11 +103,11 @@ class GuestStore:
             before = len(self.guests)
             self.guests = [g for g in self.guests if g.id != guest_id]
             if len(self.guests) == before:
-                raise UserError("Ese acceso ya no existe")
+                raise UserError(tr("Ese acceso ya no existe"))
             self._save()
 
     def forget_server(self, sid: str) -> None:
-        """Al borrar un servidor se quita de los accesos (un acceso sin servidores no sirve de nada)."""
+        """When a server is deleted it is removed from the accesses (an access without servers is useless)."""
         with self.lock:
             changed = False
             for g in self.guests:
