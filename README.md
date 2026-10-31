@@ -81,6 +81,7 @@ Si un equipo tiene Tailscale activo, la app lo detecta:
 | Minecraft Bedrock | 19132/UDP y 19133/UDP (los siguientes libres si hay varios) |
 | Hytale | 5520/UDP |
 | Bedrock con Geyser (multiplataforma) | 19132/UDP (19133, 19134... si hay varios servidores) |
+| Mapa web (BlueMap) | 8100/TCP (8101, 8102... si hay varios servidores) |
 
 ## Multiplataforma (Bedrock)
 
@@ -138,6 +139,7 @@ En la pestaña **Jugadores** (Minecraft Java y Bedrock) ves quién está conecta
 - Si el servidor está apagado, los cambios quedan pendientes y se aplican en cuanto se enciende.
 - Bedrock nativo no tiene baneos: usa la lista blanca.
 - Minecraft 26 crea los servidores con la lista blanca activada. Ownhost la deja desactivada salvo que marques «Solo pueden entrar los jugadores que añadas» al crear el servidor; así tus amigos pueden entrar a la primera.
+- **Estadísticas:** cuánto tiempo ha jugado cada uno, cuántas veces ha entrado y cuándo fue la última vez. El agente las apunta aunque la app esté cerrada.
 
 ## Rendimiento
 
@@ -155,8 +157,28 @@ En **Ajustes** de cada servidor:
 - **Volver a encenderlo si se cae** (activado por defecto): si el servidor se cierra por un error, se enciende de nuevo a los 10 segundos. Si se cae más de 3 veces en 10 minutos se queda apagado, para no entrar en un bucle. La app avisa en los dos casos.
 - **Copia de seguridad cada N horas** (24 por defecto): solo se hace si el servidor se ha usado desde la última copia. Las copias automáticas acaban en `-auto.zip` y se guardan las últimas N; las que haces a mano no se borran nunca.
 - **Reiniciar cada día a una hora**: avisa a los jugadores 1 minuto y 10 segundos antes.
+- **Apagar si nadie juega durante N minutos** (Minecraft; desactivado por defecto): ahorra luz y memoria cuando el servidor se queda vacío.
 
 Las tareas las hace el agente, así que funcionan aunque la app esté cerrada.
+
+## Memoria recomendada
+
+Al crear un servidor (o importar un modpack) dices cuántos vais a jugar a la vez y la app recomienda la memoria según el tipo de servidor, los mods del modpack y la memoria del equipo, y avisa si pides más de la que tiene libre. Bedrock gestiona su memoria solo, así que no lo pregunta.
+
+## Mapa y mundo
+
+En **Ajustes → Mapa y mundo** (servidores Paper, Fabric, Forge y NeoForge):
+
+- **Mapa del mundo en el navegador (BlueMap):** se instala con un clic y la app enseña el enlace (`http://IP:8100/`). Es un mapa en 3D que se ve también desde el móvil y se dibuja poco a poco mientras el servidor está encendido.
+- **Generar el mundo por adelantado (Chunky):** eliges un radio en bloques y pulsas **Generar**. Crea el terreno de antemano para que no haya tirones cuando los jugadores exploran; la app enseña el progreso. Se puede seguir jugando mientras tanto.
+
+## Archivos
+
+La pestaña **Archivos** abre y edita la configuración de mods y plugins (`.yml`, `.json`, `.toml`, `.properties`...) sin buscar la carpeta del servidor, también si está en otro equipo. Solo se ven archivos de configuración: nunca el mundo, los programas ni los archivos de inicio de sesión. Los `.json` se comprueban antes de guardar.
+
+## Copias en otro equipo
+
+Por si se estropea un disco: en **Ajustes → Copia en otro equipo** eliges otro equipo tuyo y cada copia de seguridad se envía también allí (guarda las 3 últimas). El otro equipo da un código que solo sirve para recibir copias. Si el primero falla, en la ficha del otro equipo, **Copias de otros equipos...** → **Restaurar aquí** crea el servidor con su mundo, sus mods y su configuración.
 
 ## Modpacks
 
@@ -187,9 +209,9 @@ Nadie con un código puede crear ni borrar servidores, clonarlos o moverlos, des
 
 Tu amigo tiene que estar en tu red local o en tu Tailscale (desde Tailscale puedes compartirle solo ese equipo con «Share»). Nada se abre a internet.
 
-## Panel web para el móvil
+## Panel web
 
-Cada agente sirve un panel sencillo en `http://IP-del-equipo:8765/`. Desde el navegador del móvil, con el token o un código de amigo, se ven los servidores, quién juega, se encienden y apagan y, con permiso de Moderar, se usa la consola. Si entras desde un dispositivo de tu misma cuenta de Tailscale no hace falta código.
+Cada agente sirve un panel en `http://IP-del-equipo:8765/` (la ficha de cada equipo en la app enseña el enlace). Desde el navegador del móvil o de cualquier PC, con el token o un código de amigo, se gestiona cada servidor: encender y apagar, quién juega, jugadores y estadísticas, consola, copias de seguridad y ajustes, según el permiso de cada uno. Si entras desde un dispositivo de tu misma cuenta de Tailscale no hace falta código. Mods, archivos, multiplataforma y mapa se gestionan desde la app.
 
 ## Actualizaciones
 
@@ -295,13 +317,19 @@ ownhost/
 │   ├── mods.py, modpacks.py  Modrinth, CurseForge y modpacks
 │   ├── crossplay.py        Geyser, Floodgate y sus extras
 │   ├── players.py          jugadores (operadores, lista blanca, baneos)
-│   ├── scheduler.py        copias y reinicios programados
+│   ├── stats.py            estadísticas de jugadores (tiempo jugado, última vez)
+│   ├── addons.py           mapa web (BlueMap) y pregeneración (Chunky)
+│   ├── files.py            pestaña Archivos: qué se puede leer y guardar
+│   ├── replicas.py         copias de seguridad en otro equipo
+│   ├── scheduler.py        copias, reinicios programados y apagar si está vacío
 │   ├── metrics.py          muestras de CPU, RAM y jugadores para las gráficas
 │   └── web/panel.html      el panel web para el móvil
 ├── app/                    la app (PySide6)
 │   ├── main_window.py      ventana principal, lista de equipos, sondeo de los agentes
 │   ├── server_panel.py     la ficha de un servidor y sus pestañas
-│   ├── *_tab.py            pestañas de jugadores, rendimiento y mods
+│   ├── *_tab.py            pestañas de jugadores, rendimiento, mods y archivos
+│   ├── memory.py           memoria recomendada al crear un servidor
+│   ├── replicas.py         copias en otro equipo (enviar y restaurar)
 │   ├── dialogs.py          crear servidor, conectar equipo, ajustes...
 │   ├── guests.py           accesos para amigos
 │   ├── app_update.py       actualizarse sola
