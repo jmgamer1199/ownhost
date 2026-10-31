@@ -142,7 +142,7 @@ QTabWidget::pane {{
 QTabBar::tab {{
     background: rgba(255,255,255,105); border: 1px solid rgba(255,255,255,200); border-bottom: none;
     border-top-left-radius: 13px; border-top-right-radius: 13px;
-    padding: 7px 18px; margin-right: 4px; color: {TEXT_SOFT};
+    padding: 7px 12px; margin-right: 3px; color: {TEXT_SOFT};
 }}
 QTabBar::tab:hover {{ background: rgba(255,255,255,185); color: {TEXT}; }}
 QTabBar::tab:selected {{ background: {BTN}; color: {TEXT}; font-weight: 600; border-color: rgba(70,150,200,170); }}
