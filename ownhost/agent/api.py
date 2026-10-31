@@ -17,7 +17,9 @@ from pydantic import BaseModel, Field
 
 from ownhost import BUILD, __version__, discovery, updates
 from ownhost.agent import files
-from ownhost.agent.access import MANAGE, MODERATE, OWNER, OWNER_PRINCIPAL, PLAY, GuestStore, Principal
+from ownhost.agent.access import (
+    MANAGE, MODERATE, OWNER, OWNER_PRINCIPAL, PLAY, GuestStore, Principal,
+)
 from ownhost.agent.config import AgentConfig
 from ownhost.agent.errors import UserError
 from ownhost.agent.games import GAMES
@@ -93,6 +95,19 @@ class Pregen(BaseModel):
     radius: int = 0
 
 
+class ReplicaTarget(BaseModel):
+    addresses: list[str] = Field(..., min_length=1, max_length=5)
+    port: int = Field(..., ge=1, le=65535)
+    token: str
+    target_name: str
+    source_name: str = ""  # cómo se llama este equipo en la app (para que el otro lo enseñe así)
+    keep: int = Field(3, ge=1, le=30)
+
+
+class RestoreReplica(BaseModel):
+    name: str = ""
+
+
 class CreateGuest(BaseModel):
     name: str
     role: str = "play"
@@ -165,6 +180,12 @@ def create_app(config: AgentConfig, manager: ServerManager) -> FastAPI:
         return JSONResponse({"detail": f"Servidor no encontrado: {exc}"}, status_code=404)
 
     owner = need(OWNER)
+    manager.agent_name = config.name
+
+    def backup_sender(who: Principal = Depends(principal)) -> None:
+        """El código «recibir copias» de otro equipo, o el dueño."""
+        if not (who.owner or who.role == "backup"):
+            raise HTTPException(403, "No tienes permiso para hacer esto en este equipo")
 
     def shown(server, who: Principal) -> dict:
         # La carpeta solo la ve el dueño (la ruta lleva su nombre de usuario).
@@ -299,6 +320,41 @@ def create_app(config: AgentConfig, manager: ServerManager) -> FastAPI:
     @app.delete("/api/guests/{guest_id}", dependencies=owner, status_code=204)
     def delete_guest(guest_id: str):
         guests.delete(guest_id)
+
+    # ---------- copias de seguridad de otros equipos ----------
+
+    @app.get("/api/replicas/check", dependencies=[Depends(backup_sender)])
+    def replicas_check():
+        return {"name": config.name}
+
+    @app.put("/api/replicas/{source}/{sid}/{name}", dependencies=[Depends(backup_sender)], status_code=204)
+    async def receive_replica(source: str, sid: str, name: str, request: Request, server_name: str = "",
+                              game: str = "", keep: int = 3):
+        upload = await _receive_upload(request)
+        await asyncio.to_thread(manager.replicas.store, source, sid, name, server_name or sid, game, upload,
+                                min(max(keep, 1), 30))
+
+    @app.get("/api/replicas", dependencies=owner)
+    def list_replicas():
+        return manager.replicas.listing()
+
+    @app.post("/api/replicas/{key}/{name}/restore", dependencies=owner, status_code=201)
+    def restore_replica(key: str, name: str, body: RestoreReplica):
+        return manager.restore_replica(key, name, body.name.strip() or None).to_dict()
+
+    @app.delete("/api/replicas/{key}", dependencies=owner, status_code=204)
+    def delete_replicas(key: str):
+        manager.replicas.delete(key)
+
+    @app.put("/api/servers/{sid}/replica", dependencies=owner)
+    def set_replica(sid: str, body: ReplicaTarget):
+        manager.set_replica(sid, body.model_dump())
+        return manager.get(sid).to_dict()
+
+    @app.delete("/api/servers/{sid}/replica", dependencies=owner)
+    def remove_replica(sid: str):
+        manager.set_replica(sid, None)
+        return manager.get(sid).to_dict()
 
     # ---------- panel web (para el móvil) ----------
 

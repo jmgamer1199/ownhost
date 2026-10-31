@@ -4,7 +4,7 @@ from PySide6.QtCore import QBuffer, QByteArray, QIODevice, Qt, QTime, QTimer, QU
 from PySide6.QtGui import QDesktopServices, QFontDatabase, QImage, QPixmap, QTextCursor
 from PySide6.QtWebSockets import QWebSocket
 from PySide6.QtWidgets import (
-    QAbstractItemView, QCheckBox, QFileDialog, QFormLayout, QFrame, QHBoxLayout, QHeaderView, QLabel, QLineEdit,
+    QAbstractItemView, QCheckBox, QComboBox, QFileDialog, QFormLayout, QFrame, QHBoxLayout, QHeaderView, QLabel, QLineEdit,
     QInputDialog, QMenu, QMessageBox, QPlainTextEdit, QProgressDialog, QPushButton, QScrollArea, QSpinBox, QStyle, QTableWidget,
     QTableWidgetItem, QTimeEdit,
     QTabWidget, QVBoxLayout, QWidget,
@@ -13,6 +13,7 @@ from PySide6.QtWidgets import (
 from ownhost.app.client import AgentClient
 from ownhost.app.dialogs import ImportWorldDialog, MoveDialog, ask_version
 from ownhost.app.guests import MANAGE, MODERATE, OWNER, PLAY
+from ownhost.app import replicas
 from ownhost.app.files_tab import FilesTab
 from ownhost.app.mods_tab import ModsTab
 from ownhost.app.metrics_tab import MetricsTab
@@ -44,6 +45,7 @@ class ServerPanel(QWidget):
         self.level = OWNER  # permisos con los que estamos conectados a ese equipo
         # Los pone la ventana principal: equipos a los que se puede mover y aviso al terminar.
         self.move_targets = lambda: []
+        self.host_name = ""
         self.on_moved = lambda host_id, server: None
 
         self.title = QLabel()
@@ -261,6 +263,26 @@ class ServerPanel(QWidget):
         note.setObjectName("muted")
         form.addRow(note)
         form.addRow(save)
+
+        # --- Copia en otro equipo ---
+        self.replica_title = QLabel("<br><b>Copia en otro equipo</b>")
+        self.replica_status = QLabel()
+        self.replica_status.setWordWrap(True)
+        self.replica_target = QComboBox()
+        self.replica_button = QPushButton()
+        self.replica_button.clicked.connect(self._toggle_replica)
+        replica_row = QHBoxLayout()
+        replica_row.addWidget(self.replica_target, 1)
+        replica_row.addWidget(self.replica_button)
+        self.replica_row = QWidget()
+        self.replica_row.setLayout(replica_row)
+        replica_note = QLabel("Por si se estropea el disco: cada copia de seguridad se envía también a otro equipo "
+                              "tuyo, y desde allí se puede restaurar el servidor.")
+        replica_note.setObjectName("muted")
+        replica_note.setWordWrap(True)
+        self.replica_widgets = (self.replica_title, replica_note, self.replica_status, self.replica_row)
+        for row in self.replica_widgets:
+            form.addRow(row)
 
         # --- Mapa web y pregeneración ---
         self.addons_title = QLabel("<br><b>Mapa y mundo</b>")
@@ -480,6 +502,7 @@ class ServerPanel(QWidget):
         self.address.setText(text)
         self._refresh_crossplay()
         self._refresh_addons()
+        self._refresh_replica()
         self.status.setText(f"● {label}")
         self.status.setStyleSheet(theme.pill_style(s["status"]))
         st = s.get("stats") or {}
@@ -511,6 +534,53 @@ class ServerPanel(QWidget):
         self.btn_login.setVisible(bool(s.get("device_auth")) and self.level >= MANAGE)
         self.btn_login.setEnabled(state in ("starting", "running") and not s.get("auth"))
         self.command.setEnabled(state in ("starting", "running"))
+
+    def _refresh_replica(self) -> None:
+        s = self.server
+        rep = s.get("replica")
+        owner = self.level >= OWNER
+        for w in self.replica_widgets:
+            w.setVisible(owner)
+        self.replica_status.setText(replicas.status_text(rep))
+        targets = [] if rep else self.move_targets()
+        if self.replica_target.view().isVisible():
+            return  # lista abierta: no se rehace mientras el usuario elige
+        current = self.replica_target.currentData()
+        self.replica_target.blockSignals(True)
+        self.replica_target.clear()
+        for host, _ in targets:
+            self.replica_target.addItem(host.name, host.id)
+        if current:
+            self.replica_target.setCurrentIndex(max(0, self.replica_target.findData(current)))
+        self.replica_target.blockSignals(False)
+        self.replica_target.setVisible(not rep and bool(targets))
+        self.replica_button.setText("Dejar de enviar" if rep else "Enviar las copias aquí")
+        self.replica_button.setVisible(bool(rep or targets))
+        if not rep and not targets:
+            self.replica_status.setText(self.replica_status.text() + " Para enviarlas a otro equipo, conéctalo "
+                                        "antes en la app (tiene que ser tuyo, no de un amigo).")
+
+    def _toggle_replica(self) -> None:
+        sid, client = self.server["id"], self.client
+        if self.server.get("replica"):
+            self._call(lambda: replicas.disable(client, sid), self.update_server)
+            return
+        target = next(((h, c) for h, c in self.move_targets() if h.id == self.replica_target.currentData()), None)
+        if not target:
+            return
+        host, target_client = target
+        source_name, addresses = self.host_name, self.addresses
+        self.replica_button.setEnabled(False)
+
+        def done(server: dict):
+            self.replica_button.setEnabled(True)
+            self.update_server(server)
+
+        def failed(msg: str):
+            self.replica_button.setEnabled(True)
+            self._error(msg)
+
+        run_async(lambda: replicas.enable(client, sid, source_name, addresses, host, target_client), done, failed)
 
     def _refresh_addons(self) -> None:
         s = self.server

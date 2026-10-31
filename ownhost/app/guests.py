@@ -23,7 +23,7 @@ ROLES = [
      "Lo anterior, y además los ajustes, las propiedades, los mods, actualizar, restaurar copias e importar "
      "mundos. No puede borrar servidores, crear otros ni ver tu carpeta."),
 ]
-ROLE_NAMES = {key: name for key, name, _ in ROLES} | {"owner": "Dueño"}
+ROLE_NAMES = {key: name for key, name, _ in ROLES} | {"owner": "Dueño", "backup": "Recibir copias (otro equipo)"}
 
 
 def access_level(info: dict | None) -> int:

@@ -17,7 +17,7 @@ from typing import Callable
 
 import psutil
 
-from ownhost.agent import addons, crossplay, modpacks, mods, players
+from ownhost.agent import addons, crossplay, modpacks, mods, players, replicas
 from ownhost.agent.metrics import Metrics
 from ownhost.agent.scheduler import Scheduler, schedule_of
 from ownhost.agent.stats import PlayerStats
@@ -201,6 +201,8 @@ class Server:
             "schedule": schedule_of(self.meta),
             "events": list(self.events)[-10:],
             "map": self.meta.extra.get("map"),
+            "replica": ({k: v for k, v in rep.items() if k != "token"}
+                        if (rep := self.meta.extra.get("replica")) else None),
             "pregen_installed": bool(self.meta.extra.get("pregen")),
             "pregen": self.pregen,
             "addons_supported": self.meta.flavor in addons.SUPPORTED,
@@ -226,6 +228,8 @@ class ServerManager:
         self.servers: dict[str, Server] = {}
         self.loop: asyncio.AbstractEventLoop | None = None
         self.metrics = Metrics(self)
+        self.replicas = replicas.ReplicaStore(data_dir)
+        self.agent_name = "equipo"  # lo pone la API con el nombre del agente
 
     # ---------- ciclo de vida del agente ----------
 
@@ -914,6 +918,7 @@ class ServerManager:
         self._background(s, "backing-up", lambda: self._backup(s))
 
     def _backup(self, s: Server, auto: bool = False, target: Path | None = None) -> Path:
+        regular = target is None  # las de clonar o mover son temporales: esas no se envían
         if target is None:
             folder = self.backups_dir / s.meta.id
             folder.mkdir(parents=True, exist_ok=True)
@@ -940,7 +945,44 @@ class ServerManager:
                 for cmd in s.game.backup_post_commands:
                     s.send(cmd)
         s.log(f"Copia creada ({target.stat().st_size // (1 << 20)} MB).")
+        if regular and s.meta.extra.get("replica"):
+            threading.Thread(target=self._send_replica, args=(s, target), daemon=True).start()
         return target
+
+    def _send_replica(self, s: Server, archive: Path) -> None:
+        cfg = s.meta.extra.get("replica")
+        if not cfg:
+            return
+        s.log(f"Enviando la copia a «{cfg['target_name']}»...")
+        try:
+            replicas.send(cfg, cfg.get("source_name") or self.agent_name, s.meta.id, s.meta.name, s.meta.game, archive)
+            cfg["last"] = {"time": time.time(), "ok": True, "name": archive.name}
+            s.log(f"Copia guardada también en «{cfg['target_name']}».")
+        except Exception as e:  # noqa: BLE001 - el otro equipo apagado, sin red...: se reintenta en la próxima
+            cfg["last"] = {"time": time.time(), "ok": False, "error": str(e)}
+            s.log(f"No se pudo enviar la copia a «{cfg['target_name']}»: {e}")
+            s.event("replica", f"«{s.meta.name}»: no se pudo enviar la copia a «{cfg['target_name']}».")
+        s.save()
+
+    def set_replica(self, server_id: str, cfg: dict | None) -> None:
+        s = self.get(server_id)
+        if cfg is None:
+            s.meta.extra.pop("replica", None)
+        else:
+            cfg = {**cfg, "address": replicas.reachable(cfg)}
+            cfg.pop("addresses", None)
+            s.meta.extra["replica"] = {**cfg, "last": None}
+            s.log(f"Las copias de seguridad se guardarán también en «{cfg['target_name']}».")
+        s.save()
+
+    def restore_replica(self, key: str, name: str, new_name: str | None) -> Server:
+        """Crea aquí un servidor a partir de una copia que envió otro equipo."""
+        src = self.replicas.path(key, name)
+        tmp = self.data_dir / "tmp"
+        tmp.mkdir(parents=True, exist_ok=True)
+        copy = tmp / f"replica-{uuid.uuid4().hex[:6]}.zip"
+        shutil.copy2(src, copy)  # import_server se queda con el archivo: la copia original no se toca
+        return self.import_server(copy, new_name)
 
     def restore_backup(self, server_id: str, name: str) -> None:
         s = self.get(server_id)

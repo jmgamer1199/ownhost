@@ -17,6 +17,7 @@ from ownhost.app.hosts import (
     Host, kill_local_agents, launch_local_agent, load_hosts, local_agent_config, save_hosts,
 )
 from ownhost.app.guests import OWNER, ROLE_NAMES, GuestsDialog, access_level
+from ownhost.app.replicas import ReceivedBackupsDialog
 from ownhost.app.server_panel import ServerPanel
 from ownhost.app import firewall
 from ownhost.app.autodiscover import scan
@@ -245,6 +246,9 @@ class MainWindow(QMainWindow):
         self.btn_agent_update.setToolTip("Instala en ese equipo la última versión de Ownhost. Los servidores "
                                          "encendidos se apagan con «stop» y se vuelven a encender.")
         self.btn_agent_update.clicked.connect(self._update_agent)
+        self.btn_received = QPushButton("Copias de otros equipos...")
+        self.btn_received.setToolTip("Copias de seguridad que otros equipos tuyos guardan en este")
+        self.btn_received.clicked.connect(self._received_backups)
         self.btn_guests = QPushButton("Accesos para amigos...")
         self.btn_guests.setToolTip("Da a tus amigos un código para encender o gestionar tus servidores")
         self.btn_guests.clicked.connect(self._guests)
@@ -256,10 +260,10 @@ class MainWindow(QMainWindow):
         # Ocultos hasta saber qué equipo es: si no, la ventana se ensancharía al abrirse y no volvería a
         # encoger (en un portátil de 1366 px quedaría más ancha que la pantalla).
         for b in (self.btn_guests, self.btn_host_start, self.btn_copy_token, self.btn_firewall,
-                  self.btn_agent_update):
+                  self.btn_agent_update, self.btn_received):
             b.hide()
         row = QHBoxLayout()
-        for b in (self.btn_host_new, self.btn_guests):
+        for b in (self.btn_host_new, self.btn_guests, self.btn_received):
             row.addWidget(b)
         row.addStretch()
         manage = QHBoxLayout()
@@ -393,6 +397,7 @@ class MainWindow(QMainWindow):
         if sid:
             server = next((s for s in self.state.get(host_id, {}).get("servers", []) if s["id"] == sid), None)
             if server:
+                self.server_panel.host_name = self._host(host_id).name
                 self.server_panel.show_server(self.clients[host_id], server, self._addresses(host_id),
                                               self._host(host_id).is_local, self._level(host_id))
                 self.stack.setCurrentWidget(self.server_panel)
@@ -431,6 +436,13 @@ class MainWindow(QMainWindow):
                   lambda r: self.statusBar().showMessage(f"{host.name}: {r['detail']}...", 30000),
                   lambda msg: QMessageBox.warning(self, "Actualizar agente", msg))
         self.btn_agent_update.hide()
+
+    def _received_backups(self) -> None:
+        host_id = self._selected()[0]
+        host = self._host(host_id)
+        if host:
+            ReceivedBackupsDialog(self, self.clients[host_id], host.name,
+                                  lambda server: self._server_moved(host_id, server)).exec()
 
     def _guests(self) -> None:
         host_id = self._selected()[0]
@@ -485,6 +497,7 @@ class MainWindow(QMainWindow):
         self.btn_host_new.setEnabled(bool(st.get("online")))
         self.btn_host_new.setVisible(owner)
         self.btn_guests.setVisible(owner and bool(st.get("online")))
+        self.btn_received.setVisible(owner and bool(st.get("online")))
         # El agente de este PC lo actualiza la propia app; los de otros equipos, con este botón.
         agent_build = (info or {}).get("build") or "dev"
         self.btn_agent_update.setVisible(

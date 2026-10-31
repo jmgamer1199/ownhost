@@ -15,9 +15,10 @@ from pathlib import Path
 
 from ownhost.agent.errors import UserError
 
-# Niveles: cada uno incluye lo de los anteriores.
-PLAY, MODERATE, MANAGE, OWNER = 1, 2, 3, 9
+# Niveles: cada uno incluye lo de los anteriores. BACKUP_ONLY no ve nada: solo puede enviar copias.
+BACKUP_ONLY, PLAY, MODERATE, MANAGE, OWNER = 0, 1, 2, 3, 9
 ROLES = {
+    "backup": BACKUP_ONLY,  # otro equipo tuyo que guarda aquí sus copias de seguridad
     "play": PLAY,          # ver el estado, encender, apagar y reiniciar
     "moderate": MODERATE,  # + consola, jugadores (operador, lista blanca, baneos) y copias
     "manage": MANAGE,      # + ajustes, propiedades, mods, actualizar, restaurar copias e importar mundos
@@ -51,7 +52,7 @@ class Principal:
         return self.level >= OWNER
 
     def can_see(self, sid: str) -> bool:
-        return self.servers is None or sid in self.servers
+        return self.level > BACKUP_ONLY and (self.servers is None or sid in self.servers)
 
     def describe(self) -> dict:
         return {"role": self.role, "level": self.level, "name": self.name}
