@@ -45,7 +45,15 @@ sudo bash instalar-agente-servicio.sh
 
 El script instala el agente como servicio `systemd` (arranca solo con el equipo, aunque nadie inicie sesión), abre los puertos en `ufw` si está activo y al final muestra la IP y el token. En la app de otro equipo, pulsa **«Conectar a un equipo»**, elígelo en «Detectados» y pega el token.
 
-Si es un portátil y quieres que los servidores sigan funcionando con la tapa cerrada, pon `HandleLidSwitch=ignore` (y `HandleLidSwitchExternalPower=ignore`) en `/etc/systemd/logind.conf` y ejecuta `sudo systemctl restart systemd-logind`.
+Si es un portátil y quieres que los servidores sigan funcionando con la tapa cerrada **mientras está enchufado**:
+
+```bash
+sudo mkdir -p /etc/systemd/logind.conf.d
+printf '[Login]\nHandleLidSwitchExternalPower=ignore\nHandleLidSwitchDocked=ignore\n' | sudo tee /etc/systemd/logind.conf.d/10-tapa-cerrada.conf
+sudo systemctl kill -s HUP systemd-logind   # aplica el cambio sin cerrar tu sesión
+```
+
+Para que tampoco se suspenda con batería, añade también `HandleLidSwitch=ignore`; no es recomendable si lo guardas cerrado en una mochila (se calienta y se descarga). No uses `systemctl restart systemd-logind`: en muchos escritorios cierra la sesión.
 
 ## Equipos detectados automáticamente
 
