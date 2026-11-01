@@ -10,13 +10,14 @@ import json
 import re
 from pathlib import Path
 
-# Java (Vanilla/Paper/Fabric/Forge, with or without Geyser) and native Bedrock
+# Java (Vanilla/Paper/Fabric/Forge, with or without Geyser) and native Bedrock. Since Minecraft 26.x the
+# server writes its own messages with a "System chat: " prefix: "[Server thread/INFO]: System chat: Steve joined the game".
 JOIN_RE = [
-    re.compile(r"\]: (?:\[[^\]]*\] )?(\S{1,40}) joined the game"),
+    re.compile(r"\]: (?:System chat: )?(?:\[[^\]]*\] )?(\S{1,40}) joined the game"),
     re.compile(r"Player connected: ([^,]{1,40}), xuid"),
 ]
 LEAVE_RE = [
-    re.compile(r"\]: (?:\[[^\]]*\] )?(\S{1,40}) left the game"),
+    re.compile(r"\]: (?:System chat: )?(?:\[[^\]]*\] )?(\S{1,40}) left the game"),
     re.compile(r"Player disconnected: ([^,]{1,40}), xuid"),
 ]
 
