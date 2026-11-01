@@ -28,6 +28,36 @@ ACTIONS = ("op", "deop", "whitelist_add", "whitelist_remove", "ban", "pardon", "
 NAME_RE = re.compile(r"^\.?[\w .\-]{1,32}$")
 
 
+FLOODGATE_CONFIGS = ("plugins/floodgate/config.yml", "config/floodgate/config.yml")  # Paper / Fabric, NeoForge
+PREFIX_RE = re.compile(r"""^username-prefix:\s*(?:"([^"]*)"|'([^']*)'|(\S*))""", re.MULTILINE)
+_prefix_cache: dict[Path, tuple[float, str]] = {}
+
+
+def bedrock_prefix(server_dir: Path, crossplay: dict | None) -> str | None:
+    """With crossplay through Floodgate, the prefix of Bedrock players' names (by default "."), so
+    the app can show who plays on Bedrock and who on Java. None if it can't be known (no Floodgate:
+    Bedrock players then sign in with a Java account and look like any other)."""
+    if not crossplay or not crossplay.get("floodgate"):
+        return None
+    for relative in FLOODGATE_CONFIGS:
+        path = server_dir / relative
+        try:
+            mtime = path.stat().st_mtime
+        except OSError:
+            continue
+        cached = _prefix_cache.get(path)
+        if cached and cached[0] == mtime:
+            return cached[1] or None  # an empty prefix: Bedrock names look like Java ones
+        try:
+            m = PREFIX_RE.search(path.read_text(encoding="utf-8", errors="replace"))
+        except OSError:
+            continue
+        prefix = next((g for g in m.groups() if g is not None), ".") if m else "."
+        _prefix_cache[path] = (mtime, prefix)
+        return prefix or None
+    return "."  # Floodgate hasn't written its config yet (first start): its default prefix
+
+
 def track(online: set[str], line: str) -> bool:
     """Updates `online` with a console line. Returns True if it changed."""
     for rx in JOIN_RE:

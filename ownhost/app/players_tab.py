@@ -2,9 +2,10 @@
 
 from datetime import datetime, timedelta
 
+from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QAbstractItemView, QCheckBox, QGridLayout, QHBoxLayout, QHeaderView, QLabel, QLineEdit, QListWidget,
-    QMessageBox, QPushButton, QScrollArea, QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget, QFrame,
+    QListWidgetItem, QMessageBox, QPushButton, QScrollArea, QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget, QFrame,
 )
 
 from ownhost.app.client import AgentClient
@@ -16,6 +17,30 @@ ACTION_NAMES = {
     "whitelist_remove": "quitar de la lista blanca a", "ban": "banear a", "pardon": "perdonar a",
     "whitelist_on": "activar la lista blanca", "whitelist_off": "desactivar la lista blanca",
 }
+
+
+NAME_ROLE = Qt.ItemDataRole.UserRole  # the real name (the one commands use) of each list row
+
+
+def display_name(name: str, prefix: str | None) -> str:
+    """With crossplay through Floodgate: "Steve (Bedrock)" (without the prefix) or "Alex (Java)"."""
+    if not prefix:
+        return name
+    if name.startswith(prefix):
+        return f"{name[len(prefix):]} (Bedrock)"
+    return f"{name} (Java)"
+
+
+def fill_names(widget: QListWidget, names: list[str], prefix: str | None) -> None:
+    widget.clear()
+    for name in names:
+        item = QListWidgetItem(display_name(name, prefix))
+        item.setData(NAME_ROLE, name)
+        widget.addItem(item)
+
+
+def list_names(widget: QListWidget) -> list[str]:
+    return [widget.item(i).data(NAME_ROLE) for i in range(widget.count())]
 
 
 def played(seconds: int) -> str:
@@ -162,9 +187,10 @@ class PlayersTab(QWidget):
         if self.server and server["id"] == self.server["id"]:
             self.server = server
             names = server.get("players_online", [])
-            if names != [self.online.item(i).text() for i in range(self.online.count())]:
-                self.online.clear()
-                self.online.addItems(names)
+            prefix = server.get("bedrock_prefix")
+            if names != list_names(self.online) or prefix != self.data.get("bedrock_prefix"):
+                self.data["bedrock_prefix"] = prefix
+                fill_names(self.online, names, prefix)
 
     def reload(self) -> None:
         if not self.server:
@@ -178,7 +204,8 @@ class PlayersTab(QWidget):
         for r in rows:
             row = self.stats.rowCount()
             self.stats.insertRow(row)
-            for col, text in enumerate((r["name"], played(r["seconds"]), str(r["sessions"]),
+            name = display_name(r["name"], (self.server or {}).get("bedrock_prefix"))
+            for col, text in enumerate((name, played(r["seconds"]), str(r["sessions"]),
                                         last_seen(r["last_seen"], r["online"]))):
                 self.stats.setItem(row, col, QTableWidgetItem(text))
         self.stats.setVisible(bool(rows))
@@ -188,8 +215,7 @@ class PlayersTab(QWidget):
         self.data = data
         for widget, key in ((self.online, "online"), (self.ops, "ops"), (self.whitelist, "whitelist"),
                             (self.banned, "banned")):
-            widget.clear()
-            widget.addItems(data.get(key, []))
+            fill_names(widget, data.get(key, []), data.get("bedrock_prefix"))
         self.whitelist_on.blockSignals(True)
         self.whitelist_on.setChecked(data.get("whitelist_enabled", False))
         self.whitelist_on.blockSignals(False)
@@ -233,7 +259,7 @@ class PlayersTab(QWidget):
                                           name=item.text())) \
                 != QMessageBox.StandardButton.Yes:
             return
-        self._act(action, item.text())
+        self._act(action, item.data(NAME_ROLE) or item.text())
 
     def _on_name(self, action: str, confirm: bool = False) -> None:
         name = self.name.text().strip()

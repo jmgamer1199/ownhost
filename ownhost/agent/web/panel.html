@@ -377,7 +377,7 @@ function statusPill(s) {
 
 function playingLine(s) {
   return el("p", { class: "muted" }, s.players_online.length
-    ? t("Jugando ({n}): {names}", { n: s.players_online.length, names: s.players_online.join(", ") }) : t("No hay nadie jugando."));
+    ? t("Jugando ({n}): {names}", { n: s.players_online.length, names: s.players_online.map((n) => playerName(n, s.bedrock_prefix)).join(", ") }) : t("No hay nadie jugando."));
 }
 
 function addressLine(s) {
@@ -526,6 +526,12 @@ function when(ts, online) {
   return d.toLocaleDateString(locale());
 }
 
+// With crossplay through Floodgate: "Steve (Bedrock)" (without the prefix) or "Alex (Java)".
+function playerName(name, prefix) {
+  if (!prefix) return name;
+  return name.startsWith(prefix) ? name.slice(prefix.length) + " (Bedrock)" : name + " (Java)";
+}
+
 async function playerAction(s, action, name) {
   try {
     await api("POST", `/servers/${s.id}/players`, { action, name });
@@ -537,7 +543,7 @@ async function playerAction(s, action, name) {
 function renderPlayers(s, data, stats) {
   const canEdit = level >= MODERATE;
   const list = (title, names, buttons) => el("div", { class: "card" }, el("h2", {}, title),
-    names.length ? el("ul", { class: "list" }, ...names.map((n) => el("li", {}, el("span", { class: "grow" }, n),
+    names.length ? el("ul", { class: "list" }, ...names.map((n) => el("li", {}, el("span", { class: "grow" }, playerName(n, data.bedrock_prefix)),
       ...(canEdit ? buttons(n) : [])))) : el("p", { class: "muted" }, t("Nadie.")));
   const name = el("input", { placeholder: t("Nombre del jugador"), autocomplete: "off", autocapitalize: "off" });
   const withName = (action) => () => name.value.trim() && playerAction(s, action, name.value.trim());
@@ -557,14 +563,14 @@ function renderPlayers(s, data, stats) {
         onchange: (e) => playerAction(s, e.target.checked ? "whitelist_on" : "whitelist_off", "") }),
         t("Solo pueden entrar los de la lista blanca")),
       (data.whitelist || []).length ? el("ul", { class: "list" }, ...data.whitelist.map((n) => el("li", {},
-        el("span", { class: "grow" }, n), canEdit ? el("button", { class: "small", type: "button", onclick: () => playerAction(s, "whitelist_remove", n) }, t("Quitar")) : null)))
+        el("span", { class: "grow" }, playerName(n, data.bedrock_prefix)), canEdit ? el("button", { class: "small", type: "button", onclick: () => playerAction(s, "whitelist_remove", n) }, t("Quitar")) : null)))
         : el("p", { class: "muted" }, t("Vacía."))),
     bans ? list(t("Baneados"), data.banned || [], (n) => [
       el("button", { class: "small", type: "button", onclick: () => playerAction(s, "pardon", n) }, t("Perdonar"))]) : null,
     el("div", { class: "card" }, el("h2", {}, t("Estadísticas")),
       stats.length ? el("table", { class: "table" },
         el("thead", {}, el("tr", {}, el("th", {}, t("Jugador")), el("th", {}, t("Tiempo")), el("th", {}, t("Veces")), el("th", {}, t("Última vez")))),
-        el("tbody", {}, ...stats.map((r) => el("tr", {}, el("td", {}, r.name), el("td", {}, hours(r.seconds)),
+        el("tbody", {}, ...stats.map((r) => el("tr", {}, el("td", {}, playerName(r.name, data.bedrock_prefix)), el("td", {}, hours(r.seconds)),
           el("td", {}, num(r.sessions)), el("td", {}, when(r.last_seen, r.online))))))
         : el("p", { class: "muted" }, t("Todavía no ha entrado nadie."))));
 }

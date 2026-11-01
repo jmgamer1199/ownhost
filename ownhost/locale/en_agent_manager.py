@@ -52,6 +52,9 @@ STRINGS = {
     "ERROR al arrancar: {error}": "ERROR while starting: {error}",
     "No se pudo comprobar si hay actualizaciones ({error}); se arranca la versión actual.":
         "Couldn't check for updates ({error}); starting the current version.",
+    "El servidor de actualizaciones no responde; se arranca la versión actual y se volverá a "
+    "comprobar la próxima vez.":
+        "The update server isn't responding; starting the current version, it will check again next time.",
     "Hay una versión nueva ({version}). Actualizando antes de encender...":
         "There's a new version ({version}). Updating before starting...",
     "Arrancando: {command}": "Starting: {command}",

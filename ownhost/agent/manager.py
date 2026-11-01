@@ -1,7 +1,6 @@
 import asyncio
 import json
 import logging
-import os
 import re
 import shutil
 import subprocess
@@ -34,6 +33,8 @@ log = logging.getLogger("ownhost.agent")
 
 ANSI = re.compile(r"\x1b\[[0-9;?]*[A-Za-z]")
 STOP_TIMEOUT = 60
+UPDATE_CHECK_WAIT = 8           # seconds the start waits, at most, for the update check
+UPDATE_CHECK_EVERY = 2 * 3600   # starting again within this time doesn't check again
 CONSOLE_LINES = 2000
 
 # Files not worth copying: they are downloaded again on update,
@@ -199,6 +200,7 @@ class Server:
             "auth": self.auth,
             "stats": self.stats(),
             "players_online": sorted(self.online, key=str.lower),
+            "bedrock_prefix": players.bedrock_prefix(self.server_dir, self.meta.extra.get("crossplay")),
             "schedule": schedule_of(self.meta),
             "events": list(self.events)[-10:],
             "map": self.meta.extra.get("map"),
@@ -526,13 +528,34 @@ class ServerManager:
             s.log(tr("ERROR al arrancar: {error}", error=e))
 
     def _auto_update(self, s: Server) -> None:
-        """Before starting: if there is a newer compatible version, backup and install."""
-        try:
-            new = s.game.available_update(s.meta, self.tools_dir)
-        except Exception as e:  # noqa: BLE001 - no internet, API down...: start anyway
-            s.log(tr("No se pudo comprobar si hay actualizaciones ({error}); se arranca la versión actual.",
-                     error=e))
+        """Before starting: if there is a newer compatible version, backup and install.
+
+        The check never delays the start by more than UPDATE_CHECK_WAIT seconds (a download server that
+        is down used to hold the start for a whole minute), and is done at most every UPDATE_CHECK_EVERY."""
+        if time.time() - s.meta.extra.get("update_checked_at", 0) < UPDATE_CHECK_EVERY:
             return
+        result: dict = {}
+
+        def check() -> None:
+            try:
+                result["new"] = s.game.available_update(s.meta, self.tools_dir)
+            except Exception as e:  # noqa: BLE001 - no internet, API down...: start anyway
+                result["error"] = e
+
+        checker = threading.Thread(target=check, daemon=True)
+        checker.start()
+        checker.join(UPDATE_CHECK_WAIT)
+        if checker.is_alive():
+            s.log(tr("El servidor de actualizaciones no responde; se arranca la versión actual y se volverá a "
+                     "comprobar la próxima vez."))
+            return
+        if "error" in result:
+            s.log(tr("No se pudo comprobar si hay actualizaciones ({error}); se arranca la versión actual.",
+                     error=result["error"]))
+            return
+        s.meta.extra["update_checked_at"] = time.time()
+        s.save()
+        new = result.get("new")
         if not new:
             return
         s.task = "updating"
@@ -753,7 +776,8 @@ class ServerManager:
         if s.game.id not in ("minecraft", "bedrock"):
             raise UserError(tr("La gestión de jugadores está disponible en Minecraft Java y Bedrock"))
         return {**players.lists(s.game.id, s.server_dir), "online": sorted(s.online, key=str.lower),
-                "pending": s.meta.extra.get("pending_players", [])}
+                "pending": s.meta.extra.get("pending_players", []),
+                "bedrock_prefix": players.bedrock_prefix(s.server_dir, s.meta.extra.get("crossplay"))}
 
     def player_action(self, server_id: str, action: str, name: str = "") -> str:
         s = self.get(server_id)
