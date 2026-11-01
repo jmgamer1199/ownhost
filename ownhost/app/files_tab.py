@@ -1,12 +1,12 @@
 """“Files” tab: edit the mod and plugin configuration without opening the server folder."""
 
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QFontDatabase
 from PySide6.QtWidgets import (
     QHBoxLayout, QLabel, QMessageBox, QPlainTextEdit, QPushButton, QSplitter, QTreeWidget, QTreeWidgetItem,
     QVBoxLayout, QWidget,
 )
 
+from ownhost.app import theme
 from ownhost.app.client import AgentClient
 from ownhost.app.tasks import run_async
 from ownhost.i18n import tr
@@ -32,7 +32,7 @@ class FilesTab(QWidget):
         self.title = QLabel(tr("Elige un archivo de la izquierda"))
         self.editor = QPlainTextEdit()
         self.editor.setObjectName("console")
-        self.editor.setFont(QFontDatabase.systemFont(QFontDatabase.SystemFont.FixedFont))
+        self.editor.setFont(theme.mono_font(9.5))
         self.editor.setLineWrapMode(QPlainTextEdit.LineWrapMode.NoWrap)
         self.editor.setEnabled(False)
         self.editor.textChanged.connect(self._changed)

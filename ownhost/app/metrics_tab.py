@@ -16,13 +16,13 @@ from ownhost.app.client import AgentClient
 from ownhost.app.tasks import run_async
 from ownhost.i18n import language, tr
 
-SERIES = QColor("#0b7fc0")       # validated: contrast >= 3:1 on SURFACE
-SURFACE = QColor("#f4fbff")
-GRID = QColor(6, 50, 74, 28)
+SERIES = QColor(theme.ACCENT)    # cyan: contrast >= 3:1 on SURFACE
+SURFACE = QColor(theme.PANEL)
+GRID = QColor(255, 255, 255, 26)
 TEXT = QColor(theme.TEXT)
 TEXT_SOFT = QColor(theme.TEXT_SOFT)
-WARNING = QColor("#fab219")
-CRITICAL = QColor("#d03b3b")
+WARNING = QColor(theme.WARN)
+CRITICAL = QColor(theme.BAD)
 RANGES = [(1, "1 h"), (6, "6 h"), (24, "24 h")]
 
 
@@ -112,7 +112,7 @@ class LineChart(QWidget):
         p.setRenderHint(QPainter.RenderHint.Antialiasing)
         p.setPen(Qt.PenStyle.NoPen)
         p.setBrush(SURFACE)
-        p.drawRoundedRect(QRectF(self.rect()).adjusted(0.5, 0.5, -0.5, -0.5), 8, 8)
+        p.drawRect(QRectF(self.rect()).adjusted(0.5, 0.5, -0.5, -0.5))
         plot = self._plot()
         if plot.width() < 40 or plot.height() < 30:
             return
@@ -214,8 +214,8 @@ class LineChart(QWidget):
             if box.right() > self.width() - 4:
                 box.moveRight(pt.x() - 10)
             p.setPen(QPen(GRID, 1))
-            p.setBrush(QColor(255, 255, 255, 245))
-            p.drawRoundedRect(box, 5, 5)
+            p.setBrush(QColor(theme.RAISED))
+            p.drawRect(box)
             p.setPen(TEXT)
             p.drawText(box, Qt.AlignmentFlag.AlignCenter, text)
 
@@ -271,9 +271,9 @@ class Meter(QWidget):
         track.setAlphaF(0.18)
         p.setPen(Qt.PenStyle.NoPen)
         p.setBrush(track)
-        p.drawRoundedRect(r, 5, 5)
+        p.drawRect(r)
         p.setBrush(self.color())
-        p.drawRoundedRect(QRectF(r.left(), r.top(), max(r.height(), r.width() * self.fraction), r.height()), 5, 5)
+        p.drawRect(QRectF(r.left(), r.top(), r.width() * self.fraction, r.height()))
 
 
 def _tile(label: str) -> tuple[QWidget, QLabel, QLabel]:

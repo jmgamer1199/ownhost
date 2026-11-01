@@ -10,6 +10,7 @@ from PySide6.QtWidgets import (
 from ownhost.agent import DEFAULT_PORT
 from ownhost import i18n
 from ownhost.i18n import tr
+from ownhost.app import theme
 from ownhost.app.client import AgentClient
 from ownhost.app.hosts import Host
 from ownhost.app.memory import MemoryAdvice, count_modpack_mods
@@ -628,7 +629,7 @@ class ImportWorldDialog(QDialog):
         self.include_mods.setVisible(False)
         self.buttons.button(QDialogButtonBox.StandardButton.Ok).setEnabled(False)
         run_async(lambda: inspect_world(path), self._loaded,
-                  lambda msg: self.info.setText(f"<span style='color:#ff9a8f'>{msg}</span>"))
+                  lambda msg: self.info.setText(f"<span style='color:{theme.DANGER_TEXT}'>{msg}</span>"))
 
     def _loaded(self, source: WorldSource) -> None:
         self.source = source

@@ -11,69 +11,50 @@ import sys
 from pathlib import Path
 
 from PySide6.QtCore import QBuffer, QByteArray, QIODevice, QPointF, QRectF, Qt
-from PySide6.QtGui import (
-    QColor, QGuiApplication, QImage, QLinearGradient, QPainter, QPainterPath, QPen, QRadialGradient,
-)
+from PySide6.QtGui import QColor, QGuiApplication, QImage, QPainter, QPainterPath, QPen
 
 ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(ROOT))
-from ownhost.app.theme import _leaf_with_drops  # noqa: E402  (the same leaf as the app's background)
-
 OUT = ROOT / "ownhost" / "app" / "assets"
+
+BG = QColor("#0a0a0a")
+EDGE = QColor("#2a2a2a")
+UNIT = QColor("#1a1a1a")
+VENT = QColor("#333333")
+CYAN = QColor("#22d3ee")
+GREEN = QColor("#4ade80")
+RED = QColor("#ff5c5c")
 
 
 def draw(size: int) -> QImage:
-    """Frutiger Aero icon: sky, meadow and a leaf with dew drops under a glass shine."""
+    """Three server units on black, square corners: the top one selected (cyan edge) and running
+    (green light), the other two stopped (red lights)."""
     img = QImage(size, size, QImage.Format.Format_ARGB32)
     img.fill(Qt.GlobalColor.transparent)
     p = QPainter(img)
-    p.setRenderHint(QPainter.RenderHint.Antialiasing)
     s = size / 256
+    small = size <= 32  # at taskbar size: no vents and thicker units, so it stays readable
 
-    tile = QRectF(10 * s, 10 * s, 236 * s, 236 * s)
-    clip = QPainterPath()
-    clip.addRoundedRect(tile, 60 * s, 60 * s)
     p.setPen(Qt.PenStyle.NoPen)
-    base = QLinearGradient(0, tile.top(), 0, tile.bottom())
-    base.setColorAt(0, QColor("#0563c9"))
-    base.setColorAt(0.6, QColor("#4fb8f5"))
-    base.setColorAt(1, QColor("#d9f4ff"))
-    p.setBrush(base)
-    p.drawPath(clip)
-    p.setClipPath(clip)
-    meadow = QPainterPath(QPointF(0, 256 * s))
-    meadow.lineTo(0, 190 * s)
-    meadow.cubicTo(QPointF(80 * s, 165 * s), QPointF(170 * s, 205 * s), QPointF(256 * s, 178 * s))
-    meadow.lineTo(256 * s, 256 * s)
-    grass = QLinearGradient(0, 165 * s, 0, 256 * s)
-    grass.setColorAt(0, QColor("#d6f75f"))
-    grass.setColorAt(1, QColor("#2f8f1f"))
-    p.setBrush(grass)
-    p.drawPath(meadow)
+    margin = 0 if small else 8
+    p.fillRect(QRectF(margin * s, margin * s, (256 - 2 * margin) * s, (256 - 2 * margin) * s), BG)
+    if not small:
+        p.setPen(QPen(EDGE, max(1.0, 2 * s)))
+        p.drawRect(QRectF(margin * s, margin * s, (256 - 2 * margin) * s, (256 - 2 * margin) * s))
+        p.setPen(Qt.PenStyle.NoPen)
 
-    _leaf_with_drops(p, QPointF(36 * s, 210 * s), 200 * s, -42)
-
-    # Small bubbles
-    for cx, cy, r in ((62, 70, 13), (196, 186, 10), (78, 196, 7)):
-        g = QRadialGradient(QPointF(cx * s, cy * s), r * s)
-        g.setColorAt(0, QColor(255, 255, 255, 30))
-        g.setColorAt(0.85, QColor(255, 255, 255, 120))
-        g.setColorAt(1, QColor(255, 255, 255, 0))
-        p.setBrush(g)
-        p.drawEllipse(QPointF(cx * s, cy * s), r * s, r * s)
-
-    # Droplet shine on the top half
-    shine = QPainterPath()
-    shine.addRoundedRect(QRectF(18 * s, 16 * s, 220 * s, 108 * s), 54 * s, 54 * s)
-    gloss = QLinearGradient(0, 16 * s, 0, 124 * s)
-    gloss.setColorAt(0, QColor(255, 255, 255, 170))
-    gloss.setColorAt(1, QColor(255, 255, 255, 8))
-    p.setBrush(gloss)
-    p.drawPath(shine)
-    p.setClipping(False)
-    p.setBrush(Qt.BrushStyle.NoBrush)
-    p.setPen(QPen(QColor(255, 255, 255, 220), 2.5 * s))
-    p.drawRoundedRect(tile.adjusted(1 * s, 1 * s, -1 * s, -1 * s), 59 * s, 59 * s)
+    left, width = (36, 184) if small else (52, 152)
+    height, step, top = (52, 64, 34) if small else (36, 48, 62)
+    for i, light in enumerate((GREEN, RED, RED)):
+        y = top + i * step
+        p.fillRect(QRectF(left * s, y * s, width * s, height * s), UNIT)
+        p.fillRect(QRectF(left * s, y * s, (14 if small else 8) * s, height * s),
+                   CYAN if i == 0 else QColor("#3a3a3a"))
+        if not small:
+            for k in range(4):
+                p.fillRect(QRectF((76 + k * 18) * s, (y + 13) * s, 10 * s, 10 * s), VENT)
+        dot = 22 if small else 12
+        p.fillRect(QRectF((left + width - dot - (14 if small else 14)) * s, (y + (height - dot) / 2) * s,
+                          dot * s, dot * s), light)
     p.end()
     return img
 
@@ -104,8 +85,8 @@ def _stroke(points: list[tuple[float, float]], color: QColor, width: float) -> Q
     p = QPainter(img)
     p.setRenderHint(QPainter.RenderHint.Antialiasing)
     pen = QPen(color, width)
-    pen.setCapStyle(Qt.PenCapStyle.RoundCap)
-    pen.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
+    pen.setCapStyle(Qt.PenCapStyle.SquareCap)
+    pen.setJoinStyle(Qt.PenJoinStyle.MiterJoin)
     p.setPen(pen)
     path = QPainterPath(QPointF(*points[0]))
     for pt in points[1:]:
@@ -120,8 +101,8 @@ if __name__ == "__main__":
     OUT.mkdir(parents=True, exist_ok=True)
     draw(256).save(str(OUT / "icon.png"))
     write_ico(OUT / "icon.ico", [16, 24, 32, 48, 64, 128, 256])
-    ink = QColor("#0b5d73")
-    _stroke([(6, 10), (16, 22), (26, 10)], ink, 4.5).save(str(OUT / "arrow-down.png"))
-    _stroke([(6, 22), (16, 10), (26, 22)], ink, 4.5).save(str(OUT / "arrow-up.png"))
-    _stroke([(6, 17), (13, 24), (26, 8)], QColor("#0d3b12"), 4.5).save(str(OUT / "check.png"))
+    ink = QColor("#a3a3a3")
+    _stroke([(7, 11), (16, 21), (25, 11)], ink, 3.5).save(str(OUT / "arrow-down.png"))
+    _stroke([(7, 21), (16, 11), (25, 21)], ink, 3.5).save(str(OUT / "arrow-up.png"))
+    _stroke([(6, 17), (13, 24), (26, 8)], QColor("#0a0a0a"), 4.5).save(str(OUT / "check.png"))
     print(f"Graphics generated in {OUT}")

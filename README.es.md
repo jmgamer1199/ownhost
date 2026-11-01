@@ -294,7 +294,7 @@ Si Ownhost está abierto, el `.exe` en uso se aparta como `.old` y se borra en l
 
 **Clave de CurseForge (opcional):** si pones tu clave en un archivo `curseforge.key` en la raíz (o en la variable `CURSEFORGE_API_KEY`), se incluye ofuscada en los binarios y los usuarios no tienen que conseguir la suya. Es ofuscación, no cifrado: alguien con tiempo podría sacarla, así que no la incluyas en binarios que vayas a publicar. Ese archivo está en `.gitignore`: no lo subas nunca.
 
-Otros scripts: `scripts\install-windows.ps1` instala el entorno para ejecutar desde el código en Windows, `scripts/install-agent-linux.sh` instala el agente como servicio en Linux usando Python, `scripts/generate_icon.py` vuelve a dibujar el icono y los gráficos del tema, y `scripts/check_translations.py` comprueba que todos los textos de `tr()` tienen traducción al inglés.
+Otros scripts: `scripts\install-windows.ps1` instala el entorno para ejecutar desde el código en Windows, `scripts/install-agent-linux.sh` instala el agente como servicio en Linux usando Python, `scripts/generate_icon.py` vuelve a dibujar el icono y los gráficos del tema, `scripts/generate_ascii.py` vuelve a dibujar el paisaje ASCII de la ficha del equipo, y `scripts/check_translations.py` comprueba que todos los textos de `tr()` tienen traducción al inglés.
 
 **Textos de la interfaz:** se escriben en español con `tr("Texto en español")` y su traducción al inglés va en `ownhost/locale/en_*.py`. Ejecuta `python scripts/check_translations.py` antes de publicar: avisa de los textos sin traducir.
 
@@ -367,3 +367,5 @@ Crea una clase en `ownhost/agent/games/` que herede de `GameAdapter`, implementa
 ## Licencia
 
 Ownhost es software libre bajo la [GPL-3.0](LICENSE): puedes usarlo, estudiarlo, modificarlo y compartirlo. Si publicas una versión modificada, tiene que seguir siendo libre y con la misma licencia.
+
+La app incluye las fuentes Cascadia Mono y Geist, las dos con licencia SIL Open Font License (textos en `ownhost/app/assets/fonts`).

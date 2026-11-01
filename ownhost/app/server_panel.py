@@ -3,11 +3,11 @@
 from pathlib import Path
 
 from PySide6.QtCore import QBuffer, QByteArray, QIODevice, Qt, QTime, QTimer, QUrl
-from PySide6.QtGui import QDesktopServices, QFontDatabase, QImage, QPixmap, QTextCursor
+from PySide6.QtGui import QDesktopServices, QImage, QPixmap, QTextCursor
 from PySide6.QtWebSockets import QWebSocket
 from PySide6.QtWidgets import (
     QAbstractItemView, QCheckBox, QComboBox, QFileDialog, QFormLayout, QFrame, QHBoxLayout, QHeaderView, QLabel, QLineEdit,
-    QInputDialog, QMenu, QMessageBox, QPlainTextEdit, QProgressDialog, QPushButton, QScrollArea, QSpinBox, QStyle, QTableWidget,
+    QInputDialog, QMenu, QMessageBox, QPlainTextEdit, QProgressDialog, QPushButton, QScrollArea, QSpinBox, QTableWidget,
     QTableWidgetItem, QTimeEdit,
     QTabWidget, QVBoxLayout, QWidget,
 )
@@ -90,7 +90,6 @@ class ServerPanel(QWidget):
         move_menu.setToolTipsVisible(True)
         self.btn_move.setMenu(move_menu)
         self.btn_folder = QPushButton(tr("Abrir carpeta"))
-        self.btn_folder.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_DirOpenIcon))
         self.btn_folder.clicked.connect(self._open_folder)
         self.btn_world = QPushButton(tr("Mundo"))
         self.btn_world.setProperty("menu", True)
@@ -179,7 +178,7 @@ class ServerPanel(QWidget):
         self.console = QPlainTextEdit(readOnly=True)
         self.console.setObjectName("console")
         self.console.setMaximumBlockCount(3000)
-        self.console.setFont(QFontDatabase.systemFont(QFontDatabase.SystemFont.FixedFont))
+        self.console.setFont(theme.mono_font(9.5))
         self.console.setLineWrapMode(QPlainTextEdit.LineWrapMode.WidgetWidth)
         self.command = QLineEdit()
         self.command.setPlaceholderText(tr("Escribe un comando (p. ej. say hola, op TuNombre) y pulsa Enter"))
@@ -210,7 +209,7 @@ class ServerPanel(QWidget):
         self.icon_preview = QLabel()
         self.icon_preview.setFixedSize(64, 64)
         self.icon_preview.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.icon_preview.setStyleSheet("border: 1px solid rgba(6,50,74,40); border-radius: 6px;")
+        self.icon_preview.setStyleSheet(f"border: 1px solid {theme.LINE_STRONG};")
         icon_change = QPushButton(tr("Cambiar icono..."))
         icon_change.clicked.connect(self._choose_icon)
         self.icon_remove = QPushButton(tr("Quitar"))

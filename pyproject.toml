@@ -32,5 +32,5 @@ ownhost = "ownhost.app.__main__:main"
 include = ["ownhost*"]
 
 [tool.setuptools.package-data]
-"ownhost.app" = ["assets/*"]
+"ownhost.app" = ["assets/*", "assets/fonts/*"]
 "ownhost.agent" = ["web/*"]

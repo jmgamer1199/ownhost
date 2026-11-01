@@ -1,6 +1,6 @@
 import httpx
-from PySide6.QtCore import QRect, Qt, QTimer
-from PySide6.QtGui import QBrush, QColor, QIcon, QPixmap
+from PySide6.QtCore import QPointF, QRect, Qt, QTimer
+from PySide6.QtGui import QBrush, QColor, QFontMetrics, QIcon, QPainter, QPixmap
 from PySide6.QtWidgets import (
     QApplication, QHBoxLayout, QListWidget, QListWidgetItem, QLabel, QMainWindow, QMenu, QMessageBox, QPushButton, QSplitter, QStackedWidget,
     QStyle, QStyledItemDelegate, QStyleOptionViewItem, QTreeWidget, QTreeWidgetItem, QVBoxLayout, QWidget,
@@ -34,11 +34,16 @@ SCAN_MS = 30000
 ROLE = Qt.ItemDataRole.UserRole
 
 
+STATE_ROLE = Qt.ItemDataRole.UserRole + 1  # (colour, state label) of a server row
+
+
 class IndentedServers(QStyledItemDelegate):
-    """Servers, slightly indented under their computer, with their icon after the indent.
+    """Servers, slightly indented under their computer: a dot in the colour of their state, their icon,
+    the name, and the state in small capitals on the right.
     (The tree's own indentation would also paint the selection in the gap on the left.)"""
 
-    INDENT = 18
+    INDENT = 14
+    DOT = 7
 
     def paint(self, painter, option, index) -> None:
         if not index.parent().isValid():
@@ -49,17 +54,35 @@ class IndentedServers(QStyledItemDelegate):
         icon = QIcon(opt.icon)  # copy: opt.icon is the same object that is cleared below
         opt.icon = QIcon()
         opt.features &= ~QStyleOptionViewItem.ViewItemFeature.HasDecoration
+        color, state = index.data(STATE_ROLE) or (theme.OFFLINE, "")
+        state_font = theme.mono_font(7.5)
+        state_width = QFontMetrics(state_font).horizontalAdvance(state.upper()) + 10 if state else 0
         # Same room for the icon even if the server has none: keeps the names aligned.
-        offset = self.INDENT + opt.decorationSize.width() + 6
+        offset = self.INDENT + self.DOT + 8 + opt.decorationSize.width() + 6
         space = max(1, opt.fontMetrics.horizontalAdvance(" "))
-        opt.text = " " * round(offset / space) + opt.text
+        name_room = opt.rect.width() - offset - state_width - 12
+        opt.text = " " * round(offset / space) + opt.fontMetrics.elidedText(
+            opt.text, Qt.TextElideMode.ElideRight, max(20, name_room))
         widget = opt.widget
         (widget.style() if widget else QApplication.style()).drawControl(
             QStyle.ControlElement.CE_ItemViewItem, opt, painter, widget)
+        painter.save()
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.setBrush(QColor(color))
+        center_y = opt.rect.center().y() + 1
+        painter.drawEllipse(QPointF(opt.rect.left() + 8 + self.INDENT + self.DOT / 2, center_y), self.DOT / 2,
+                            self.DOT / 2)
+        if state:
+            painter.setFont(state_font)
+            painter.setPen(QColor(color))
+            painter.drawText(opt.rect.adjusted(0, 0, -10, 0),
+                             Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter, state.upper())
+        painter.restore()
         if not icon.isNull():
             size = opt.decorationSize
-            rect = QRect(opt.rect.left() + 8 + self.INDENT, opt.rect.center().y() - size.height() // 2 + 1,
-                         size.width(), size.height())
+            rect = QRect(opt.rect.left() + 8 + self.INDENT + self.DOT + 8,
+                         opt.rect.center().y() - size.height() // 2 + 1, size.width(), size.height())
             icon.paint(painter, rect)
 
 
@@ -117,22 +140,28 @@ class MainWindow(QMainWindow):
     # ---------- interface ----------
 
     def _build_ui(self) -> None:
-        # Top bar over the sky itself: logo and glass pill buttons.
+        # Top bar: logo, name and version on the left; the main actions on the right.
         top = QHBoxLayout()
-        top.setSpacing(10)
+        top.setSpacing(8)
         logo = QLabel()
         logo.setPixmap(QPixmap(str(ASSETS / "icon.png")).scaled(
-            38, 38, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
-        app_title = QLabel("Ownhost")
+            26, 26, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
+        app_title = QLabel("OWNHOST")
         app_title.setObjectName("appTitle")
+        version = QLabel(f"v{BUILD}" if BUILD != "dev" else "dev")
+        version.setObjectName("panelTitle")
         top.addWidget(logo)
+        top.addSpacing(4)
         top.addWidget(app_title)
+        top.addWidget(version, 0, Qt.AlignmentFlag.AlignBottom)
         top.addStretch()
-        for text, slot in ((tr("＋  Nuevo servidor"), self.new_server),
-                           (tr("Conectar a un equipo"), self.add_host),
-                           (tr("Ajustes"), self._settings)):
+        for text, slot, kind in ((tr("＋  Nuevo servidor"), self.new_server, "primary"),
+                                 (tr("Conectar a un equipo"), self.add_host, None),
+                                 (tr("Ajustes"), self._settings, None)):
             button = QPushButton(text)
             button.setObjectName("top")
+            if kind:
+                button.setProperty("kind", kind)
             button.clicked.connect(slot)
             top.addWidget(button)
 
@@ -159,9 +188,9 @@ class MainWindow(QMainWindow):
         for w in (self.welcome, self.host_page, self.server_panel):
             self.stack.addWidget(w)
 
-        # Sky background with two glass panels: computers on the left, details on the right.
+        # Black background with two panels: computers on the left, details on the right.
         splitter = QSplitter()
-        self.detected_title = QLabel(tr("Detectados en tu red"))
+        self.detected_title = QLabel(tr("Detectados en tu red").upper())
         self.detected_title.setObjectName("panelTitle")
         self.detected_list = QListWidget()
         self.detected_list.setObjectName("detected")
@@ -177,14 +206,14 @@ class MainWindow(QMainWindow):
         left_layout.addWidget(self.detected_list)
         splitter.addWidget(theme.glass(left, tr("Equipos y servidores")))
         splitter.addWidget(theme.glass(self.stack, margins=18))
-        splitter.setHandleWidth(22)  # clear gap between the two panels
+        splitter.setHandleWidth(12)  # gap between the two panels
         splitter.setChildrenCollapsible(False)
         splitter.setStretchFactor(1, 1)
         splitter.setSizes([290, 860])
         background = theme.Backdrop()
         layout = QVBoxLayout(background)
-        layout.setContentsMargins(22, 14, 22, 22)
-        layout.setSpacing(16)
+        layout.setContentsMargins(14, 10, 14, 14)
+        layout.setSpacing(10)
         layout.addLayout(top)
         layout.addWidget(splitter, 1)
         self.setCentralWidget(background)
@@ -223,6 +252,7 @@ class MainWindow(QMainWindow):
         layout.addWidget(text)
         layout.addLayout(row)
         layout.addStretch()
+        layout.addWidget(theme.ascii_landscape())
         return w
 
     def _build_host_page(self) -> QWidget:
@@ -285,6 +315,7 @@ class MainWindow(QMainWindow):
         layout.addLayout(row)
         layout.addLayout(manage)
         layout.addStretch()
+        layout.addWidget(theme.ascii_landscape())
         return w
 
     # ---------- tree ----------
@@ -366,8 +397,8 @@ class MainWindow(QMainWindow):
                 child.setData(0, ROLE, (host_id, sid))
                 item.addChild(child)
             label, _ = STATUS.get(s["status"], (s["status"], ""))
-            child.setText(0, f"●  {s['name']}")
-            child.setForeground(0, QBrush(QColor(theme.STATUS_DOT.get(s["status"], theme.OFFLINE))))
+            child.setText(0, s["name"])
+            child.setData(0, STATE_ROLE, (theme.STATUS_DOT.get(s["status"], theme.OFFLINE), tr(label)))
             child.setToolTip(0, f"{s['game_name']} {s['version']} · {tr(label)}")
             self._update_server_icon(host_id, s, child)
 

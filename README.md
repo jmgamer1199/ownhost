@@ -302,7 +302,7 @@ If Ownhost is open, the `.exe` in use is moved aside as `.old` and deleted on th
 
 **CurseForge key (optional):** if you put your key in a `curseforge.key` file at the root (or in the `CURSEFORGE_API_KEY` variable), it's embedded, obfuscated, in the binaries so users don't need to get their own. It's obfuscation, not encryption: someone with time could extract it, so don't include it in binaries you're going to publish. That file is in `.gitignore`: never commit it.
 
-Other scripts: `scripts\install-windows.ps1` sets up the environment to run from source on Windows, `scripts/install-agent-linux.sh` installs the agent as a service on Linux using Python, `scripts/generate_icon.py` redraws the icon and the theme graphics, and `scripts/check_translations.py` checks the translations (see [Translations](#translations)).
+Other scripts: `scripts\install-windows.ps1` sets up the environment to run from source on Windows, `scripts/install-agent-linux.sh` installs the agent as a service on Linux using Python, `scripts/generate_icon.py` redraws the icon and the theme graphics, `scripts/generate_ascii.py` redraws the ASCII landscape of the computer page, and `scripts/check_translations.py` checks the translations (see [Translations](#translations)).
 
 ### Publishing a release
 
@@ -373,3 +373,5 @@ Create a class in `ownhost/agent/games/` that inherits from `GameAdapter`, imple
 ## License
 
 Ownhost is free software under the [GPL-3.0](LICENSE): you can use, study, modify and share it. If you publish a modified version, it must remain free and under the same license.
+
+The app includes the Cascadia Mono and Geist fonts, both under the SIL Open Font License (texts in `ownhost/app/assets/fonts`).

@@ -1,104 +1,101 @@
-"""Frutiger Aero visual theme, in the style of Windows Vista / 7.
+"""Visual theme: black, square corners, a monospaced font for labels and numbers and a sans-serif one
+for reading, cyan as the app's colour and green / amber / red only for server states.
 
-Blue sky with clouds, a sunlit meadow, a tree and a leaf with water drops;
-well-spaced translucent glass panels and glossy pill buttons.
+Fonts (SIL Open Font License, in assets/fonts): Cascadia Mono and Geist.
 """
 
-import math
-import random
 import sys
 
-from PySide6.QtCore import QEvent, QObject, QPoint, QPointF, QRectF, QSize, QSizeF, Qt
-from PySide6.QtGui import (
-    QColor, QFont, QLinearGradient, QPainter, QPainterPath, QPalette, QPen, QPixmap, QRadialGradient,
-)
+from PySide6.QtCore import QEvent, QObject, Qt
+from PySide6.QtGui import QColor, QFont, QFontDatabase, QPainter, QPalette
 from PySide6.QtWidgets import (
-    QAbstractScrollArea, QAbstractSpinBox, QApplication, QComboBox, QFrame, QLabel, QVBoxLayout, QWidget,
+    QAbstractScrollArea, QAbstractSpinBox, QApplication, QComboBox, QFrame, QLabel, QPushButton, QTabBar,
+    QToolButton, QVBoxLayout, QWidget,
 )
 
 from ownhost.app import ASSETS
 
-TEXT = "#06324a"          # navy blue: readable on light glass
-TEXT_SOFT = "#2f5f78"
-AQUA = "#1aa7e8"
-DANGER_TEXT = "#b42318"
-DISABLED = "rgba(6, 50, 74, 90)"
+# ---- palette (the same as the web panel) ----
+CONSOLE = "#050505"
+BG = "#0a0a0a"
+PANEL = "#0d0d0d"
+RAISED = "#1a1a1a"
+LINE = "#2a2a2a"
+LINE_STRONG = "#3a3a3a"
+DECOR = "#6b6b6b"        # decoration only: below 4.5:1 for small text
+TEXT_FAINT = "#8a8a8a"
+TEXT_SOFT = "#a3a3a3"
+TEXT = "#ededed"
 
-OFFLINE = "#6f8fa3"
-STATUS_DOT = {
-    "stopped": "#6f8fa3", "starting": "#d99a00", "running": "#16a34a", "stopping": "#d99a00",
-    "crashed": "#dc2626", "installing": AQUA, "updating": AQUA, "backing-up": AQUA,
-    "restoring": AQUA, "importing": AQUA, "installing-mod": AQUA, "cloning": AQUA,
+ACCENT = "#22d3ee"       # cyan: main buttons, active tab, selection, usage bars
+ACCENT_HOVER = "#67e8f9"
+ACCENT_DARK = "#062a33"
+GOOD = "#4ade80"         # green: running, online
+GOOD_DARK = "#0f2a19"
+WARN = "#f5a524"         # amber: starting, stopping, warnings
+WARN_DARK = "#2e1f05"
+BAD = "#ff5c5c"          # red: stopped, crashed, delete, errors
+BAD_DARK = "#2e0b0b"
+
+DANGER_TEXT = BAD
+DISABLED = "#5a5a5a"
+OFFLINE = TEXT_FAINT
+
+MONO = "Cascadia Mono"
+SANS = "Geist"
+
+STATUS_COLORS = {  # status -> (text and border, background)
+    "running": (GOOD, GOOD_DARK),
+    "stopped": (BAD, BAD_DARK),
+    "crashed": (BAD, BAD_DARK),
+    "starting": (WARN, WARN_DARK),
+    "stopping": (WARN, WARN_DARK),
 }
-
-
-def _gloss(top, upper, lower, bottom) -> str:
-    # Vista gloss: almost white top half, sharp cut at mid-height and a saturated base.
-    return (f"qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 {top}, stop:0.48 {upper}, "
-            f"stop:0.5 {lower}, stop:1 {bottom})")
-
-
-BTN = _gloss("rgba(255,255,255,245)", "rgba(232,246,255,225)", "rgba(178,224,250,215)", "rgba(222,243,255,230)")
-BTN_HOVER = _gloss("#ffffff", "rgba(240,250,255,240)", "rgba(140,210,250,230)", "rgba(205,238,255,240)")
-BTN_PRESSED = _gloss("rgba(200,232,250,240)", "rgba(170,218,245,235)", "rgba(110,190,240,235)", "rgba(170,222,250,235)")
-PRIMARY = _gloss("#f3ffe9", "#bff0a0", "#52c234", "#9be47a")
-PRIMARY_HOVER = _gloss("#ffffff", "#cdf5b3", "#3fb51f", "#8cdc66")
-DANGER = _gloss("#fff2ef", "#ffcfc4", "#ee6a4f", "#f9ad9a")
-DANGER_HOVER = _gloss("#ffffff", "#ffdad1", "#e65233", "#f79c85")
-SELECTED = _gloss("rgba(255,255,255,250)", "rgba(214,240,255,240)", "rgba(120,200,250,230)", "rgba(190,232,255,240)")
-# Panel glass: translucent so the landscape shows through, with a gloss on top.
-GLASS = ("qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 rgba(255,255,255,170), stop:0.12 rgba(240,250,255,120), "
-         "stop:1 rgba(215,238,255,105))")
-ROW = "rgba(255,255,255,95)"
+BUSY_COLORS = (ACCENT, ACCENT_DARK)  # installing, updating, backing up...
+STATUS_DOT = {status: colors[0] for status, colors in STATUS_COLORS.items()}
+for _busy in ("installing", "updating", "backing-up", "restoring", "importing", "installing-mod", "cloning"):
+    STATUS_DOT[_busy] = ACCENT
 
 STYLESHEET = f"""
 * {{
     color: {TEXT};
-    selection-background-color: rgba(26, 167, 232, 110);
-    selection-color: #021d2c;
+    selection-background-color: {ACCENT};
+    selection-color: {BG};
 }}
-QDialog, QMessageBox, QProgressDialog, QInputDialog {{
-    background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #ffffff, stop:0.45 #e3f4ff, stop:1 #cdeec0);
-}}
-QToolTip {{ color: {TEXT}; background: #f7fcff; border: 1px solid {AQUA}; border-radius: 8px; padding: 4px 6px; }}
+QMainWindow, QDialog, QMessageBox, QProgressDialog, QInputDialog {{ background: {BG}; }}
+QWidget#backdrop {{ background: {BG}; }}
+QToolTip {{ color: {TEXT}; background: {RAISED}; border: 1px solid {LINE_STRONG}; padding: 4px 6px; }}
 QLabel {{ background: transparent; }}
+a {{ color: {ACCENT}; }}
 
-/* ---------- glass panels ---------- */
-QFrame#glass {{
-    background: {GLASS};
-    border: 1px solid rgba(255, 255, 255, 230);
-    border-radius: 22px;
-}}
-QLabel#panelTitle {{ color: {TEXT_SOFT}; font-weight: 600; padding: 2px 6px; }}
-QLabel#title {{ color: #032a40; font-family: "Segoe UI Light", "Segoe UI"; font-size: 24pt; }}
-QLabel#appTitle {{ color: #ffffff; font-family: "Segoe UI Light", "Segoe UI"; font-size: 17pt; }}
+/* ---------- panels ---------- */
+QFrame#glass {{ background: {PANEL}; border: 1px solid {LINE}; }}
+QLabel#panelTitle {{ color: {TEXT_FAINT}; font-family: "{MONO}"; font-size: 8pt; padding: 2px 2px 6px 2px; }}
+QLabel#title {{ color: {TEXT}; font-family: "{SANS}"; font-size: 22pt; font-weight: 700; }}
+QLabel#appTitle {{ color: {TEXT}; font-family: "{MONO}"; font-size: 11pt; font-weight: 700; }}
 QLabel#subtitle, QLabel#muted {{ color: {TEXT_SOFT}; }}
-QLabel#error {{ color: {DANGER_TEXT}; }}
-QLabel#accent {{ color: #0369a1; }}
+QLabel#error {{ color: {BAD}; }}
+QLabel#accent {{ color: {ACCENT}; }}
+QLabel#ascii {{ color: {DECOR}; font-family: "{MONO}"; }}
 
-/* ---------- top bar over the sky ---------- */
-QPushButton#top {{
-    background: {BTN}; border: 1px solid rgba(255,255,255,240); border-radius: 17px; padding: 7px 20px;
-    color: {TEXT}; font-weight: 600;
-}}
-QPushButton#top:hover {{ background: {BTN_HOVER}; border-color: #ffffff; }}
-QPushButton#top:pressed {{ background: {BTN_PRESSED}; }}
-
-/* ---------- pill buttons ---------- */
+/* ---------- buttons: square, outlined; the main one in cyan ---------- */
 QPushButton {{
-    background: {BTN}; border: 1px solid rgba(70, 150, 200, 170); border-radius: 15px;
-    padding: 6px 18px; min-height: 18px; color: {TEXT};
+    background: transparent; border: 1px solid {LINE_STRONG}; border-radius: 0;
+    padding: 6px 14px; min-height: 18px; color: {TEXT};
 }}
-QPushButton:hover {{ background: {BTN_HOVER}; border-color: #2a9be0; }}
-QPushButton:pressed {{ background: {BTN_PRESSED}; }}
-QPushButton:default {{ border: 1px solid #1f8fd6; }}
-QPushButton:disabled {{ background: rgba(255,255,255,90); border-color: rgba(120,170,200,100); color: {DISABLED}; }}
-QPushButton[kind="primary"] {{ background: {PRIMARY}; border-color: #3a9e22; color: #0b3a05; font-weight: 600; }}
-QPushButton[kind="primary"]:hover {{ background: {PRIMARY_HOVER}; }}
-QPushButton[kind="danger"] {{ background: {DANGER}; border-color: #d0533a; color: #561208; }}
-QPushButton[kind="danger"]:hover {{ background: {DANGER_HOVER}; }}
+QPushButton:hover {{ background: {RAISED}; border-color: {TEXT_FAINT}; }}
+QPushButton:pressed {{ background: #262626; }}
+QPushButton:focus {{ border-color: {ACCENT}; }}
+QPushButton:disabled {{ color: {DISABLED}; border-color: {LINE}; background: transparent; }}
+QDialog QPushButton:default, QMessageBox QPushButton:default {{ background: {ACCENT}; border-color: {ACCENT}; color: {BG}; }}
+QDialog QPushButton:default:hover {{ background: {ACCENT_HOVER}; }}
+QPushButton[kind="primary"] {{ background: {ACCENT}; border-color: {ACCENT}; color: {BG}; font-weight: 700; }}
+QPushButton[kind="primary"]:hover {{ background: {ACCENT_HOVER}; border-color: {ACCENT_HOVER}; }}
+QPushButton[kind="primary"]:focus {{ border-color: {TEXT}; }}
+QPushButton[kind="danger"] {{ color: {BAD}; border-color: {BAD}; }}
+QPushButton[kind="danger"]:hover {{ background: {BAD_DARK}; }}
 QPushButton[kind="primary"]:disabled, QPushButton[kind="danger"]:disabled {{
-    background: rgba(255,255,255,90); border-color: rgba(120,170,200,100); color: {DISABLED};
+    background: transparent; border-color: {LINE}; color: {DISABLED};
 }}
 QPushButton::menu-indicator {{
     image: url("{{ASSETS}}/arrow-down.png"); width: 9px; height: 9px;
@@ -107,142 +104,174 @@ QPushButton::menu-indicator {{
 QPushButton[menu="true"] {{ padding-right: 28px; }}
 
 /* ---------- fields ---------- */
-QLineEdit, QAbstractSpinBox, QComboBox {{
-    background: rgba(255,255,255,225); border: 1px solid rgba(90, 160, 205, 160); border-radius: 13px;
-    padding: 5px 12px; min-height: 18px;
+QLineEdit, QAbstractSpinBox, QComboBox, QPlainTextEdit, QTextEdit {{
+    background: {PANEL}; border: 1px solid {LINE_STRONG}; border-radius: 0; padding: 5px 10px; min-height: 18px;
 }}
-QLineEdit:hover, QAbstractSpinBox:hover, QComboBox:hover {{ border-color: {AQUA}; }}
-QLineEdit:focus, QAbstractSpinBox:focus, QComboBox:focus {{ border: 1px solid #1f8fd6; background: #ffffff; }}
-QLineEdit:disabled, QAbstractSpinBox:disabled, QComboBox:disabled {{ background: rgba(255,255,255,110); color: {DISABLED}; }}
+QLineEdit:hover, QAbstractSpinBox:hover, QComboBox:hover {{ border-color: {TEXT_FAINT}; }}
+QLineEdit:focus, QAbstractSpinBox:focus, QComboBox:focus, QPlainTextEdit:focus {{ border-color: {ACCENT}; }}
+QLineEdit:disabled, QAbstractSpinBox:disabled, QComboBox:disabled {{ color: {DISABLED}; border-color: {LINE}; }}
 QComboBox {{ padding-right: 28px; }}
 QComboBox::drop-down {{ subcontrol-origin: padding; subcontrol-position: center right; width: 26px; border: none; }}
-QComboBox::down-arrow {{ image: url("{{ASSETS}}/arrow-down.png"); width: 11px; height: 11px; }}
+QComboBox::down-arrow {{ image: url("{{ASSETS}}/arrow-down.png"); width: 10px; height: 10px; }}
 QComboBox QAbstractItemView {{
-    background: #f7fcff; border: 1px solid {AQUA}; outline: none; selection-background-color: rgba(26,167,232,70);
+    background: {RAISED}; border: 1px solid {LINE_STRONG}; outline: none;
+    selection-background-color: {ACCENT}; selection-color: {BG};
 }}
 QAbstractSpinBox {{ padding-right: 24px; }}
 QAbstractSpinBox::up-button, QAbstractSpinBox::down-button {{ subcontrol-origin: border; width: 22px; border: none; background: transparent; }}
 QAbstractSpinBox::up-button {{ subcontrol-position: top right; }}
 QAbstractSpinBox::down-button {{ subcontrol-position: bottom right; }}
-QAbstractSpinBox::up-button:hover, QAbstractSpinBox::down-button:hover {{ background: rgba(26, 167, 232, 45); border-radius: 8px; }}
+QAbstractSpinBox::up-button:hover, QAbstractSpinBox::down-button:hover {{ background: {RAISED}; }}
 QAbstractSpinBox::up-arrow {{ image: url("{{ASSETS}}/arrow-up.png"); width: 9px; height: 9px; }}
 QAbstractSpinBox::down-arrow {{ image: url("{{ASSETS}}/arrow-down.png"); width: 9px; height: 9px; }}
-QCheckBox {{ spacing: 8px; background: transparent; }}
+QCheckBox, QRadioButton {{ spacing: 8px; background: transparent; }}
 QCheckBox::indicator, QAbstractItemView::indicator {{
-    width: 17px; height: 17px; border: 1px solid rgba(70, 150, 200, 190); border-radius: 9px; background: {BTN};
+    width: 14px; height: 14px; border: 1px solid {TEXT_FAINT}; border-radius: 0; background: {PANEL};
 }}
-QCheckBox::indicator:hover, QAbstractItemView::indicator:hover {{ border-color: #1f8fd6; }}
-QCheckBox::indicator:checked, QAbstractItemView::indicator:checked {{ image: url("{{ASSETS}}/check.png"); background: {PRIMARY}; border-color: #3a9e22; }}
+QCheckBox::indicator:hover, QAbstractItemView::indicator:hover {{ border-color: {ACCENT}; }}
+QCheckBox::indicator:checked, QAbstractItemView::indicator:checked {{
+    image: url("{{ASSETS}}/check.png"); background: {ACCENT}; border-color: {ACCENT};
+}}
 QCheckBox:disabled {{ color: {DISABLED}; }}
 
-/* ---------- tabs ---------- */
-QTabWidget::pane {{
-    background: rgba(255,255,255,85); border: 1px solid rgba(255,255,255,210); border-radius: 18px; top: -1px;
-}}
+/* ---------- tabs: text with a cyan line under the active one ---------- */
+QTabWidget::pane {{ background: transparent; border: none; border-top: 1px solid {LINE}; top: -1px; }}
+QTabBar {{ background: transparent; }}
 QTabBar::tab {{
-    background: rgba(255,255,255,105); border: 1px solid rgba(255,255,255,200); border-bottom: none;
-    border-top-left-radius: 13px; border-top-right-radius: 13px;
-    padding: 7px 12px; margin-right: 3px; color: {TEXT_SOFT};
+    background: transparent; border: none; border-bottom: 2px solid transparent;
+    padding: 8px 10px; margin-right: 0; color: {TEXT_SOFT}; font-family: "{MONO}"; font-size: 8.5pt;
 }}
-QTabBar::tab:hover {{ background: rgba(255,255,255,185); color: {TEXT}; }}
-QTabBar::tab:selected {{ background: {BTN}; color: {TEXT}; font-weight: 600; border-color: rgba(70,150,200,170); }}
-QTabBar::tab:disabled {{ color: rgba(47,95,120,90); }}
+QTabBar::tab:hover {{ color: {TEXT}; }}
+QTabBar::tab:selected {{ color: #ffffff; border-bottom: 2px solid {ACCENT}; }}
+QTabBar::tab:disabled {{ color: {DISABLED}; }}
 
-/* ---------- lists: each row is its own glass pill ---------- */
-QTreeWidget, QTableWidget, QListView {{
-    background: rgba(255,255,255,120); border: 1px solid rgba(255,255,255,210); border-radius: 16px;
-    alternate-background-color: rgba(225,243,255,110); gridline-color: rgba(255,255,255,150); outline: none;
+/* ---------- lists and tables ---------- */
+QTreeWidget, QTableWidget, QListView, QListWidget {{
+    background: {PANEL}; border: 1px solid {LINE}; border-radius: 0;
+    alternate-background-color: #111111; gridline-color: {LINE}; outline: none;
 }}
 QTreeWidget#hosts {{ background: transparent; border: none; show-decoration-selected: 0; }}
-QTreeView::branch:selected, QTreeView::branch:hover {{ background: transparent; }}
-QTreeWidget#hosts::branch, QTreeWidget#hosts::branch:selected, QTreeWidget#hosts::branch:hover {{
-    background: transparent; border: none; image: none;
-}}
-QTreeWidget#hosts::item {{
-    background: {ROW}; border: 1px solid rgba(255,255,255,190); border-radius: 13px;
-    margin: 3px 2px; padding: 7px 6px;
-}}
-QTreeWidget#hosts::item:hover {{ background: rgba(255,255,255,170); }}
+QTreeView::branch, QTreeView::branch:selected, QTreeView::branch:hover {{ background: transparent; image: none; }}
+QTreeWidget#hosts::item {{ background: transparent; border: none; border-left: 2px solid transparent; padding: 7px 6px; }}
+QTreeWidget#hosts::item:hover {{ background: #141414; }}
+QTreeWidget#hosts::item:selected {{ background: {RAISED}; border-left: 2px solid {ACCENT}; color: #ffffff; }}
 QListWidget#detected {{ background: transparent; border: none; outline: none; }}
 QListWidget#detected::item {{
-    background: rgba(255,255,255,60); border: 1px dashed rgba(255,255,255,220); border-radius: 13px;
-    margin: 3px 2px; padding: 7px 6px; color: {TEXT_SOFT};
+    background: transparent; border: 1px dashed {LINE_STRONG}; margin: 3px 0; padding: 7px 6px; color: {TEXT_SOFT};
 }}
-QListWidget#detected::item:hover {{ background: rgba(255,255,255,170); color: {TEXT}; }}
-QTreeWidget#hosts::item:selected {{ background: {SELECTED}; border: 1px solid rgba(40,150,220,180); color: #021d2c; }}
-QTableWidget::item {{ padding: 6px 4px; border-bottom: 1px solid rgba(255,255,255,140); }}
-QTableWidget::item:hover {{ background: rgba(255,255,255,150); }}
-QTableWidget::item:selected {{ background: {SELECTED}; color: #021d2c; }}
+QListWidget#detected::item:hover {{ background: {RAISED}; color: {TEXT}; border-color: {ACCENT}; }}
+QTableWidget::item, QListView::item {{ padding: 5px 4px; border-bottom: 1px solid #161616; }}
+QTableWidget::item:hover, QListView::item:hover {{ background: #141414; }}
+QTableWidget::item:selected, QListView::item:selected {{ background: {RAISED}; color: #ffffff; }}
+QHeaderView {{ background: {PANEL}; }}
 QHeaderView::section {{
-    background: {BTN}; color: {TEXT}; border: none; border-right: 1px solid rgba(255,255,255,170);
-    border-bottom: 1px solid rgba(70,150,200,140); padding: 6px 8px; font-weight: 600;
+    background: #121212; color: {TEXT_FAINT}; border: none; border-right: 1px solid {LINE};
+    border-bottom: 1px solid {LINE}; padding: 6px 8px; font-family: "{MONO}"; font-size: 8pt;
 }}
 QTableCornerButton::section {{ background: transparent; border: none; }}
 
-/* ---------- console: dark glass like deep water ---------- */
+/* ---------- console ---------- */
 QPlainTextEdit#console {{
-    background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 rgba(8, 50, 90, 225), stop:1 rgba(3, 25, 50, 235));
-    color: #c8f1ff; border: 1px solid rgba(255, 255, 255, 200); border-radius: 16px; padding: 10px;
-    selection-background-color: rgba(26, 167, 232, 150); selection-color: #ffffff;
+    background: {CONSOLE}; color: #cfcfcf; border: 1px solid {LINE}; border-radius: 0; padding: 8px;
+    font-family: "{MONO}"; selection-background-color: {ACCENT}; selection-color: {BG};
 }}
 
 /* ---------- scroll bars ---------- */
-QScrollBar:vertical {{ background: transparent; width: 12px; margin: 4px; }}
-QScrollBar:horizontal {{ background: transparent; height: 12px; margin: 4px; }}
-QScrollBar::handle {{
-    background: {BTN}; border: 1px solid rgba(70,150,200,150); border-radius: 5px; min-height: 26px; min-width: 26px;
-}}
+QScrollBar:vertical {{ background: transparent; width: 10px; margin: 0; }}
+QScrollBar:horizontal {{ background: transparent; height: 10px; margin: 0; }}
+QScrollBar::handle {{ background: {LINE_STRONG}; border: none; border-radius: 0; min-height: 26px; min-width: 26px; }}
+QScrollBar::handle:hover {{ background: {DECOR}; }}
 QScrollBar::add-line, QScrollBar::sub-line {{ width: 0; height: 0; }}
 QScrollBar::add-page, QScrollBar::sub-page {{ background: transparent; }}
+QScrollArea {{ background: transparent; border: none; }}
+QScrollArea > QWidget > QWidget {{ background: transparent; }}
 
-QSplitter::handle {{ background: transparent; }}
-QMenu {{ background: #f7fcff; border: 1px solid {AQUA}; border-radius: 12px; padding: 6px; }}
-QMenu::item {{ padding: 7px 24px; border-radius: 9px; }}
-QMenu::item:selected {{ background: {SELECTED}; }}
+QSplitter::handle {{ background: {BG}; }}
+QGroupBox {{ border: 1px solid {LINE}; margin-top: 14px; padding: 10px 8px 8px 8px; }}
+QGroupBox::title {{ subcontrol-origin: margin; left: 8px; padding: 0 4px; color: {TEXT_FAINT}; }}
+QMenu {{ background: {RAISED}; border: 1px solid {LINE_STRONG}; padding: 4px; }}
+QMenu::item {{ padding: 6px 22px; }}
+QMenu::item:selected {{ background: {ACCENT}; color: {BG}; }}
 QMenu::item:disabled {{ color: {DISABLED}; }}
-QStatusBar {{ background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #e9f7ff, stop:1 #c9e9ff); color: {TEXT}; }}
-QProgressBar {{ background: rgba(255,255,255,210); border: 1px solid rgba(70,150,200,150); border-radius: 9px; text-align: center; }}
-QProgressBar::chunk {{ background: {PRIMARY}; border-radius: 8px; }}
+QMenu::separator {{ height: 1px; background: {LINE}; margin: 4px 0; }}
+QStatusBar {{ background: {BG}; color: {TEXT_SOFT}; border-top: 1px solid {LINE}; }}
+QProgressBar {{ background: {RAISED}; border: 1px solid {LINE}; border-radius: 0; text-align: center; color: {TEXT}; }}
+QProgressBar::chunk {{ background: {ACCENT}; }}
 """
-
-STATUS_PILL = {
-    "running": ("#f0ffe6", "#52c234", "#0f4d05"),
-    "starting": ("#fff8e0", "#f2bd32", "#6b4a00"),
-    "stopping": ("#fff8e0", "#f2bd32", "#6b4a00"),
-    "crashed": ("#fff0ec", "#ee6a4f", "#761a0a"),
-}
-STATUS_PILL_DEFAULT = ("#f2faff", "#8ccff2", "#0b4466")
 
 
 def pill_style(status: str) -> str:
-    top, bottom, text = STATUS_PILL.get(status, STATUS_PILL_DEFAULT)
-    return (f"QLabel {{ background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #ffffff, stop:0.48 {top}, "
-            f"stop:0.5 {bottom}, stop:1 {top}); color: {text}; border: 1px solid {bottom}; "
-            f"border-radius: 13px; padding: 4px 16px; font-weight: 600; }}")
+    """Server state label: coloured text and border on a dark tone of the same colour."""
+    color, background = STATUS_COLORS.get(status, BUSY_COLORS)
+    return (f"QLabel {{ background: {background}; color: {color}; border: 1px solid {color}; border-radius: 0; "
+            f"padding: 4px 12px; font-family: '{MONO}'; font-weight: 700; }}")
+
+
+def _load_fonts() -> None:
+    for path in sorted((ASSETS / "fonts").glob("*.ttf")):
+        QFontDatabase.addApplicationFont(str(path))
+
+
+def mono_font(point_size: float = 10, bold: bool = False) -> QFont:
+    font = QFont(MONO)
+    font.setStyleHint(QFont.StyleHint.Monospace)
+    font.setPointSizeF(point_size)
+    font.setBold(bold)
+    return font
 
 
 def apply(app: QApplication) -> None:
     app.setStyle("Fusion")
-    family = "Segoe UI" if sys.platform == "win32" else app.font().family()
-    app.setFont(QFont(family, 10))
+    _load_fonts()
+    text_font = QFont(SANS, 10)
+    text_font.setStyleHint(QFont.StyleHint.SansSerif)
+    app.setFont(text_font)
     palette = QPalette()
     for role, color in (
-        (QPalette.ColorRole.Window, "#dcefff"), (QPalette.ColorRole.Base, "#ffffff"),
-        (QPalette.ColorRole.AlternateBase, "#eef8ff"), (QPalette.ColorRole.Text, TEXT),
+        (QPalette.ColorRole.Window, BG), (QPalette.ColorRole.Base, PANEL),
+        (QPalette.ColorRole.AlternateBase, "#111111"), (QPalette.ColorRole.Text, TEXT),
         (QPalette.ColorRole.WindowText, TEXT), (QPalette.ColorRole.ButtonText, TEXT),
-        (QPalette.ColorRole.Button, "#e8f6ff"), (QPalette.ColorRole.Highlight, "#5cc1f2"),
-        (QPalette.ColorRole.HighlightedText, "#021d2c"), (QPalette.ColorRole.Link, "#0369a1"),
-        (QPalette.ColorRole.ToolTipBase, "#f7fcff"), (QPalette.ColorRole.ToolTipText, TEXT),
-        (QPalette.ColorRole.PlaceholderText, "#7f9db0"),
+        (QPalette.ColorRole.Button, RAISED), (QPalette.ColorRole.Highlight, ACCENT),
+        (QPalette.ColorRole.HighlightedText, BG), (QPalette.ColorRole.Link, ACCENT),
+        (QPalette.ColorRole.LinkVisited, ACCENT),
+        (QPalette.ColorRole.ToolTipBase, RAISED), (QPalette.ColorRole.ToolTipText, TEXT),
+        (QPalette.ColorRole.PlaceholderText, TEXT_FAINT), (QPalette.ColorRole.Light, LINE_STRONG),
+        (QPalette.ColorRole.Midlight, LINE), (QPalette.ColorRole.Mid, LINE), (QPalette.ColorRole.Dark, BG),
+        (QPalette.ColorRole.Shadow, "#000000"),
     ):
         palette.setColor(role, QColor(color))
     for role in (QPalette.ColorRole.Text, QPalette.ColorRole.WindowText, QPalette.ColorRole.ButtonText):
-        palette.setColor(QPalette.ColorGroup.Disabled, role, QColor(6, 50, 74, 90))
+        palette.setColor(QPalette.ColorGroup.Disabled, role, QColor(DISABLED))
     app.setPalette(palette)
     # The theme's images need an absolute path (also inside the exe/AppImage).
     app.setStyleSheet(STYLESHEET.replace("{ASSETS}", ASSETS.as_posix()))
     app._field_fixes = FieldFixes(app)  # kept so the garbage collector does not delete it
     app.installEventFilter(app._field_fixes)
+    if sys.platform == "win32":
+        _dark_title_bars(app)
+
+
+def _dark_title_bars(app: QApplication) -> None:
+    """Windows: dark title bar on every window, so it doesn't stand out white above the black app."""
+    app._dark_titles = DarkTitleBars(app)
+    app.installEventFilter(app._dark_titles)
+
+
+class DarkTitleBars(QObject):
+    def eventFilter(self, obj, event) -> bool:
+        if event.type() == QEvent.Type.Show and isinstance(obj, QWidget) and obj.isWindow():
+            try:
+                import ctypes
+
+                value = ctypes.c_int(1)
+                # DWMWA_USE_IMMERSIVE_DARK_MODE (20 on Windows 10 20H1 and later, 19 before)
+                for attribute in (20, 19):
+                    if ctypes.windll.dwmapi.DwmSetWindowAttribute(int(obj.winId()), attribute, ctypes.byref(value),
+                                                                  ctypes.sizeof(value)) == 0:
+                        break
+            except (OSError, AttributeError):
+                pass
+        return False
 
 
 class FieldFixes(QObject):
@@ -251,11 +280,25 @@ class FieldFixes(QObject):
       settings page used to change the memory or the port by accident. The page scrolls instead.
     - Text in numeric fields gets the same margin as the rest (Qt ignores the padding)."""
 
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        # Buttons and tabs: monospaced capitals, like the labels on a device. (Set on each widget: with a
+        # style sheet active, QApplication.setFont(font, class) is ignored.)
+        self.label_font = mono_font(8.5)
+        self.label_font.setCapitalization(QFont.Capitalization.AllUppercase)
+        self.label_font.setLetterSpacing(QFont.SpacingType.PercentageSpacing, 104)
+
     def eventFilter(self, obj, event) -> bool:
+        if event.type() == QEvent.Type.Polish and isinstance(obj, (QPushButton, QTabBar, QToolButton)) \
+                and not obj.property("ownhostFont"):
+            obj.setProperty("ownhostFont", True)
+            font = QFont(self.label_font)
+            font.setBold(obj.font().bold())
+            obj.setFont(font)
         if event.type() == QEvent.Type.Polish and isinstance(obj, (QAbstractSpinBox, QComboBox)):
             obj.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
             if isinstance(obj, QAbstractSpinBox) and obj.lineEdit():
-                obj.lineEdit().setTextMargins(10, 0, 0, 0)
+                obj.lineEdit().setTextMargins(8, 0, 0, 0)
         elif event.type() == QEvent.Type.Wheel and isinstance(obj, (QAbstractSpinBox, QComboBox)) \
                 and not obj.hasFocus():
             area = obj.parent()
@@ -267,234 +310,46 @@ class FieldFixes(QObject):
         return False
 
 
-# ---------------------------------------------------------------------------------------------
-# Background landscape
-# ---------------------------------------------------------------------------------------------
-
-def _cloud(p: QPainter, x: float, y: float, size: float, rnd: random.Random) -> None:
-    """Fluffy cloud: several white balls with a slightly bluish base."""
-    puffs = [(x + dx * size, y + dy * size, r * size) for dx, dy, r in
-             ((-0.9, 0.15, 0.45), (-0.35, -0.2, 0.62), (0.3, -0.32, 0.7), (0.95, 0.0, 0.5), (0.2, 0.2, 0.55))]
-    for px, py, r in puffs:
-        r *= rnd.uniform(0.9, 1.1)
-        g = QRadialGradient(QPointF(px - r * 0.25, py - r * 0.35), r * 1.25)
-        g.setColorAt(0, QColor(255, 255, 255, 250))
-        g.setColorAt(0.6, QColor(248, 252, 255, 235))
-        g.setColorAt(0.9, QColor(205, 230, 248, 160))
-        g.setColorAt(1, QColor(205, 230, 248, 0))
-        p.setBrush(g)
-        p.drawEllipse(QPointF(px, py), r, r)
-
-
-def _tree(p: QPainter, x: float, ground: float, height: float) -> None:
-    trunk = QPainterPath(QPointF(x - height * 0.04, ground))
-    trunk.cubicTo(QPointF(x - height * 0.03, ground - height * 0.3), QPointF(x - height * 0.02, ground - height * 0.45),
-                  QPointF(x, ground - height * 0.55))
-    trunk.cubicTo(QPointF(x + height * 0.02, ground - height * 0.45), QPointF(x + height * 0.03, ground - height * 0.3),
-                  QPointF(x + height * 0.05, ground))
-    bark = QLinearGradient(x - height * 0.05, 0, x + height * 0.05, 0)
-    bark.setColorAt(0, QColor("#3d2a17"))
-    bark.setColorAt(0.5, QColor("#6b4a2b"))
-    bark.setColorAt(1, QColor("#3d2a17"))
-    p.setBrush(bark)
-    p.drawPath(trunk)
-    cy = ground - height * 0.68
-    for dx, dy, r in ((-0.22, 0.08, 0.2), (0.2, 0.06, 0.21), (0, -0.12, 0.25), (-0.12, -0.05, 0.2),
-                      (0.12, -0.04, 0.2), (0, 0.1, 0.2), (-0.3, -0.02, 0.15), (0.3, -0.03, 0.15)):
-        c = QPointF(x + dx * height, cy + dy * height)
-        rr = r * height
-        g = QRadialGradient(c - QPointF(rr * 0.35, rr * 0.45), rr * 1.3)
-        g.setColorAt(0, QColor("#b9ec6a"))
-        g.setColorAt(0.5, QColor("#5fb82f"))
-        g.setColorAt(1, QColor("#2c7a1f"))
-        p.setBrush(g)
-        p.drawEllipse(c, rr, rr)
-
-
-def _drop(p: QPainter, c: QPointF, r: float) -> None:
-    """Shiny water drop (a lens with a reflection)."""
-    g = QRadialGradient(c + QPointF(r * 0.2, r * 0.3), r * 1.1)
-    g.setColorAt(0, QColor(255, 255, 255, 60))
-    g.setColorAt(0.7, QColor(180, 230, 255, 70))
-    g.setColorAt(0.95, QColor(255, 255, 255, 190))
-    g.setColorAt(1, QColor(255, 255, 255, 0))
-    p.setBrush(g)
-    p.drawEllipse(c, r, r)
-    hl = QRadialGradient(c - QPointF(r * 0.35, r * 0.4), r * 0.4)
-    hl.setColorAt(0, QColor(255, 255, 255, 240))
-    hl.setColorAt(1, QColor(255, 255, 255, 0))
-    p.setBrush(hl)
-    p.drawEllipse(c - QPointF(r * 0.35, r * 0.4), r * 0.4, r * 0.28)
-
-
-def _leaf_with_drops(p: QPainter, base: QPointF, length: float, angle: float) -> None:
-    p.save()
-    p.translate(base)
-    p.rotate(angle)
-    w = length * 0.42
-    shape = QPainterPath(QPointF(0, 0))
-    shape.cubicTo(QPointF(length * 0.25, -w), QPointF(length * 0.8, -w * 0.8), QPointF(length, 0))
-    shape.cubicTo(QPointF(length * 0.8, w * 0.8), QPointF(length * 0.25, w), QPointF(0, 0))
-    g = QLinearGradient(0, -w, 0, w)
-    g.setColorAt(0, QColor("#c8f56b"))
-    g.setColorAt(0.5, QColor("#5cc42c"))
-    g.setColorAt(1, QColor("#2a8a1e"))
-    p.setBrush(g)
-    p.drawPath(shape)
-    p.save()
-    p.setClipPath(shape, Qt.ClipOperation.IntersectClip)  # veins and gloss inside the leaf
-    p.setPen(QPen(QColor(230, 255, 200, 170), max(1.5, length * 0.008)))
-    p.drawLine(QPointF(length * 0.02, 0), QPointF(length * 0.95, 0))
-    for k in range(1, 6):
-        x = length * k / 6.5
-        p.drawLine(QPointF(x, 0), QPointF(x + length * 0.1, -w * 0.55))
-        p.drawLine(QPointF(x, 0), QPointF(x + length * 0.1, w * 0.55))
-    p.setPen(Qt.PenStyle.NoPen)
-    shine = QPainterPath(QPointF(length * 0.08, -w * 0.15))
-    shine.cubicTo(QPointF(length * 0.3, -w * 0.85), QPointF(length * 0.7, -w * 0.7), QPointF(length * 0.92, -w * 0.08))
-    shine.cubicTo(QPointF(length * 0.6, -w * 0.4), QPointF(length * 0.3, -w * 0.45), QPointF(length * 0.08, -w * 0.15))
-    p.setBrush(QColor(255, 255, 255, 80))
-    p.drawPath(shine)
-    p.restore()
-    for fx, fy, fr in ((0.35, -0.25, 0.05), (0.6, 0.2, 0.04), (0.78, -0.12, 0.03), (0.5, -0.05, 0.025)):
-        _drop(p, QPointF(length * fx, w * fy), length * fr)
-    p.restore()
-
-
-def paint_scene(p: QPainter, w: int, h: int) -> None:
-    rnd = random.Random(2007)
-    p.setPen(Qt.PenStyle.NoPen)
-
-    # Sky
-    sky = QLinearGradient(0, 0, 0, h * 0.75)
-    sky.setColorAt(0, QColor("#0563c9"))
-    sky.setColorAt(0.45, QColor("#2fa0ef"))
-    sky.setColorAt(0.85, QColor("#9fdcff"))
-    sky.setColorAt(1, QColor("#e4f7ff"))
-    p.fillRect(QRectF(0, 0, w, h), sky)
-
-    # Sun at the top right with rays down and to the left (the title sits on clean blue)
-    sun = QPointF(w * 0.9, h * 0.02)
-    for i in range(14):
-        a = math.radians(95 + i * 7)
-        spread = math.radians(1.6)
-        far = max(w, h) * 1.3
-        ray = QPainterPath(sun)
-        ray.lineTo(sun + QPointF(math.cos(a - spread) * far, math.sin(a - spread) * far))
-        ray.lineTo(sun + QPointF(math.cos(a + spread) * far, math.sin(a + spread) * far))
-        ray.closeSubpath()
-        g = QRadialGradient(sun, far * 0.7)
-        g.setColorAt(0, QColor(255, 255, 255, 70 if i % 2 else 40))
-        g.setColorAt(1, QColor(255, 255, 255, 0))
-        p.setBrush(g)
-        p.drawPath(ray)
-    halo = QRadialGradient(sun, max(w, h) * 0.45)
-    halo.setColorAt(0, QColor(255, 255, 255, 255))
-    halo.setColorAt(0.06, QColor(255, 255, 235, 220))
-    halo.setColorAt(0.3, QColor(255, 255, 255, 60))
-    halo.setColorAt(1, QColor(255, 255, 255, 0))
-    p.fillRect(QRectF(0, 0, w, h), halo)
-
-    # Clouds
-    # (none in the top-left strip, where the app's title goes)
-    for cx, cy, size in ((0.42, 0.24, 0.07), (0.66, 0.16, 0.08), (0.88, 0.32, 0.07), (0.5, 0.44, 0.05),
-                         (0.12, 0.42, 0.06)):
-        _cloud(p, w * cx, h * cy, min(w, h) * size * 1.6, rnd)
-
-    # Distant hills with haze
-    far_hill = QPainterPath(QPointF(0, h))
-    far_hill.lineTo(0, h * 0.66)
-    far_hill.cubicTo(QPointF(w * 0.3, h * 0.6), QPointF(w * 0.6, h * 0.7), QPointF(w, h * 0.62))
-    far_hill.lineTo(w, h)
-    g = QLinearGradient(0, h * 0.6, 0, h * 0.8)
-    g.setColorAt(0, QColor("#9ad9a8"))
-    g.setColorAt(1, QColor("#5fb86e"))
-    p.setBrush(g)
-    p.drawPath(far_hill)
-
-    # Sunlit meadow
-    meadow = QPainterPath(QPointF(0, h))
-    meadow.lineTo(0, h * 0.74)
-    meadow.cubicTo(QPointF(w * 0.35, h * 0.66), QPointF(w * 0.65, h * 0.8), QPointF(w, h * 0.7))
-    meadow.lineTo(w, h)
-    meadow.closeSubpath()
-    g = QLinearGradient(0, h * 0.66, 0, h)
-    g.setColorAt(0, QColor("#d6f75f"))
-    g.setColorAt(0.25, QColor("#8fd63a"))
-    g.setColorAt(1, QColor("#2f8f1f"))
-    p.setBrush(g)
-    p.drawPath(meadow)
-    light = QRadialGradient(QPointF(w * 0.3, h * 0.72), w * 0.4)
-    light.setColorAt(0, QColor(255, 255, 200, 120))
-    light.setColorAt(1, QColor(255, 255, 200, 0))
-    p.setBrush(light)
-    p.drawPath(meadow)
-
-    _tree(p, w * 0.78, h * 0.76, h * 0.42)
-
-    # Leaf with dew drops in the bottom-right corner
-    _leaf_with_drops(p, QPointF(w * 1.02, h * 0.98), min(w, h) * 0.42, -150)
-
-    # Loose drops and bubbles
-    for _ in range(16):
-        _drop(p, QPointF(rnd.uniform(0, w), rnd.uniform(0, h * 0.7)), rnd.uniform(5, 18))
-
-
 class Backdrop(QWidget):
-    """Window background. Drawn once per size and cached: the rest of the time it is just copied."""
+    """Window background: plain black."""
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self._tracked: set[QWidget] = set()
-        self._scene: QPixmap | None = None
-        self._scene_size = QSize()
-
-    def eventFilter(self, obj, event) -> bool:
-        # If a panel moves or resizes, its shadow has to be repainted.
-        if event.type() in (QEvent.Type.Move, QEvent.Type.Resize, QEvent.Type.Show, QEvent.Type.Hide):
-            self.update()
-        return False
-
-    def _ensure_scene(self) -> QPixmap:
-        if self._scene is None or self._scene_size != self.size():
-            ratio = self.devicePixelRatioF()
-            pix = QPixmap(self.size() * ratio)
-            pix.setDevicePixelRatio(ratio)
-            painter = QPainter(pix)
-            painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-            paint_scene(painter, self.width(), self.height())
-            painter.end()
-            self._scene, self._scene_size = pix, self.size()
-        return self._scene
+        self.setObjectName("backdrop")
+        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
 
     def paintEvent(self, event) -> None:
         p = QPainter(self)
-        p.drawPixmap(0, 0, self._ensure_scene())
-        p.setRenderHint(QPainter.RenderHint.Antialiasing)
-        # Soft shadow under the glass panels
-        p.setPen(Qt.PenStyle.NoPen)
-        for frame in self.findChildren(QFrame, "glass"):
-            if not frame.isVisible():
-                continue
-            if frame not in self._tracked:
-                frame.installEventFilter(self)
-                self._tracked.add(frame)
-            r = QRectF(QPointF(frame.mapTo(self, QPoint(0, 0))), QSizeF(frame.size()))
-            for i in range(12, 0, -1):
-                p.setBrush(QColor(0, 40, 90, 8))
-                p.drawRoundedRect(r.adjusted(-i, -i + 8, i, i + 8), 22 + i, 22 + i)
+        p.fillRect(self.rect(), QColor(BG))
         p.end()
 
 
+def ascii_landscape() -> QLabel:
+    """The ASCII landscape at the bottom of the computer and welcome pages (scripts/generate_ascii.py)."""
+    label = QLabel()
+    label.setObjectName("ascii")
+    label.setTextFormat(Qt.TextFormat.PlainText)
+    try:
+        label.setText((ASSETS / "landscape.txt").read_text(encoding="utf-8").rstrip("\n"))
+    except OSError:
+        pass
+    label.setFont(mono_font(7))
+    label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignBottom)
+    label.setTextInteractionFlags(Qt.TextInteractionFlag.NoTextInteraction)
+    label.setAccessibleName(" ")  # decoration: screen readers skip it
+    label.setMinimumSize(1, 1)    # never forces the window wider or taller
+    return label
+
+
 def glass(content: QWidget, title: str | None = None, margins: int = 14) -> QFrame:
-    """Wraps a widget in a glass panel."""
+    """Wraps a widget in a panel with a thin border (and an optional small capitals title)."""
     frame = QFrame()
     frame.setObjectName("glass")
     layout = QVBoxLayout(frame)
     layout.setContentsMargins(margins, margins, margins, margins)
     layout.setSpacing(8)
     if title:
-        label = QLabel(title)
+        label = QLabel(title.upper())
         label.setObjectName("panelTitle")
         layout.addWidget(label)
     layout.addWidget(content, 1)
