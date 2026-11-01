@@ -215,7 +215,7 @@ Tu amigo tiene que estar en tu red local o en tu Tailscale (desde Tailscale pued
 
 ## Panel web
 
-Cada agente sirve un panel en `http://IP-del-equipo:8765/` (la ficha de cada equipo en la app enseña el enlace). Desde el navegador del móvil o de cualquier PC, con el token o un código de amigo, se gestiona cada servidor: encender y apagar, quién juega, jugadores y estadísticas, consola, copias de seguridad y ajustes, según el permiso de cada uno. Si entras desde un dispositivo de tu misma cuenta de Tailscale no hace falta código. Mods, archivos, multiplataforma y mapa se gestionan desde la app.
+Cada agente sirve un panel en `http://IP-del-equipo:8765/` (la ficha de cada equipo en la app enseña los enlaces, para la red de casa y para Tailscale). El botón **Abrir en el móvil...** de esa ficha enseña un código QR: lo escaneas con la cámara del móvil y el panel se abre ya con tu acceso, en casa o, por Tailscale, desde cualquier sitio. Desde el navegador del móvil o de cualquier PC, con el token o un código de amigo, se gestiona cada servidor: encender y apagar, quién juega, jugadores y estadísticas, consola, copias de seguridad y ajustes, según el permiso de cada uno. Si entras desde un dispositivo de tu misma cuenta de Tailscale no hace falta código. Mods, archivos, multiplataforma y mapa se gestionan desde la app.
 
 ## Actualizaciones
 

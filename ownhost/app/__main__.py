@@ -20,7 +20,7 @@ def main() -> None:
     # The language is chosen before the windows are built (Settings → Language; first time: the system's).
     i18n.set_language(load_settings().get("language"))
 
-    from ownhost.app import ASSETS, theme
+    from ownhost.app import ASSETS, desktop, theme
     from ownhost.app.main_window import MainWindow
 
     app = QApplication(sys.argv)
@@ -34,6 +34,7 @@ def main() -> None:
         if translator.load("qtbase_es", QLibraryInfo.path(QLibraryInfo.LibraryPath.TranslationsPath)):
             app.installTranslator(translator)
     theme.apply(app)
+    desktop.install()  # Linux: folders and links open with the system's programs
     window = MainWindow()
     window.show()
     sys.exit(app.exec())

@@ -20,7 +20,7 @@ dependencies = [
 [project.optional-dependencies]
 # The GUI is only needed on the PCs you manage from,
 # not on the ones that only host servers (e.g. the homelab).
-app = ["PySide6>=6.7"]
+app = ["PySide6>=6.7", "segno>=1.6"]  # segno: QR code to open the web panel on a phone
 
 [project.scripts]
 ownhost-agent = "ownhost.agent.__main__:main"

@@ -258,6 +258,16 @@ const PLAY = 1, MODERATE = 2, MANAGE = 3;
 
 let token = "";
 try { token = localStorage.getItem("ownhost-token") || ""; } catch (e) {}
+// Link from the app's QR code: http://ip:port/#code=... (browsers never send the part after "#").
+// The code is saved and removed from the address bar so it doesn't stay in the history.
+{
+  const m = location.hash.match(/[#&]code=([^&]+)/);
+  if (m) {
+    token = decodeURIComponent(m[1]);
+    try { localStorage.setItem("ownhost-token", token); } catch (e) {}
+    history.replaceState(null, "", location.pathname + location.search);
+  }
+}
 let level = 0, info = null, timer = null, typed = false, offline = false;
 let servers = [], openSid = null, tab = "resumen", ws = null, tabData = {};
 const $ = (id) => document.getElementById(id);

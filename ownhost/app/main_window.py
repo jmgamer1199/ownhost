@@ -18,6 +18,7 @@ from ownhost.app.hosts import (
     Host, kill_local_agents, launch_local_agent, load_hosts, local_agent_config, save_hosts,
 )
 from ownhost.app.guests import OWNER, ROLE_NAMES, GuestsDialog, access_level
+from ownhost.app.phone import PhoneDialog, panel_url
 from ownhost.app.replicas import ReceivedBackupsDialog
 from ownhost.app.server_panel import ServerPanel
 from ownhost.app import firewall
@@ -252,6 +253,9 @@ class MainWindow(QMainWindow):
         self.btn_received = QPushButton(tr("Copias de otros equipos..."))
         self.btn_received.setToolTip(tr("Copias de seguridad que otros equipos tuyos guardan en este"))
         self.btn_received.clicked.connect(self._received_backups)
+        self.btn_phone = QPushButton(tr("Abrir en el móvil..."))
+        self.btn_phone.setToolTip(tr("Código QR para abrir el panel web en el móvil (en casa o por Tailscale)"))
+        self.btn_phone.clicked.connect(self._open_on_phone)
         self.btn_guests = QPushButton(tr("Accesos para amigos..."))
         self.btn_guests.setToolTip(tr("Da a tus amigos un código para encender o gestionar tus servidores"))
         self.btn_guests.clicked.connect(self._guests)
@@ -263,10 +267,10 @@ class MainWindow(QMainWindow):
         # Hidden until we know which computer it is: otherwise the window would widen on opening and never
         # shrink back (on a 1366 px laptop it would end up wider than the screen).
         for b in (self.btn_guests, self.btn_host_start, self.btn_copy_token, self.btn_firewall,
-                  self.btn_agent_update, self.btn_received):
+                  self.btn_agent_update, self.btn_received, self.btn_phone):
             b.hide()
         row = QHBoxLayout()
-        for b in (self.btn_host_new, self.btn_guests, self.btn_received):
+        for b in (self.btn_host_new, self.btn_phone, self.btn_guests, self.btn_received):
             row.addWidget(b)
         row.addStretch()
         manage = QHBoxLayout()
@@ -409,13 +413,17 @@ class MainWindow(QMainWindow):
         self._show_host_page(host_id)
         self.stack.setCurrentWidget(self.host_page)
 
-    def _web_url(self, host_id: str) -> str | None:
-        """The agent's web panel, with an address that also works from other devices."""
+    def _web_links(self, host_id: str) -> str:
+        """Links to the agent's web panel at each address that works from other devices
+        (home network and Tailscale)."""
         host = self._host(host_id)
         if not host:
-            return None
-        ip = self._addresses(host_id)[0][0] if host.is_local else host.address
-        return f"http://{ip}:{host.port}/"
+            return ""
+        links = []
+        for ip, description in self._addresses(host_id):
+            url = panel_url(ip, host.port)
+            links.append(f"<a href='{url}'>{url}</a> ({description})")
+        return " · ".join(links)
 
     def _sync_agent_language(self, host_id: str, info: dict) -> None:
         """Your agents write their console and notices in your language (once per session and agent)."""
@@ -523,8 +531,8 @@ class MainWindow(QMainWindow):
                 + tr("RAM: {used} / {total} GB en uso<br>", used=f"{used / 1024:.1f}",
                      total=f"{info['memory_total_mb'] / 1024:.1f}")
                 + tr("Servidores: {count} ({running} encendidos)<br>", count=len(st["servers"]), running=running)
-                + (tr("Panel web (también desde el móvil): <a href='{url}'>{url}</a>", url=url)
-                   if (url := self._web_url(host_id)) else "")
+                + (tr("Panel web (también desde el móvil, botón «Abrir en el móvil»): {links}", links=links)
+                   if (links := self._web_links(host_id)) else "")
                 + (tr("<br><br>Entras con el acceso de <b>{name}</b>: <b>{role}</b>.", name=access["name"],
                       role=tr(ROLE_NAMES.get(access["role"], access["role"])))
                    if (access := info.get("access")) and access.get("level", OWNER) < OWNER else ""))
@@ -544,6 +552,7 @@ class MainWindow(QMainWindow):
         self.btn_host_new.setEnabled(bool(st.get("online")))
         self.btn_host_new.setVisible(owner)
         self.btn_guests.setVisible(owner and bool(st.get("online")))
+        self.btn_phone.setVisible(bool(st.get("online")) and bool(host.token))
         self.btn_received.setVisible(owner and bool(st.get("online")))
         # This PC's agent is updated by the app itself; other computers' agents, with this button.
         agent_build = (info or {}).get("build") or "dev"
@@ -947,6 +956,13 @@ class MainWindow(QMainWindow):
                 QMessageBox.warning(self, tr("Cortafuegos"), msg)
 
         run_async(lambda: firewall.open_ports(kind), done, lambda msg: QMessageBox.warning(self, tr("Cortafuegos"), msg))
+
+    def _open_on_phone(self) -> None:
+        host = self._host(self._selected()[0])
+        if not host:
+            return
+        addresses = [(ip, desc[:1].upper() + desc[1:]) for ip, desc in self._addresses(host.id)]
+        PhoneDialog(self, host.name, addresses, host.port, host.token, self._level(host.id) >= OWNER).exec()
 
     def _copy_token(self) -> None:
         cfg = local_agent_config()

@@ -215,7 +215,7 @@ Your friend has to be on your local network or your Tailscale network (in Tailsc
 
 ## Web panel
 
-Each agent serves a panel at `http://computer-IP:8765/` (each computer's card in the app shows the link). From the browser on your phone or any PC, with the token or a friend code, you manage each server: start and stop, who's playing, players and statistics, console, backups and settings, depending on each person's permission. If you connect from a device on your own Tailscale account, no code is needed. Mods, files, crossplay and the map are managed from the app. The panel has its own language switch (English/Spanish).
+Each agent serves a panel at `http://computer-IP:8765/` (each computer's card in the app shows the links, for the home network and for Tailscale). The **Open on phone...** button on that card shows a QR code: scan it with your phone's camera and the panel opens already signed in, at home or, through Tailscale, from anywhere. From the browser on your phone or any PC, with the token or a friend code, you manage each server: start and stop, who's playing, players and statistics, console, backups and settings, depending on each person's permission. If you connect from a device on your own Tailscale account, no code is needed. Mods, files, crossplay and the map are managed from the app. The panel has its own language switch (English/Spanish).
 
 ## Updates
 

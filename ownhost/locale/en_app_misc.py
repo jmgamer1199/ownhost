@@ -195,4 +195,23 @@ STRINGS = {
     "No se pudo descargar la copia (error {code})": "Could not download the backup (error {code})",
     "Conexión interrumpida al descargar: {error}": "Connection lost while downloading: {error}",
     "Conexión interrumpida al enviar: {error}": "Connection lost while sending: {error}",
+
+    # ---------- phone.py (open the web panel on a phone) ----------
+    "Abrir «{name}» en el móvil": "Open «{name}» on your phone",
+    "Escanea el código con la cámara del móvil: se abre el panel web ya con tu acceso. "
+    "<b>Red local</b> funciona con el móvil en el wifi de casa; <b>Tailscale</b>, desde "
+    "cualquier sitio con la app de Tailscale en el móvil y la misma cuenta.":
+        "Scan the code with your phone's camera: the web panel opens already signed in. "
+        "<b>Local network</b> works with the phone on your home wifi; <b>Tailscale</b>, from "
+        "anywhere with the Tailscale app on the phone and the same account.",
+    "Este código da acceso completo a tus servidores: no lo compartas. Para amigos usa "
+    "«Accesos para amigos».":
+        "This code gives full access to your servers: don't share it. For friends use "
+        "«Friend access».",
+    "Este código es tu acceso a este equipo: no lo compartas.":
+        "This code is your access to this computer: don't share it.",
+    "Mostrar": "Show",
+    "Copiar": "Copy",
+    "Código de acceso:": "Access code:",
+    "Código QR del panel web ({where})": "Web panel QR code ({where})",
 }

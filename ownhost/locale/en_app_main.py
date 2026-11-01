@@ -56,8 +56,11 @@ STRINGS = {
     "CPU: {threads} hilos, {percent}% en uso<br>": "CPU: {threads} threads, {percent}% in use<br>",
     "RAM: {used} / {total} GB en uso<br>": "RAM: {used} / {total} GB in use<br>",
     "Servidores: {count} ({running} encendidos)<br>": "Servers: {count} ({running} running)<br>",
-    "Panel web (también desde el móvil): <a href='{url}'>{url}</a>":
-        "Web panel (also from your phone): <a href='{url}'>{url}</a>",
+    "Panel web (también desde el móvil, botón «Abrir en el móvil»): {links}":
+        "Web panel (also from your phone, «Open on phone» button): {links}",
+    "Abrir en el móvil...": "Open on phone...",
+    "Código QR para abrir el panel web en el móvil (en casa o por Tailscale)":
+        "QR code to open the web panel on your phone (at home or through Tailscale)",
     "<br><br>Entras con el acceso de <b>{name}</b>: <b>{role}</b>.":
         "<br><br>You are signed in with <b>{name}</b>'s access: <b>{role}</b>.",
     "<br><br>Para gestionar este PC desde otro equipo usa la IP <b>{ip}</b> (o <b>{ts}</b> por Tailscale, desde "
