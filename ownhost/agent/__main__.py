@@ -13,7 +13,7 @@ from pathlib import Path
 
 import uvicorn
 
-from ownhost import i18n
+from ownhost import i18n, updates
 from ownhost.agent.api import create_app
 from ownhost.agent.config import AgentConfig
 from ownhost.agent.manager import ServerManager
@@ -58,6 +58,7 @@ def main(argv: list[str] | None = None) -> None:
     print(tr("Token para añadir este equipo en la app: {token}", token=config.token))
 
     wait_for_port(config.bind, config.port)
+    updates.cleanup_old()  # Windows: the previous version's .exe, renamed when updating
     app = create_app(config, ServerManager(data_dir))
     uvicorn.run(app, host=config.bind, port=config.port, log_level="warning")
 
