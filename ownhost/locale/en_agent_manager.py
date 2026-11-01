@@ -52,6 +52,11 @@ STRINGS = {
     "ERROR al arrancar: {error}": "ERROR while starting: {error}",
     "No se pudo comprobar si hay actualizaciones ({error}); se arranca la versión actual.":
         "Couldn't check for updates ({error}); starting the current version.",
+    "Aviso: no se puede conectar con el servicio de cuentas vinculadas de GeyserMC "
+    "(api.geysermc.org). Mientras tanto, los jugadores de Bedrock entrarán sin su cuenta de Java "
+    "vinculada. Suele ser algo pasajero de la conexión a internet.":
+        "Warning: can't reach GeyserMC's linked accounts service (api.geysermc.org). Until then, Bedrock "
+        "players will join without their linked Java account. It's usually a temporary internet problem.",
     "El servidor de actualizaciones no responde; se arranca la versión actual y se volverá a "
     "comprobar la próxima vez.":
         "The update server isn't responding; starting the current version, it will check again next time.",

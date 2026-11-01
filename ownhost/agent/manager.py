@@ -576,6 +576,8 @@ class ServerManager:
             crossplay.set_bedrock_port(s.server_dir, s.meta.flavor, cp["bedrock_port"])
             # Server name for Bedrock = the app's one (otherwise Geyser shows "Geyser").
             self._sync_geyser(s)
+            if cp.get("floodgate"):
+                threading.Thread(target=self._check_global_linking, args=(s,), daemon=True).start()
         if web_map := s.meta.extra.get("map"):
             addons.configure_map(s.server_dir, s.meta.flavor, web_map["port"])
         cmd = s.game.command(s.meta, s.server_dir, java)
@@ -606,6 +608,17 @@ class ServerManager:
         threading.Thread(target=self._read_output, args=(s, proc), daemon=True).start()
         if s.game.device_auth and not s.meta.extra.get("auth_done"):
             threading.Thread(target=self._auto_login, args=(s, proc), daemon=True).start()
+
+    @staticmethod
+    def _check_global_linking(s: Server) -> None:
+        """Floodgate asks GeyserMC's server whether a Bedrock player has linked their Java account. If that
+        server can't be reached (no internet, or a provider blocking some Cloudflare addresses), players join
+        without their Java account and nothing says why: it is said here."""
+        if crossplay.global_linking_reachable():
+            return
+        s.log(tr("Aviso: no se puede conectar con el servicio de cuentas vinculadas de GeyserMC "
+                 "(api.geysermc.org). Mientras tanto, los jugadores de Bedrock entrarán sin su cuenta de Java "
+                 "vinculada. Suele ser algo pasajero de la conexión a internet."))
 
     def _auto_login(self, s: Server, proc: subprocess.Popen) -> None:
         """First start of a server that needs an account: launches the login by itself."""

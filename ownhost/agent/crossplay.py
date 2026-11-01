@@ -29,6 +29,20 @@ CONFIG_PATHS = {
 }
 
 
+GLOBAL_LINKING_API = "https://api.geysermc.org/v2/link/bedrock/0"
+
+
+def global_linking_reachable(timeout: float = 8) -> bool:
+    """Whether GeyserMC's global linking server answers (any HTTP answer counts)."""
+    import httpx
+
+    try:
+        httpx.get(GLOBAL_LINKING_API, timeout=timeout, headers={"User-Agent": "Ownhost"})
+    except httpx.HTTPError:
+        return False
+    return True
+
+
 def check_supported(flavor: str) -> None:
     if flavor not in SUPPORTED:
         raise UserError(tr("Geyser solo funciona con servidores Paper, Fabric o NeoForge. "
