@@ -6,7 +6,9 @@
 
 import argparse
 import logging
+import socket
 import sys
+import time
 from pathlib import Path
 
 import uvicorn
@@ -55,8 +57,32 @@ def main(argv: list[str] | None = None) -> None:
     print(tr("Datos en: {folder}", folder=data_dir))
     print(tr("Token para añadir este equipo en la app: {token}", token=config.token))
 
+    wait_for_port(config.bind, config.port)
     app = create_app(config, ServerManager(data_dir))
     uvicorn.run(app, host=config.bind, port=config.port, log_level="warning")
+
+
+def wait_for_port(host: str, port: int, seconds: float = 60) -> None:
+    """After an update the new agent may start before the old one has let go of the port: it waits
+    (instead of failing with "address already in use") until it's free."""
+    deadline = time.monotonic() + seconds
+    warned = False
+    while True:
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as probe:
+            if sys.platform != "win32":
+                # As uvicorn does: a port left in TIME_WAIT counts as free (on Windows this option
+                # would let two programs share it, so it isn't used there).
+                probe.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            try:
+                probe.bind((host, port))
+                return
+            except OSError:
+                if time.monotonic() > deadline:
+                    return  # uvicorn will report the error
+        if not warned:
+            print(tr("El puerto {port} está ocupado; esperando a que se libere...", port=port))
+            warned = True
+        time.sleep(0.5)
 
 
 if __name__ == "__main__":

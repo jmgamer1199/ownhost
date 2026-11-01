@@ -26,7 +26,6 @@ from ownhost.agent.games import GAMES
 from ownhost.agent.manager import ServerManager
 from ownhost.i18n import tr
 from ownhost.net import TailscaleOwnerCheck, lan_ip, tailscale_ip
-from ownhost.sysenv import clean_env
 
 
 class CreateServer(BaseModel):
@@ -284,12 +283,8 @@ def create_app(config: AgentConfig, manager: ServerManager) -> FastAPI:
                 logging.getLogger(__name__).exception("Could not update the agent")
                 return
             manager.shutdown(resume=True)
-            args = sys.argv[1:]
-            if sys.platform == "win32":
-                updates.relaunch(binary, args)
-                os._exit(0)
-            # Same process (and same PID): systemd does not consider it dead.
-            os.execve(str(binary), [str(binary), *args], clean_env({"PYINSTALLER_RESET_ENVIRONMENT": "1"}))
+            # Closes completely and starts again with the new version (Windows and Linux).
+            updates.restart_agent(binary, sys.argv[1:])
 
         threading.Thread(target=run, daemon=True).start()
         return {"detail": tr("Actualizando a la versión del {date}", date=updates.build_date(release["build"]))}

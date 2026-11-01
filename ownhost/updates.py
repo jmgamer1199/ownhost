@@ -8,6 +8,7 @@ for their system and replace their own executable.
 
 import os
 import platform
+import shutil
 import subprocess
 import sys
 import time
@@ -114,6 +115,57 @@ def cleanup_old() -> None:
             old.unlink()
         except OSError:
             pass  # another old window is still open: it will be deleted next time
+
+
+RESTART_EXIT_CODE = 75  # EX_TEMPFAIL: "start me again" for a systemd service with Restart=on-failure
+
+
+def _systemd_unit() -> tuple[str, bool] | None:
+    """The systemd service this process belongs to: (name, is a user service). None outside a service
+    (started from a terminal, by the app, or inside a desktop "scope", which systemd doesn't clean up)."""
+    try:
+        cgroup = Path("/proc/self/cgroup").read_text()
+    except OSError:
+        return None
+    path = cgroup.strip().splitlines()[-1].split(":", 2)[-1]
+    unit = path.rstrip("/").rsplit("/", 1)[-1]
+    if not unit.endswith(".service") or unit.startswith("user@"):
+        return None
+    return unit, "/user@" in path
+
+
+def _restarts_by_itself(unit: str, user: bool) -> bool:
+    """Whether systemd starts this service again when it exits with an error (Restart=on-failure...)."""
+    cmd = ["systemctl", *(["--user"] if user else []), "show", "-p", "Restart", "--value", unit]
+    try:
+        value = subprocess.run(cmd, capture_output=True, text=True, timeout=10, env=clean_env()).stdout.strip()
+    except (OSError, subprocess.SubprocessError):
+        return False
+    return value not in ("", "no")
+
+
+def restart_agent(binary: Path, args: list[str]) -> None:
+    """Closes this agent and starts it again with the version just installed at `binary`.
+
+    The old process always ends completely (on Linux, executing the new version in its place left the old
+    AppImage mounted in the background until the computer restarted). The new agent waits for the port to
+    be free (ownhost.agent.__main__), so it doesn't matter which one gets there first. Never returns."""
+    if sys.platform.startswith("linux") and (unit := _systemd_unit()):
+        name, user = unit
+        if _restarts_by_itself(name, user):
+            os._exit(RESTART_EXIT_CODE)  # systemd starts the service again: same unit, new binary
+        if user and shutil.which("systemd-run"):
+            # A service that wouldn't start again (e.g. started with systemd-run): systemd would also kill
+            # anything started from here when this one exits, so the new agent gets its own service.
+            env = clean_env({"PYINSTALLER_RESET_ENVIRONMENT": "1"})
+            started = subprocess.run(
+                ["systemd-run", "--user", "--collect", f"--unit=ownhost-agent-{int(time.time())}",
+                 "--description=Ownhost agent", str(binary), *args],
+                capture_output=True, timeout=30, env=env)
+            if started.returncode == 0:
+                os._exit(0)
+    relaunch(binary, args)
+    os._exit(0)
 
 
 def relaunch(binary: Path, args: list[str]) -> None:

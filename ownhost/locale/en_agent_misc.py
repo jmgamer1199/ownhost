@@ -117,6 +117,7 @@ STRINGS = {
     # __main__.py
     "Agente '{name}' escuchando en {bind}:{port}": "Agent '{name}' listening on {bind}:{port}",
     "Datos en: {folder}": "Data in: {folder}",
+    "El puerto {port} está ocupado; esperando a que se libere...": "Port {port} is in use; waiting for it to be free...",
     "Token para añadir este equipo en la app: {token}": "Token to add this computer in the app: {token}",
     "Agente de Ownhost": "Ownhost agent",
     "carpeta donde se guardan servidores, Java y copias": "folder where servers, Java and backups are stored",
