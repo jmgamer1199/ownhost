@@ -73,6 +73,9 @@ if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
     if ($LASTEXITCODE -ne 0) { Write-Host "Check the privacy warning before sharing." -ForegroundColor Red; exit 1 }
     exit 0
 }
+# While Docker is starting, "docker info" writes to stderr: with "Stop" that would end the script
+# (PowerShell 5.1 turns native stderr into errors when the output is redirected).
+$ErrorActionPreference = "Continue"
 docker info --format "{{.ServerVersion}}" 2>$null | Out-Null
 if ($LASTEXITCODE -ne 0) {
     $desktop = Join-Path (Split-Path (Split-Path (Split-Path (Get-Command docker).Source))) "Docker Desktop.exe"
