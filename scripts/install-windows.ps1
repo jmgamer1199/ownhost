@@ -25,5 +25,6 @@ $link.Save()
 
 Write-Host ""
 Write-Host "Done. Open 'Ownhost' from the desktop." -ForegroundColor Green
-Write-Host "To let other PCs on the network manage this computer, allow port 8765 (TCP) in the firewall:"
-Write-Host "  New-NetFirewallRule -DisplayName 'Ownhost' -Direction Inbound -Protocol TCP -LocalPort 8765 -Action Allow"
+Write-Host "To let other PCs on the network manage this computer, allow port 8765 (TCP) in the firewall,"
+Write-Host "only for your home network and Tailscale:"
+Write-Host "  New-NetFirewallRule -DisplayName 'Ownhost' -Direction Inbound -Protocol TCP -LocalPort 8765 -Action Allow -RemoteAddress LocalSubnet,100.64.0.0/10"

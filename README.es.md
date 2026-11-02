@@ -31,7 +31,7 @@ Descarga `Ownhost.exe`, guárdalo donde quieras y ábrelo:
 - **Para hospedar servidores en ese PC**, pulsa **«Usar este PC como servidor»**. El mismo programa se queda en segundo plano como agente.
 - **Para gestionar otro equipo**, pulsa **«Conectar a un equipo por IP»** e introduce su IP, puerto y token. En el otro equipo, el botón **«Copiar token»** de su ficha te da el token.
 
-Si Windows pregunta por el cortafuegos, permite el acceso en redes privadas para que los demás equipos y los jugadores puedan conectarse.
+Si Windows pregunta por el cortafuegos, permite el acceso solo en redes privadas (nunca en públicas) para que los demás equipos y los jugadores puedan conectarse. Ownhost nunca necesita abrir puertos en el router: para jugar desde fuera de casa, usa Tailscale.
 
 ### Linux con escritorio
 
@@ -47,7 +47,7 @@ Para un equipo que solo hospeda servidores, descarga `Ownhost` e `install-agent-
 sudo bash install-agent-service.sh
 ```
 
-El script instala el agente como servicio `systemd` (arranca solo con el equipo, aunque nadie inicie sesión), abre los puertos en `ufw` si está activo y al final muestra la IP y el token. En la app de otro equipo, pulsa **«Conectar a un equipo»**, elígelo en «Detectados» y pega el token.
+El script instala el agente como servicio `systemd` (arranca solo con el equipo, aunque nadie inicie sesión), permite los puertos en `ufw` o `firewalld` si hay uno activo (solo para la red de casa y Tailscale: desde internet siguen cerrados) y al final muestra la IP y el token. En la app de otro equipo, pulsa **«Conectar a un equipo»**, elígelo en «Detectados» y pega el token.
 
 Si es un portátil y quieres que los servidores sigan funcionando con la tapa cerrada **mientras está enchufado**:
 

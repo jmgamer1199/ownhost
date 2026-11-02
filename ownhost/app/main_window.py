@@ -975,13 +975,15 @@ class MainWindow(QMainWindow):
             settings.pop("firewall_asked", None)
             save_settings(settings)
             if again:
-                text = tr("Esta versión de Ownhost usa puertos nuevos (el mapa web y la nueva conexión de "
-                          "Minecraft Bedrock) que el cortafuegos «{kind}» bloquea.\n\n¿Abrirlos ahora? Te pedirá "
-                          "tu contraseña.", kind=kind)
+                text = tr("Esta versión de Ownhost necesita puertos nuevos (el mapa web y la nueva conexión de "
+                          "Minecraft Bedrock) y ahora los permite solo para tu red de casa y Tailscale: quita "
+                          "las reglas antiguas, que estaban abiertas a cualquiera.\n\nDesde internet seguirán "
+                          "cerrados. ¿Hacerlo ahora? Te pedirá tu contraseña.")
             else:
                 text = tr("Este equipo tiene el cortafuegos «{kind}» activado: bloquea a los demás equipos de la "
-                          "red y a los jugadores.\n\n¿Abrir ahora los puertos de Ownhost y de los juegos? Te "
-                          "pedirá tu contraseña.", kind=kind)
+                          "red y a los jugadores.\n\n¿Permitir los puertos de Ownhost y de los juegos solo para tu "
+                          "red de casa y Tailscale? Desde internet seguirán cerrados. Te pedirá tu contraseña.",
+                          kind=kind)
             if QMessageBox.question(self, tr("Cortafuegos"), text) != QMessageBox.StandardButton.Yes:
                 return
         self.statusBar().showMessage(tr("Abriendo puertos del cortafuegos..."))

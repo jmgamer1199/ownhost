@@ -39,6 +39,8 @@ if command -v tailscale >/dev/null && TS_IP=$(tailscale ip -4 2>/dev/null); then
 fi
 echo "Token: $(sudo -u "$USER_NAME" OWNHOST_DATA_DIR="$DATA_DIR" "$APP_DIR/venv/bin/python" -m ownhost.agent --show-token)"
 echo
-echo "Add it in the app with 'Connect to a computer'. If you use ufw:"
-echo "  sudo ufw allow 8765/tcp && sudo ufw allow 25565/tcp && sudo ufw allow 5520/udp"
-echo "  sudo ufw allow 19132/udp   # only if you use crossplay (Geyser)"
+echo "Add it in the app with 'Connect to a computer'. If you use ufw, allow the ports only for your home"
+echo "network and Tailscale (never for the whole internet), for example:"
+echo "  sudo ufw allow from 192.168.0.0/16 to any port 8765 proto tcp"
+echo "  sudo ufw allow from 100.64.0.0/10 to any port 8765 proto tcp"
+echo "(and the same for 25565 tcp, 5520 udp and, with crossplay, 19132 udp)."

@@ -188,7 +188,7 @@ STRINGS = {
 
     # ---------- firewall.py ----------
     "No se encontró pkexec. Ejecuta en una terminal:": "pkexec was not found. Run in a terminal:",
-    "Puertos abiertos en el cortafuegos.": "Ports opened in the firewall.",
+    "Puertos permitidos solo para tu red de casa y Tailscale.": "Ports allowed only for your home network and Tailscale.",
     "Cancelado (no se introdujo la contraseña).": "Canceled (the password was not entered).",
     "Error {code}": "Error {code}",
 

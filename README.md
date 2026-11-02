@@ -31,7 +31,7 @@ Download `Ownhost.exe`, save it wherever you like and open it:
 - **To host servers on that PC**, click **"Use this PC as a server"**. The same program stays in the background as the agent.
 - **To manage another computer**, click **"Connect to a computer by IP"** and enter its IP, port and token. On the other computer, the **"Copy token"** button on its card gives you the token.
 
-If Windows asks about the firewall, allow access on private networks so other computers and players can connect.
+If Windows asks about the firewall, allow access on private networks only (never public ones) so other computers and players can connect. Ownhost never needs ports opened on your router: to play from outside your home, use Tailscale.
 
 ### Linux with a desktop
 
@@ -47,7 +47,7 @@ For a computer that only hosts servers, download `Ownhost` and `install-agent-se
 sudo bash install-agent-service.sh
 ```
 
-The script installs the agent as a `systemd` service (it starts with the computer, even if nobody logs in), opens the ports in `ufw` if it is active, and finally shows the IP and token. In the app on another computer, click **"Connect to a computer"**, pick it under "Found on your network" and paste the token.
+The script installs the agent as a `systemd` service (it starts with the computer, even if nobody logs in), allows the ports in `ufw` or `firewalld` if one is active (only for the home network and Tailscale: from the internet they stay closed), and finally shows the IP and token. In the app on another computer, click **"Connect to a computer"**, pick it under "Found on your network" and paste the token.
 
 If it's a laptop and you want the servers to keep running with the lid closed **while it's plugged in**:
 

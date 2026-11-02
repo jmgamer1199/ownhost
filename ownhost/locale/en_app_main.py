@@ -103,13 +103,17 @@ STRINGS = {
         "This PC's agent didn't start.\n\nSee what happened in:\n{path}",
     "Cortafuegos": "Firewall",
     "Este equipo tiene el cortafuegos «{kind}» activado: bloquea a los demás equipos de la red y a los "
-    "jugadores.\n\n¿Abrir ahora los puertos de Ownhost y de los juegos? Te pedirá tu contraseña.":
+    "jugadores.\n\n¿Permitir los puertos de Ownhost y de los juegos solo para tu red de casa y Tailscale? Desde "
+    "internet seguirán cerrados. Te pedirá tu contraseña.":
         "This computer has the \"{kind}\" firewall enabled: it blocks the other computers on the network and "
-        "the players.\n\nOpen the Ownhost and game ports now? You'll be asked for your password.",
-    "Esta versión de Ownhost usa puertos nuevos (el mapa web y la nueva conexión de Minecraft Bedrock) que el "
-    "cortafuegos «{kind}» bloquea.\n\n¿Abrirlos ahora? Te pedirá tu contraseña.":
-        "This version of Ownhost uses new ports (the web map and Minecraft Bedrock's new connection) that the "
-        "\"{kind}\" firewall blocks.\n\nOpen them now? You'll be asked for your password.",
+        "the players.\n\nAllow the Ownhost and game ports only for your home network and Tailscale? From the "
+        "internet they will stay closed. You'll be asked for your password.",
+    "Esta versión de Ownhost necesita puertos nuevos (el mapa web y la nueva conexión de Minecraft Bedrock) y "
+    "ahora los permite solo para tu red de casa y Tailscale: quita las reglas antiguas, que estaban abiertas a "
+    "cualquiera.\n\nDesde internet seguirán cerrados. ¿Hacerlo ahora? Te pedirá tu contraseña.":
+        "This version of Ownhost needs new ports (the web map and Minecraft Bedrock's new connection) and now "
+        "allows them only for your home network and Tailscale: it removes the old rules, which were open to "
+        "anyone.\n\nFrom the internet they will stay closed. Do it now? You'll be asked for your password.",
     "Abriendo puertos del cortafuegos...": "Opening firewall ports...",
     "Token copiado al portapapeles": "Token copied to the clipboard",
 

@@ -52,20 +52,32 @@ EOF
 systemctl daemon-reload
 systemctl enable --now ownhost-agent
 
-# Firewall (only if ufw or firewalld is active): agent, Minecraft Java, Bedrock/Geyser and Hytale.
+# Firewall (only if ufw or firewalld is active), ONLY for the home network and Tailscale: from the internet the
+# ports stay closed even if a router forwarded them. Same rules as the app (ownhost/app/firewall.py).
+SOURCES="192.168.0.0/16 10.0.0.0/8 172.16.0.0/12 100.64.0.0/10 fc00::/7 fe80::/10"
+# agent (app / discovery), Minecraft Java, Bedrock/Geyser, Hytale, web map, Bedrock NetherNet, Bedrock LAN
+PORTS="$PORT/tcp $PORT/udp 25565:25575/tcp 19132:19140/udp 19132:19140/tcp 5520:5530/udp 8100:8110/tcp 19200:19299/udp 7551/udp"
 if command -v ufw >/dev/null && ufw status | grep -q "Status: active"; then
-    ufw allow $PORT/tcp >/dev/null      # the app connects to the agent
-    ufw allow $PORT/udp >/dev/null      # the app finds the computer on the network
-    ufw allow 25565:25575/tcp >/dev/null  # Minecraft Java
-    ufw allow 19132:19140/udp >/dev/null  # Bedrock / Geyser
-    ufw allow 19132:19140/tcp >/dev/null  # Geyser (NetherNet)
-    ufw allow 5520:5530/udp >/dev/null    # Hytale
-    echo "Firewall (ufw): ports opened."
+    for rule in $PORT $PORTS 25565/tcp 19132/udp 5520/udp; do   # rules of older versions, open to anyone
+        ufw delete allow "$rule" >/dev/null 2>&1 || true
+    done
+    for source in $SOURCES; do
+        for p in $PORTS; do
+            ufw allow from "$source" to any port "${p%/*}" proto "${p#*/}" comment Ownhost >/dev/null
+        done
+    done
+    echo "Firewall (ufw): ports opened for the home network and Tailscale only."
 elif command -v firewall-cmd >/dev/null && systemctl is-active --quiet firewalld; then
-    firewall-cmd --permanent --add-port=$PORT/tcp --add-port=$PORT/udp --add-port=25565-25575/tcp \
-        --add-port=19132-19140/udp --add-port=19132-19140/tcp --add-port=5520-5530/udp >/dev/null
+    for p in $PORTS; do
+        port="${p%/*}"; port="${port/:/-}"; proto="${p#*/}"
+        firewall-cmd --permanent --remove-port="$port/$proto" >/dev/null 2>&1 || true   # older versions
+        for source in $SOURCES; do
+            family=ipv4; [[ $source == *:* ]] && family=ipv6
+            firewall-cmd --permanent --add-rich-rule="rule family=\"$family\" source address=\"$source\" port port=\"$port\" protocol=\"$proto\" accept" >/dev/null
+        done
+    done
     firewall-cmd --reload >/dev/null
-    echo "Firewall (firewalld): ports opened."
+    echo "Firewall (firewalld): ports opened for the home network and Tailscale only."
 fi
 
 for _ in $(seq 1 15); do
