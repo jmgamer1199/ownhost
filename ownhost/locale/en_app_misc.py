@@ -107,8 +107,12 @@ STRINGS = {
     "Baneados": "Banned",
     "<b>Estadísticas</b>": "<b>Stats</b>",
     "Los cambios se aplican al momento.": "Changes apply right away.",
-    "El servidor está apagado: los cambios se aplicarán en cuanto se encienda.":
-        "The server is stopped: the changes will apply as soon as it starts.",
+    "El servidor está apagado: los cambios se guardan ya. Los marcados como «pendiente» se aplicarán al "
+    "encenderlo (aún no se conoce su cuenta).":
+        "The server is stopped: the changes are saved now. Those marked \"pending\" will apply when it starts "
+        "(their account isn't known yet).",
+    "pendiente": "pending",
+    "Se aplicará en cuanto se encienda el servidor.": "It will apply as soon as the server starts.",
     "Tu acceso solo deja ver las listas.": "Your access only lets you view the lists.",
     "⚠ La lista blanca está activada pero vacía: no puede entrar nadie. Añade jugadores o desactívala.":
         "⚠ The whitelist is enabled but empty: nobody can join. Add players or disable it.",

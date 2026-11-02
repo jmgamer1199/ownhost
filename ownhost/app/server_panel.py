@@ -21,7 +21,7 @@ from ownhost.app.mods_tab import ModsTab
 from ownhost.app.metrics_tab import MetricsTab
 from ownhost.app.players_tab import PlayersTab
 from ownhost.app import theme
-from ownhost.app.status import STATUS, format_uptime
+from ownhost.app.status import STATUS, format_uptime, players_supported, setting_keys
 from ownhost.i18n import language, tr
 
 # Geyser extras: (key in the agent, text, explanation). Spanish texts, translated where they are shown.
@@ -433,7 +433,7 @@ class ServerPanel(QWidget):
             self.players_tab.set_server(client, server)
             self.metrics_tab.set_server(client, server)
             self.files_tab.set_server(client, server)
-            self.tabs.setTabEnabled(self.tabs.indexOf(self.players_tab), server["game"] in ("minecraft", "bedrock"))
+            self.tabs.setTabEnabled(self.tabs.indexOf(self.players_tab), players_supported(server))
             self._apply_level()
             if not self.tabs.isTabEnabled(self.tabs.currentIndex()) or not self.tabs.isTabVisible(
                     self.tabs.currentIndex()):
@@ -746,21 +746,28 @@ class ServerPanel(QWidget):
         self.set_restart_at.setTime(at if at.isValid() else QTime(5, 0))
         self.set_restart_at.setEnabled(at.isValid())
         self.set_idle_stop.setValue(int(sched.get("idle_stop_minutes") or 0))
-        self.settings_form.setRowVisible(self.set_idle_stop, s["game"] in ("minecraft", "bedrock"))
-        # Description only in Minecraft Java; player limit in Java and native Bedrock.
-        java, bedrock = s["game"] == "minecraft", s["game"] == "bedrock"
-        self.settings_form.setRowVisible(self.set_motd, java)
-        self.settings_form.setRowVisible(self.set_max_players, java or bedrock)
+        # The same options in every game, as long as the game has them.
+        self.settings_form.setRowVisible(self.set_idle_stop, players_supported(s))
+        keys = setting_keys(s)
+        self.settings_form.setRowVisible(self.set_motd, "motd" in keys)
+        self.settings_form.setRowVisible(self.set_max_players, "max_players" in keys)
+        # Bedrock manages its memory by itself: it has no such setting.
+        self.settings_form.setRowVisible(self.set_memory, s.get("uses_java", s["game"] != "bedrock"))
         self.props_loaded_for = None
-        if (java or bedrock) and self.level >= MANAGE:
+        self.props_present: set[str] = set()
+        if keys and self.level >= MANAGE:
             sid, client = s["id"], self.client
 
             def loaded(props: dict):
                 if not self.server or self.server["id"] != sid:
                     return
-                self.set_motd.setText(props.get("motd", ""))
-                players = props.get("max-players", "20")
+                # Hytale creates its config.json on the first start: until then there is nothing to change.
+                self.props_present = {k for k, key in keys.items() if key in props}
+                self.set_motd.setText(props.get(keys.get("motd", ""), ""))
+                self.set_motd.setEnabled("motd" in self.props_present)
+                players = props.get(keys.get("max_players", ""), "20")
                 self.set_max_players.setValue(int(players) if players.isdigit() else 20)
+                self.set_max_players.setEnabled("max_players" in self.props_present)
                 self.props_loaded_for = sid
 
             run_async(lambda: client.properties(sid), loaded, lambda _: None)
@@ -958,9 +965,11 @@ class ServerPanel(QWidget):
                                 "idle_stop_minutes": self.set_idle_stop.value()}}
         props = {}
         if self.props_loaded_for == sid:  # only if they were read (otherwise they would be erased)
-            props["max-players"] = str(self.set_max_players.value())
-            if self.server["game"] == "minecraft":
-                props["motd"] = self.set_motd.text().strip()
+            keys = setting_keys(self.server)
+            if "max_players" in self.props_present:
+                props[keys["max_players"]] = str(self.set_max_players.value())
+            if "motd" in self.props_present:
+                props[keys["motd"]] = self.set_motd.text().strip()
 
         def save():
             if props:

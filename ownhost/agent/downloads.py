@@ -23,6 +23,14 @@ def get_json(url: str, **params):
         return r.json()
 
 
+def get_json_quick(url: str, timeout: float = 6):
+    """For lookups the user is waiting for: gives up after a few seconds."""
+    with httpx.Client(follow_redirects=True, timeout=timeout, headers={"User-Agent": USER_AGENT}) as c:
+        r = c.get(url)
+        r.raise_for_status()
+        return r.json()
+
+
 def download(url: str, dest: Path, log: Log, user_agent: str | None = None) -> Path:
     """Downloads `url` to `dest`, reporting progress every 10 %."""
     dest.parent.mkdir(parents=True, exist_ok=True)

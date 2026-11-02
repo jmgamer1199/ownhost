@@ -13,6 +13,7 @@ from PySide6.QtWidgets import (
 
 from ownhost.app import theme
 from ownhost.app.client import AgentClient
+from ownhost.app.status import players_supported
 from ownhost.app.tasks import run_async
 from ownhost.i18n import language, tr
 
@@ -370,8 +371,8 @@ class MetricsTab(QWidget):
             for label in (self.server_size, self.backups_size, self.free_size):
                 label.setText("—")
         self.client, self.server = client, server
-        self.players_title.setVisible(server["game"] in ("minecraft", "bedrock"))
-        self.players.setVisible(server["game"] in ("minecraft", "bedrock"))
+        self.players_title.setVisible(players_supported(server))
+        self.players.setVisible(players_supported(server))
 
     def activate(self) -> None:
         self.reload()

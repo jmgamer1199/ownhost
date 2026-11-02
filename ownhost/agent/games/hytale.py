@@ -40,6 +40,12 @@ class HytaleAdapter(GameAdapter):
     auth_persist_command = "/auth persistence Encrypted"
     # config.json is edited in the "Properties" tab (the server creates it on first start)
     properties_file = CONFIG_FILE
+    # "Hytale Server Booted! [Multiplayer, ...]": until then commands (whitelist, op...) are not accepted.
+    ready_pattern = re.compile(r"Server Booted")
+    # "[Universe|P] Adding player 'Name (uuid)'" / "Removing player 'Name' (uuid)"
+    tracks_players = True
+    setting_keys = {"motd": "MOTD", "max_players": "MaxPlayers"}
+    say_command = "/say {message}"
 
     def versions(self, flavor: str) -> list[str]:
         # The downloader always downloads the latest version of the chosen channel.

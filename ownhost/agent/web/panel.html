@@ -148,6 +148,7 @@ const EN = {
   "Hecho.": "Done.",
   "Se aplicará al encender el servidor.": "It will apply when the server starts.",
   "Nadie.": "Nobody.",
+  "pendiente": "pending",
   "Nombre del jugador": "Player name",
   "Añadir": "Add",
   "Hacer operador": "Make operator",
@@ -459,7 +460,7 @@ function renderDetail(full) {
     put(detail,
       el("div", { class: "card", id: "head" }),
       el("nav", { class: "tabs", role: "tablist" }, ...TABS.filter(([, , need]) => level >= need)
-        .filter(([key]) => key !== "jugadores" || ["minecraft", "bedrock"].includes(s.game))
+        .filter(([key]) => key !== "jugadores" || playersSupported(s))
         .map(([key, label]) => el("button", { type: "button", role: "tab", "aria-selected": String(key === tab), onclick: () => setTab(key) }, t(label)))),
       el("div", { id: "pane" }));
     loadTab(s);
@@ -501,7 +502,7 @@ async function loadTab(s) {
       renderBackups(s, await api("GET", `/servers/${s.id}/backups`));
     } else if (tab === "ajustes") {
       let props = {};
-      if (["minecraft", "bedrock"].includes(s.game)) props = await api("GET", `/servers/${s.id}/properties`).catch(() => ({}));
+      if (Object.keys(settingKeys(s)).length) props = await api("GET", `/servers/${s.id}/properties`).catch(() => ({}));
       renderSettings(s, props);
     }
   } catch (e) {
@@ -527,6 +528,15 @@ function when(ts, online) {
 }
 
 // With crossplay through Floodgate: "Steve (Bedrock)" (without the prefix) or "Alex (Java)".
+// What each game supports (agents older than this panel don't say it).
+function playersSupported(s) {
+  return s.players_supported ?? ["minecraft", "bedrock"].includes(s.game);
+}
+function settingKeys(s) {
+  return s.setting_keys ?? ({ minecraft: { motd: "motd", max_players: "max-players" },
+                              bedrock: { max_players: "max-players" } }[s.game] || {});
+}
+
 function playerName(name, prefix) {
   if (!prefix) return name;
   return name.startsWith(prefix) ? name.slice(prefix.length) + " (Bedrock)" : name + " (Java)";
@@ -534,16 +544,18 @@ function playerName(name, prefix) {
 
 async function playerAction(s, action, name) {
   try {
-    await api("POST", `/servers/${s.id}/players`, { action, name });
-    say(s.state === "running" ? t("Hecho.") : t("Se aplicará al encender el servidor."), true);
+    const r = await api("POST", `/servers/${s.id}/players`, { action, name });
+    say(r && r.result === "pendiente" ? t("Se aplicará al encender el servidor.") : t("Hecho."), true);
     setTimeout(() => tab === "jugadores" && loadTab(s), 1200);
   } catch (e) { say(e.message); }
 }
 
 function renderPlayers(s, data, stats) {
   const canEdit = level >= MODERATE;
+  const waiting = new Set(data.pending_names || []);
+  const shown = (n) => playerName(n, data.bedrock_prefix) + (waiting.has(n) ? " · " + t("pendiente") : "");
   const list = (title, names, buttons) => el("div", { class: "card" }, el("h2", {}, title),
-    names.length ? el("ul", { class: "list" }, ...names.map((n) => el("li", {}, el("span", { class: "grow" }, playerName(n, data.bedrock_prefix)),
+    names.length ? el("ul", { class: "list" }, ...names.map((n) => el("li", {}, el("span", { class: "grow" }, shown(n)),
       ...(canEdit ? buttons(n) : [])))) : el("p", { class: "muted" }, t("Nadie.")));
   const name = el("input", { placeholder: t("Nombre del jugador"), autocomplete: "off", autocapitalize: "off" });
   const withName = (action) => () => name.value.trim() && playerAction(s, action, name.value.trim());
@@ -563,7 +575,7 @@ function renderPlayers(s, data, stats) {
         onchange: (e) => playerAction(s, e.target.checked ? "whitelist_on" : "whitelist_off", "") }),
         t("Solo pueden entrar los de la lista blanca")),
       (data.whitelist || []).length ? el("ul", { class: "list" }, ...data.whitelist.map((n) => el("li", {},
-        el("span", { class: "grow" }, playerName(n, data.bedrock_prefix)), canEdit ? el("button", { class: "small", type: "button", onclick: () => playerAction(s, "whitelist_remove", n) }, t("Quitar")) : null)))
+        el("span", { class: "grow" }, shown(n)), canEdit ? el("button", { class: "small", type: "button", onclick: () => playerAction(s, "whitelist_remove", n) }, t("Quitar")) : null)))
         : el("p", { class: "muted" }, t("Vacía."))),
     bans ? list(t("Baneados"), data.banned || [], (n) => [
       el("button", { class: "small", type: "button", onclick: () => playerAction(s, "pardon", n) }, t("Perdonar"))]) : null,
@@ -628,11 +640,12 @@ function renderBackups(s, backups) {
 
 function renderSettings(s, props) {
   const sched = s.schedule || {};
-  const java = s.game === "minecraft";
+  const keys = settingKeys(s);
+  const has = (k) => keys[k] !== undefined && props[keys[k]] !== undefined;  // Hytale: after its first start
   const f = {
     name: el("input", { value: s.name }),
-    motd: el("input", { value: props.motd || "" }),
-    players: el("input", { type: "number", min: 1, max: 1000, value: props["max-players"] || 20 }),
+    motd: el("input", { value: has("motd") ? props[keys.motd] : "" }),
+    players: el("input", { type: "number", min: 1, max: 1000, value: has("max_players") ? props[keys.max_players] : 20 }),
     memory: el("input", { type: "number", min: 512, step: 512, value: s.memory_mb }),
     autostart: el("input", { type: "checkbox", checked: s.auto_start }),
     autoupdate: el("input", { type: "checkbox", checked: s.auto_update }),
@@ -652,11 +665,10 @@ function renderSettings(s, props) {
         auto_update: f.autoupdate.checked, auto_restart: f.autorestart.checked,
         schedule: { backup_hours: Number(f.backup.value), keep_backups: Number(f.keep.value),
                     restart_at: f.restart.value || null, idle_stop_minutes: Number(f.idle.value) } });
-      if (props && Object.keys(props).length) {
-        const changes = { "max-players": String(f.players.value) };
-        if (java) changes.motd = f.motd.value;
-        await api("PUT", `/servers/${s.id}/properties`, changes);
-      }
+      const changes = {};
+      if (has("max_players")) changes[keys.max_players] = String(f.players.value);
+      if (has("motd")) changes[keys.motd] = f.motd.value;
+      if (Object.keys(changes).length) await api("PUT", `/servers/${s.id}/properties`, changes);
       say(t("Guardado. Algunos cambios se aplican al reiniciar el servidor."), true);
     } catch (e) { say(e.message); }
     save.disabled = false;
@@ -664,16 +676,16 @@ function renderSettings(s, props) {
   const url = mapUrl(s);
   put($("pane"), el("div", { class: "card" },
     field("Nombre", f.name),
-    java && Object.keys(props).length ? field("Descripción (lo que se ve en la lista de servidores)", f.motd) : null,
-    Object.keys(props).length ? field("Jugadores máximos", f.players) : null,
-    s.game !== "bedrock" ? field("Memoria máxima (MB)", f.memory) : null,
+    has("motd") ? field("Descripción (lo que se ve en la lista de servidores)", f.motd) : null,
+    has("max_players") ? field("Jugadores máximos", f.players) : null,
+    (s.uses_java ?? s.game !== "bedrock") ? field("Memoria máxima (MB)", f.memory) : null,
     check("Encender automáticamente cuando arranque el equipo", f.autostart),
     check("Actualizar automáticamente al encender", f.autoupdate),
     check("Volver a encenderlo si se cae", f.autorestart),
     el("h3", {}, t("Tareas automáticas")),
     el("div", { class: "row" }, field("Copia cada (horas, 0 = nunca)", f.backup), field("Copias a guardar", f.keep)),
     el("div", { class: "row" }, field("Reiniciar cada día a las (vacío = no)", f.restart),
-      ["minecraft", "bedrock"].includes(s.game) ? field("Apagar si nadie juega (minutos, 0 = nunca)", f.idle) : null),
+      playersSupported(s) ? field("Apagar si nadie juega (minutos, 0 = nunca)", f.idle) : null),
     el("div", { class: "actions" }, save)),
     url ? el("div", { class: "card" }, el("h2", {}, t("Mapa del mundo")),
       el("p", {}, el("a", { href: url, target: "_blank", rel: "noopener" }, url))) : null,

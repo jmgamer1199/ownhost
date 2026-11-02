@@ -106,6 +106,10 @@ STRINGS = {
     "jugadores.\n\n¿Abrir ahora los puertos de Ownhost y de los juegos? Te pedirá tu contraseña.":
         "This computer has the \"{kind}\" firewall enabled: it blocks the other computers on the network and "
         "the players.\n\nOpen the Ownhost and game ports now? You'll be asked for your password.",
+    "Esta versión de Ownhost usa puertos nuevos (el mapa web y la nueva conexión de Minecraft Bedrock) que el "
+    "cortafuegos «{kind}» bloquea.\n\n¿Abrirlos ahora? Te pedirá tu contraseña.":
+        "This version of Ownhost uses new ports (the web map and Minecraft Bedrock's new connection) that the "
+        "\"{kind}\" firewall blocks.\n\nOpen them now? You'll be asked for your password.",
     "Abriendo puertos del cortafuegos...": "Opening firewall ports...",
     "Token copiado al portapapeles": "Token copied to the clipboard",
 

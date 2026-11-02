@@ -593,7 +593,7 @@ class MainWindow(QMainWindow):
         self.btn_host_start.setVisible(host.is_local and not st.get("online"))
         self.btn_copy_token.setVisible(host.is_local and bool(local_agent_config()))
         self.btn_firewall.setVisible(host.is_local and bool(self.firewall_kind))
-        if host.is_local and self.firewall_kind and st.get("online") and not load_settings().get("firewall_asked"):
+        if host.is_local and self.firewall_kind and st.get("online")                 and load_settings().get("firewall_rules") != firewall.commands(self.firewall_kind):
             self._open_firewall(ask=True)
 
     def _context_menu(self, pos) -> None:
@@ -967,22 +967,32 @@ class MainWindow(QMainWindow):
         if not kind:
             return
         if ask:
-            # Asked only once per computer; afterwards the button stays on the "This PC" page.
+            # Asked once per computer, and again when a new version needs more ports (the web map,
+            # Bedrock's new connection...); afterwards the button stays on the "This PC" page.
             settings = load_settings()
-            settings["firewall_asked"] = True
+            again = bool(settings.get("firewall_asked") or settings.get("firewall_rules"))
+            settings["firewall_rules"] = firewall.commands(kind)
+            settings.pop("firewall_asked", None)
             save_settings(settings)
-            answer = QMessageBox.question(
-                self, tr("Cortafuegos"),
-                tr("Este equipo tiene el cortafuegos «{kind}» activado: bloquea a los demás equipos de la red "
-                   "y a los jugadores.\n\n¿Abrir ahora los puertos de Ownhost y de los juegos? Te pedirá tu "
-                   "contraseña.", kind=kind))
-            if answer != QMessageBox.StandardButton.Yes:
+            if again:
+                text = tr("Esta versión de Ownhost usa puertos nuevos (el mapa web y la nueva conexión de "
+                          "Minecraft Bedrock) que el cortafuegos «{kind}» bloquea.\n\n¿Abrirlos ahora? Te pedirá "
+                          "tu contraseña.", kind=kind)
+            else:
+                text = tr("Este equipo tiene el cortafuegos «{kind}» activado: bloquea a los demás equipos de la "
+                          "red y a los jugadores.\n\n¿Abrir ahora los puertos de Ownhost y de los juegos? Te "
+                          "pedirá tu contraseña.", kind=kind)
+            if QMessageBox.question(self, tr("Cortafuegos"), text) != QMessageBox.StandardButton.Yes:
                 return
         self.statusBar().showMessage(tr("Abriendo puertos del cortafuegos..."))
 
         def done(result):
             ok, msg = result
             self.statusBar().showMessage(msg, 8000)
+            if ok:
+                settings = load_settings()
+                settings["firewall_rules"] = firewall.commands(kind)
+                save_settings(settings)
             if not ok:
                 QMessageBox.warning(self, tr("Cortafuegos"), msg)
 

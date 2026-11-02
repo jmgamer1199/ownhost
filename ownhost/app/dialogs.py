@@ -278,7 +278,7 @@ class CreateServerDialog(QDialog):
         self.eula.setVisible(game["needs_eula"])
         self.eula_link.setVisible(game["needs_eula"])
         self.account_note.setVisible(game.get("device_auth", False))
-        self.whitelist.setVisible(game["id"] in ("minecraft", "bedrock"))
+        self.whitelist.setVisible(game.get("tracks_players", game["id"] in ("minecraft", "bedrock")))
         # Bedrock manages its memory by itself: it has no such setting.
         for w in (self.players, self.memory, self.memory_help):
             self.form.setRowVisible(w, game["id"] != "bedrock")
@@ -331,7 +331,7 @@ class CreateServerDialog(QDialog):
             "accept_eula": self.eula.isChecked(),
             "crossplay_enabled": self.crossplay.isChecked(),
             "floodgate": self.floodgate.isChecked(),
-            "whitelist": self.whitelist.isChecked() and game["id"] in ("minecraft", "bedrock"),
+            "whitelist": self.whitelist.isChecked() and not self.whitelist.isHidden(),
         }
         self.buttons.setEnabled(False)
         self.status.setText(tr("Creando..."))

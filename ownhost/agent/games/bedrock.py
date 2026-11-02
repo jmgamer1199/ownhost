@@ -20,6 +20,13 @@ LINKS_API = "https://net-secondary.web.minecraft-services.net/api/v1.0/download/
 # User files an update must not overwrite.
 KEEP_ON_UPDATE = {"server.properties", "permissions.json", "allowlist.json", "whitelist.json"}
 CACHE_SECONDS = 600
+# Since 1.26.50 Bedrock connects with NetherNet: the server port (TCP) only starts the connection and each
+# player then plays through a UDP port of `server-udp-ports`. Left unset, the template's 19132 is used,
+# the same port as Geyser's on a Java server with crossplay (and only one per player fits). Each Bedrock
+# server gets its own block of ports, inside the range Ownhost opens in the firewall.
+UDP_PORTS_START = 19200
+UDP_PORTS_END = 19299
+UDP_PORTS_PER_SERVER = 10
 BROWSER_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36"
 
 
@@ -35,6 +42,10 @@ class BedrockAdapter(GameAdapter):
     ]
     ready_pattern = re.compile(r"Server started\.")
     properties_file = "server.properties"
+    tracks_players = True
+    # "server-name" is the name players see in the list: it's the app's name (see apply_settings).
+    setting_keys = {"max_players": "max-players"}
+    say_command = "say {message}"
     # "save hold" leaves the world files ready to copy without stopping the server.
     backup_pre_commands = ["save hold"]
     backup_post_commands = ["save resume"]
@@ -96,6 +107,8 @@ class BedrockAdapter(GameAdapter):
     def apply_settings(self, meta: ServerMeta, server_dir: Path) -> None:
         path = server_dir / self.properties_file
         updates = {"server-port": str(meta.port), "server-portv6": str(meta.port + 1)}
+        if first := meta.extra.get("udp_ports"):
+            updates["server-udp-ports"] = f"{first}-{first + UDP_PORTS_PER_SERVER - 1}"
         if read_properties(path).get("server-name") in (None, "Dedicated Server"):
             updates["server-name"] = meta.name
         write_properties(path, updates)

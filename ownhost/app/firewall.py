@@ -12,10 +12,12 @@ import sys
 from ownhost.i18n import tr
 from ownhost.sysenv import clean_env
 
-# Agent (TCP + UDP so it can be found), Minecraft Java, Bedrock/Geyser, Hytale and the web map (BlueMap).
-UFW_RULES = ["8765", "25565:25575/tcp", "19132:19140/udp", "19132:19140/tcp", "5520:5530/udp", "8100:8110/tcp"]
+# Agent (TCP + UDP so it can be found), Minecraft Java, Bedrock/Geyser, Hytale, the web map (BlueMap),
+# Bedrock's players' ports since NetherNet (19200-19299/udp) and its LAN discovery (7551/udp).
+UFW_RULES = ["8765", "25565:25575/tcp", "19132:19140/udp", "19132:19140/tcp", "5520:5530/udp", "8100:8110/tcp",
+             "19200:19299/udp", "7551/udp"]
 FIREWALLD_PORTS = ["8765/tcp", "8765/udp", "25565-25575/tcp", "19132-19140/udp", "19132-19140/tcp",
-                   "5520-5530/udp", "8100-8110/tcp"]
+                   "5520-5530/udp", "8100-8110/tcp", "19200-19299/udp", "7551/udp"]
 
 
 def _active(service: str) -> bool:

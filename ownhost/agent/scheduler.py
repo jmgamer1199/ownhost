@@ -13,8 +13,6 @@ CHECK_SECONDS = 30
 # Defaults for servers that never changed their schedule:
 # daily backup keeping the last 7, no scheduled restart.
 DEFAULT_SCHEDULE = {"backup_hours": 24, "keep_backups": 7, "restart_at": None, "idle_stop_minutes": 0}
-# Only in these games is it known who is online (from the console).
-TRACKS_PLAYERS = ("minecraft", "bedrock")
 
 
 def schedule_of(meta) -> dict:
@@ -53,7 +51,7 @@ class Scheduler(threading.Thread):
 
         # Stop if nobody plays for `idle_stop_minutes` (saves power and memory).
         idle = sched.get("idle_stop_minutes") or 0
-        if s.state != "running" or s.online or not idle or s.meta.game not in TRACKS_PLAYERS:
+        if s.state != "running" or s.online or not idle or not s.game.tracks_players:
             s.empty_since = None
         elif s.empty_since is None:
             s.empty_since = time.time()

@@ -103,8 +103,7 @@ STRINGS = {
     "Acción desconocida: {action}": "Unknown action: {action}",
 
     # Players
-    "La gestión de jugadores está disponible en Minecraft Java y Bedrock":
-        "Player management is available on Minecraft Java and Bedrock",
+    "La gestión de jugadores no está disponible en este juego": "Player management isn't available for this game",
     "Nombre de jugador no válido": "Invalid player name",
     "El servidor está apagado: no hay nadie a quien echar": "The server is stopped: there's no one to kick",
     "Apagando...": "Stopping...",

@@ -21,6 +21,7 @@ from ownhost.agent.metrics import Metrics
 from ownhost.agent.scheduler import Scheduler, schedule_of
 from ownhost.agent.stats import PlayerStats
 from ownhost.agent.device_auth import DeviceAuthWatcher
+from ownhost.agent.downloads import get_json_quick
 from ownhost.i18n import tr
 from ownhost.sysenv import clean_env
 from ownhost.agent.errors import UserError
@@ -49,6 +50,8 @@ XBOX_LOGIN_RE = re.compile(r"Successfully authenticated as (.+?) \(\d+\)")
 # Minecraft Java server list icon: 64x64 PNG next to server.properties.
 ICON_FILE = "server-icon.png"
 RESUME_FILE = "resume-after-update.json"
+PLAYER_ACTION_GROUPS = (("whitelist_add", "whitelist_remove"), ("op", "deop"), ("ban", "pardon"),
+                        ("whitelist_on", "whitelist_off"))
 PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
 
 
@@ -75,6 +78,7 @@ class Server:
         self.booted = threading.Event()
         self.online: set[str] = set()  # players connected right now
         self.player_stats = PlayerStats(root / "player-stats.json")
+        self.known = players.KnownPlayers(root / "known-players.json")  # Bedrock XUIDs, Hytale UUIDs
         self.empty_since: float | None = None  # to stop it if it stays empty (see scheduler)
         self.pregen: dict | None = None  # Chunky progress (last message)
         self.events: deque[dict] = deque(maxlen=30)  # notices for the app (crashes, backups...)
@@ -106,6 +110,8 @@ class Server:
                 self.player_stats.joined(name)
             for name in before - self.online:
                 self.player_stats.left(name)
+            if found := players.identity(line):
+                self.known.remember(*found)
         if "Processed:" in line and (progress := addons.parse_chunky(line)):
             self.pregen = progress
         for q in list(self.subscribers):
@@ -200,6 +206,9 @@ class Server:
             "auth": self.auth,
             "stats": self.stats(),
             "players_online": sorted(self.online, key=str.lower),
+            "players_supported": self.game.tracks_players,
+            "setting_keys": self.game.setting_keys,
+            "uses_java": self.game.uses_java,
             "bedrock_prefix": players.bedrock_prefix(self.server_dir, self.meta.extra.get("crossplay")),
             "schedule": schedule_of(self.meta),
             "events": list(self.events)[-10:],
@@ -341,6 +350,10 @@ class ServerManager:
             key = {"minecraft": "white-list", "bedrock": "allow-list"}.get(game)
             if key:
                 write_properties(s.server_dir / adapter.properties_file, {key: str(whitelist).lower()})
+            elif whitelist and adapter.tracks_players:
+                # Hytale creates its configuration on the first start: it is switched on then.
+                s.meta.extra["pending_players"] = [["whitelist_on", ""]]
+                s.save()
             if crossplay_enabled:
                 self._enable_crossplay(s, floodgate)
 
@@ -359,6 +372,18 @@ class ServerManager:
             if web_map := s.meta.extra.get("map"):
                 used.add(web_map["port"])
         return used
+
+    def _assign_bedrock_udp(self, s: Server) -> None:
+        """Bedrock (NetherNet): its own block of UDP ports for the players (see games/bedrock.py)."""
+        from ownhost.agent.games import bedrock
+        taken = {o.meta.extra.get("udp_ports") for o in self.servers.values() if o is not s}
+        if s.meta.extra.get("udp_ports") and s.meta.extra["udp_ports"] not in taken:
+            return
+        first = bedrock.UDP_PORTS_START
+        while first in taken and first + bedrock.UDP_PORTS_PER_SERVER <= bedrock.UDP_PORTS_END:
+            first += bedrock.UDP_PORTS_PER_SERVER
+        s.meta.extra["udp_ports"] = first
+        s.save()
 
     def _free_bedrock_port(self, exclude: str | None = None) -> int:
         return self._free_port(crossplay.DEFAULT_BEDROCK_PORT, span=2, exclude=exclude)
@@ -580,6 +605,9 @@ class ServerManager:
                 threading.Thread(target=self._check_global_linking, args=(s,), daemon=True).start()
         if web_map := s.meta.extra.get("map"):
             addons.configure_map(s.server_dir, s.meta.flavor, web_map["port"])
+        if s.game.id == "bedrock":
+            self._assign_bedrock_udp(s)
+            s.game.apply_settings(s.meta, s.server_dir)
         cmd = s.game.command(s.meta, s.server_dir, java)
         if s.game.uses_java:
             # Force UTF-8 on Java's output so accented characters show correctly.
@@ -716,11 +744,11 @@ class ServerManager:
 
     def scheduled_restart(self, s: Server) -> None:
         def run():
-            if s.game.id in ("minecraft", "bedrock"):
+            if s.game.say_command:
                 for msg, wait in ((tr("El servidor se reiniciará en 1 minuto."), 50),
                                   (tr("El servidor se reinicia en 10 segundos."), 10)):
                     try:
-                        s.send(f"say {msg}")
+                        s.send(s.game.say_command.format(message=msg))
                     except UserError:
                         return
                     time.sleep(wait)
@@ -786,29 +814,61 @@ class ServerManager:
 
     def get_players(self, server_id: str) -> dict:
         s = self.get(server_id)
-        if s.game.id not in ("minecraft", "bedrock"):
-            raise UserError(tr("La gestión de jugadores está disponible en Minecraft Java y Bedrock"))
-        return {**players.lists(s.game.id, s.server_dir), "online": sorted(s.online, key=str.lower),
-                "pending": s.meta.extra.get("pending_players", []),
+        if not s.game.tracks_players:
+            raise UserError(tr("La gestión de jugadores no está disponible en este juego"))
+        s.known.seed_from_logs(s.server_dir / "logs")
+        pending = s.meta.extra.get("pending_players", [])
+        data = players.with_pending(players.lists(s.game.id, s.server_dir, s.known), pending)
+        return {**data, "online": sorted(s.online, key=str.lower), "pending": pending,
                 "bedrock_prefix": players.bedrock_prefix(s.server_dir, s.meta.extra.get("crossplay"))}
 
     def player_action(self, server_id: str, action: str, name: str = "") -> str:
         s = self.get(server_id)
+        name = name.strip()
         try:
-            command = players.command(s.game.id, action, name.strip())
+            command = players.command(s.game.id, action, name)
         except ValueError:
             raise UserError(tr("Nombre de jugador no válido")) from None
         if s.state == "running":
+            command = self._live_command(s, action, name, command)
             s.emit(f"> {command}")
             s.send(command)
             return "hecho"
         if action == "kick":
             raise UserError(tr("El servidor está apagado: no hay nadie a quien echar"))
-        # Stopped: it is saved and applied on start (no need to know the player's UUID).
+        s.known.seed_from_logs(s.server_dir / "logs")
+        # The newest wins: "add" then "remove" the same player leaves only "remove".
         pending = s.meta.extra.setdefault("pending_players", [])
-        pending.append([action, name.strip()])
+        group = next((g for g in PLAYER_ACTION_GROUPS if action in g), (action,))
+        pending[:] = [p for p in pending if not (p[0] in group and p[1].lower() == name.lower())]
+        if not s.running and not s.task and players.edit_offline(
+                s.game.id, s.server_dir, action, name, s.known, lambda n: self._java_profile(s, n)):
+            # Off: the server's files are changed now and the lists show it at once.
+            s.save()
+            return "hecho"
+        # Starting, busy, or the player's id can't be known yet: applied as soon as it starts.
+        pending.append([action, name])
         s.save()
         return "pendiente"
+
+    def _java_profile(self, s: Server, name: str) -> tuple[str, str] | None:
+        prefix = players.bedrock_prefix(s.server_dir, s.meta.extra.get("crossplay"))
+        return players.java_profile(s.server_dir, name, prefix, get_json_quick)
+
+    def _live_command(self, s: Server, action: str, name: str, command: str) -> str:
+        """The command to send with the server on, for the cases the plain one does not cover."""
+        if s.game.id == "hytale" and action not in ("whitelist_on", "whitelist_off"):
+            # "op add" only accepts a UUID or someone who is online: with the UUID it always works.
+            player = s.known.id_of(name)
+            return players.command("hytale", action, player) if player else command
+        prefix = players.bedrock_prefix(s.server_dir, s.meta.extra.get("crossplay"))
+        if s.game.id == "minecraft" and action == "whitelist_add" and prefix and name.startswith(prefix):
+            # Java can't look up a Bedrock player who hasn't joined yet: it is written to the file
+            # (with the UUID that comes from their XUID) and the server reads it again.
+            if players.edit_offline("minecraft", s.server_dir, action, name, s.known,
+                                    lambda n: self._java_profile(s, n)):
+                return "whitelist reload"
+        return command
 
     def _apply_pending_players(self, s: Server) -> None:
         pending = s.meta.extra.pop("pending_players", None)

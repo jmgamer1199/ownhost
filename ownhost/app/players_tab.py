@@ -31,10 +31,13 @@ def display_name(name: str, prefix: str | None) -> str:
     return f"{name} (Java)"
 
 
-def fill_names(widget: QListWidget, names: list[str], prefix: str | None) -> None:
+def fill_names(widget: QListWidget, names: list[str], prefix: str | None, pending: set[str] = frozenset()) -> None:
     widget.clear()
     for name in names:
-        item = QListWidgetItem(display_name(name, prefix))
+        text = display_name(name, prefix)
+        item = QListWidgetItem(text + " · " + tr("pendiente") if name in pending else text)
+        if name in pending:
+            item.setToolTip(tr("Se aplicará en cuanto se encienda el servidor."))
         item.setData(NAME_ROLE, name)
         widget.addItem(item)
 
@@ -213,9 +216,10 @@ class PlayersTab(QWidget):
 
     def _loaded(self, data: dict) -> None:
         self.data = data
+        waiting = set(data.get("pending_names") or [])
         for widget, key in ((self.online, "online"), (self.ops, "ops"), (self.whitelist, "whitelist"),
                             (self.banned, "banned")):
-            fill_names(widget, data.get(key, []), data.get("bedrock_prefix"))
+            fill_names(widget, data.get(key, []), data.get("bedrock_prefix"), waiting if key != "online" else set())
         self.whitelist_on.blockSignals(True)
         self.whitelist_on.setChecked(data.get("whitelist_enabled", False))
         self.whitelist_on.blockSignals(False)
@@ -226,7 +230,8 @@ class PlayersTab(QWidget):
         pending = data.get("pending") or []
         running = self.server["state"] == "running"
         text = (tr("Los cambios se aplican al momento.") if running else
-                tr("El servidor está apagado: los cambios se aplicarán en cuanto se encienda."))
+                tr("El servidor está apagado: los cambios se guardan ya. Los marcados como «pendiente» se "
+                   "aplicarán al encenderlo (aún no se conoce su cuenta)."))
         if not self.can_edit:
             text = tr("Tu acceso solo deja ver las listas.")
         if data.get("whitelist_enabled") and not data.get("whitelist"):
@@ -235,6 +240,7 @@ class PlayersTab(QWidget):
         if pending:
             actions = ", ".join(f"{tr(ACTION_NAMES[a]) if a in ACTION_NAMES else a} {n}".strip() for a, n in pending)
             text += " " + tr("Pendientes: {actions}.", actions=actions)
+        self.whitelist_on.setEnabled(self.can_edit)
         self.info.setText(text)
 
     def _act(self, action: str, name: str = "") -> None:

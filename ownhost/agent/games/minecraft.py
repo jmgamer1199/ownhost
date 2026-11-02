@@ -55,6 +55,9 @@ class MinecraftAdapter(GameAdapter):
     ]
     ready_pattern = re.compile(r"Done \([\d.,]+s\)! For help")
     properties_file = "server.properties"
+    tracks_players = True
+    setting_keys = {"motd": "motd", "max_players": "max-players"}
+    say_command = "say {message}"
     backup_pre_commands = ["save-off", "save-all flush"]
     backup_post_commands = ["save-on"]
 

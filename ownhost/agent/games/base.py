@@ -49,6 +49,13 @@ class GameAdapter(ABC):
     uses_java = True
     # World folders inside the server (to import a world); None if not supported.
     supports_world_import = False
+    # It's known from the console who joins and leaves: "Players" tab, stats, stop if nobody plays.
+    tracks_players = False
+    # Where the common settings are in the game's configuration file (only those it has):
+    # "motd" = description in the server list, "max_players" = player limit.
+    setting_keys: dict[str, str] = {}
+    # Message to everyone (the warning before a scheduled restart); None if there is no such command.
+    say_command: str | None = None
 
     def world_dirs(self, server_dir: Path) -> list[str]:
         """Folders that make up the current world (the first one is the main one)."""
@@ -63,6 +70,7 @@ class GameAdapter(ABC):
             "default_port": self.default_port,
             "needs_eula": self.needs_eula,
             "device_auth": self.device_auth,
+            "tracks_players": self.tracks_players,
             # Flavor names are translated here, not in the class table (that is built at import time).
             "flavors": [{**f.__dict__, "name": tr(f.name)} for f in self.flavors],
         }
