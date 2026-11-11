@@ -144,8 +144,8 @@ STRINGS = {
         "Enabled. Bedrock players join on port <b>{port}</b>, without a Java account.",
     "Activada. Los jugadores de Bedrock entran por el puerto <b>{port}</b>.":
         "Enabled. Bedrock players join on port <b>{port}</b>.",
-    "Para jugar desde fuera de casa, abre en el router el {port} (TCP y UDP) y el {next_port} (UDP), o usad Tailscale.":
-        "To play from outside your home, open {port} (TCP and UDP) and {next_port} (UDP) on the router, or use Tailscale.",
+    "Bedrock solo funciona por ahora desde la red de casa: desde fuera, por Tailscale, Minecraft no llega a entrar (es un fallo de Minecraft, no de Ownhost).":
+        "For now Bedrock only works from the home network: from outside, over Tailscale, Minecraft never gets in (it's a Minecraft bug, not an Ownhost one).",
     "Los jugadores de Bedrock ven el nombre <b>{name}</b> y la misma descripción y límite de jugadores que en Java (los de arriba).":
         "Bedrock players see the name <b>{name}</b> and the same description and player limit as in Java (the ones above).",
     "Desactivar multiplataforma": "Disable crossplay",

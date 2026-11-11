@@ -149,6 +149,7 @@ const EN = {
   "Se aplicará al encender el servidor.": "It will apply when the server starts.",
   "Nadie.": "Nobody.",
   "pendiente": "pending",
+  "Bedrock solo funciona por ahora desde la red de casa: desde fuera, por Tailscale, Minecraft no llega a entrar (es un fallo de Minecraft, no de Ownhost).": "For now Bedrock only works from the home network: from outside, over Tailscale, Minecraft never gets in (it's a Minecraft bug, not an Ownhost one).",
   "Nombre del jugador": "Player name",
   "Añadir": "Add",
   "Hacer operador": "Make operator",
@@ -361,10 +362,12 @@ for (const b of document.querySelectorAll("[data-lang-switch]")) {
 }
 
 // Addresses players can connect to (LAN and, if available, Tailscale).
+// Bedrock (26.60+, NetherNet) only joins from the home network: from outside, over Tailscale, the Minecraft
+// app gives up before asking to join. Only the home address is offered for it.
 function addresses(s) {
   const out = [];
   if (info.lan_ip) out.push(info.lan_ip);
-  if (info.tailscale_ip) out.push(info.tailscale_ip);
+  if (info.tailscale_ip && s.game !== "bedrock") out.push(info.tailscale_ip);
   return out.map((ip) => ip + ":" + s.port);
 }
 
@@ -382,8 +385,12 @@ function playingLine(s) {
 }
 
 function addressLine(s) {
-  return el("p", { class: "muted address" }, t("Conectar a: "),
+  const line = el("p", { class: "muted address" }, t("Conectar a: "),
     ...addresses(s).flatMap((a, i) => (i ? [" · ", el("b", {}, a)] : [el("b", {}, a)])));
+  if (s.game === "bedrock" || s.crossplay) {
+    line.append(el("br"), t("Bedrock solo funciona por ahora desde la red de casa: desde fuera, por Tailscale, Minecraft no llega a entrar (es un fallo de Minecraft, no de Ownhost)."));
+  }
+  return line;
 }
 
 async function act(sid, action, button) {

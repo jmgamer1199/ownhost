@@ -171,6 +171,7 @@ If a computer has Tailscale running, the app detects it:
 
 - **When connecting to a computer**, the dialog shows a list of the machines on your Tailscale network. Picking one fills in its name and IP.
 - **On each server's card**, "Connect to" shows the local network IP and the Tailscale IP. Friends on your tailnet can join from outside your home without opening ports on the router.
+- **Minecraft Bedrock is the exception, for now.** From outside your home, over Tailscale, the Minecraft app (26.60) gives up before asking the server to let it in: it only reads the name and the number of players and then shows an empty screen with a "Back" button. It's a Minecraft bug, not an Ownhost one. That's why Bedrock servers only show the home network IP, and the app and the web panel say so. At home it works with the IP and port shown, or from the LAN worlds list. Java and Hytale do work over Tailscale.
 - **On each computer's card** its Tailscale IP is shown too, so you can manage it from outside your home.
 
 ## Ports and firewall
@@ -199,6 +200,7 @@ If a computer has Tailscale running, the app detects it:
 - Each server gets its own Bedrock port, shown under "Connect to", plus the next one for NetherNet. For example: 19132 on TCP and UDP, and 19133 on UDP.
 - What Bedrock players see: the server **name** is the one in the app; Geyser receives it on every start, because otherwise it would show "Geyser". The **description** and **player limit** are the same as on Java. You edit them in **Settings** ("Description" and "Max players", which map to `motd` and `max-players` in `server.properties`), and Geyser copies them.
 - Geyser is configured with `transport: both`, meaning NetherNet (Bedrock 26.60+) and RakNet at the same time. With NetherNet alone, consoles on the same network didn't see the server in the Friends tab as a LAN game.
+- Bedrock players can only join from the home network for now, as with Bedrock servers: see [Tailscale](#tailscale).
 - Vanilla and Forge aren't supported: Geyser has no version for them.
 - **Extras** (under Settings → Crossplay, once enabled):
   - **Consoles in the Friends tab (MCXboxBroadcast):** Switch, Xbox and PlayStation can't add servers by IP. Geyser doesn't announce the server on the local network over NetherNet (port 7551) either, so it doesn't show up as a LAN game. With this extension, the server signs in with a **secondary** Microsoft account and appears as a friend's game. The app opens a sign-in window and then shows which account to add as a friend.
@@ -344,7 +346,7 @@ To publish releases, see [Publishing a release](#publishing-a-release).
 
 **Minecraft**: when creating the server you have to accept the [EULA](https://aka.ms/MinecraftEULA). The right Java version (Temurin) is downloaded automatically. Hot backups use `save-off` / `save-all` so the world doesn't get corrupted.
 
-**Minecraft Bedrock**: uses Mojang's official server (Bedrock Dedicated Server), which doesn't need Java. Since version 1.26.50 it connects with NetherNet: the server port (19132 by default, over TCP) starts the connection and each player then plays over a UDP port. Ownhost gives each Bedrock server its own block of 10 UDP ports between 19200 and 19299 (`server-udp-ports`), so it doesn't clash with Geyser. On mobile and Windows, add the server with the IP and port shown under "Connect to".
+**Minecraft Bedrock**: uses Mojang's official server (Bedrock Dedicated Server), which doesn't need Java. Since version 1.26.50 it connects with NetherNet: the server port (19132 by default, over TCP) starts the connection and each player then plays over a UDP port. Ownhost gives each Bedrock server its own block of 10 UDP ports between 19200 and 19299 (`server-udp-ports`), so it doesn't clash with Geyser. On mobile and Windows, add the server with the IP and port shown under "Connect to", or join it from the LAN worlds list. For now it only works from the home network: see [Tailscale](#tailscale).
 
 **Forge / NeoForge**: the app downloads and runs the official installer in server mode, and picks the recommended loader version for the Minecraft version you choose.
 

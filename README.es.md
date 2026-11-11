@@ -171,6 +171,7 @@ Si un equipo tiene Tailscale activo, la app lo detecta:
 
 - **Al conectar a un equipo**, el diálogo muestra una lista con los ordenadores de tu red Tailscale. Al elegir uno se rellenan su nombre y su IP.
 - **En la ficha de cada servidor**, «Conectar a» muestra la IP de la red local y la de Tailscale. Los amigos que estén en tu tailnet pueden entrar desde fuera de casa sin abrir puertos en el router.
+- **Minecraft Bedrock es la excepción, de momento.** Desde fuera de casa, por Tailscale, la app de Minecraft (26.60) se rinde antes de pedir al servidor que la deje entrar: solo lee el nombre y los jugadores y luego muestra una pantalla vacía con un botón «Atrás». Es un fallo de Minecraft, no de Ownhost. Por eso los servidores de Bedrock solo muestran la IP de la red de casa, y la app y el panel web lo avisan. En casa funciona con la IP y el puerto que aparecen, o desde la lista de mundos LAN. Java y Hytale sí funcionan por Tailscale.
 - **En la ficha de cada equipo** aparece también su IP de Tailscale, para gestionarlo desde fuera de casa.
 
 ## Puertos y cortafuegos
@@ -199,6 +200,7 @@ Los servidores **Paper, Fabric y NeoForge** pueden admitir también jugadores de
 - Cada servidor recibe su propio puerto para Bedrock, que se muestra en «Conectar a», más el siguiente para NetherNet. Por ejemplo: 19132 en TCP y UDP, y 19133 en UDP.
 - Lo que ven los jugadores de Bedrock: el **nombre** del servidor es el de la app; Geyser lo recibe en cada arranque, porque si no mostraría «Geyser». La **descripción** y el **límite de jugadores** son los mismos que en Java. Se editan en **Ajustes** («Descripción» y «Jugadores máximos», que corresponden a `motd` y `max-players` de `server.properties`), y Geyser los copia.
 - Geyser se configura con `transport: both`, es decir, NetherNet (Bedrock 26.60+) y RakNet a la vez. Con solo NetherNet, las consolas de la misma red no veían el servidor en la pestaña de Amigos como partida LAN.
+- Los jugadores de Bedrock solo pueden entrar desde la red de casa por ahora, igual que en los servidores de Bedrock: consulta [Tailscale](#tailscale).
 - Vanilla y Forge no son compatibles: Geyser no tiene versión para ellos.
 - **Extras** (en Ajustes → Multiplataforma, una vez activada):
   - **Consolas en la pestaña Amigos (MCXboxBroadcast):** Switch, Xbox y PlayStation no pueden añadir servidores por IP. Geyser tampoco anuncia el servidor en la red local con NetherNet (puerto 7551), así que no aparece como partida LAN. Con esta extensión, el servidor inicia sesión con una cuenta de Microsoft **secundaria** y aparece como partida de un amigo. La app abre una ventana para iniciar sesión y luego muestra a qué cuenta hay que añadir como amigo.
@@ -344,7 +346,7 @@ Para publicar versiones, ver [Publicar una versión](#publicar-una-versión).
 
 **Minecraft**: al crear el servidor tienes que aceptar el [EULA](https://aka.ms/MinecraftEULA). La versión de Java correcta (Temurin) se descarga sola. Las copias de seguridad en caliente usan `save-off` / `save-all` para no corromper el mundo.
 
-**Minecraft Bedrock**: usa el servidor oficial de Mojang (Bedrock Dedicated Server), que no necesita Java. Desde la versión 1.26.50 se conecta con NetherNet: el puerto del servidor (19132 por defecto, por TCP) inicia la conexión y luego cada jugador juega por un puerto UDP. Ownhost da a cada servidor de Bedrock su propio bloque de 10 puertos UDP entre el 19200 y el 19299 (`server-udp-ports`), para que no choque con Geyser. En móvil y Windows, añade el servidor con la IP y el puerto que aparecen en «Conectar a».
+**Minecraft Bedrock**: usa el servidor oficial de Mojang (Bedrock Dedicated Server), que no necesita Java. Desde la versión 1.26.50 se conecta con NetherNet: el puerto del servidor (19132 por defecto, por TCP) inicia la conexión y luego cada jugador juega por un puerto UDP. Ownhost da a cada servidor de Bedrock su propio bloque de 10 puertos UDP entre el 19200 y el 19299 (`server-udp-ports`), para que no choque con Geyser. En móvil y Windows, añade el servidor con la IP y el puerto que aparecen en «Conectar a», o entra desde la lista de mundos LAN. De momento solo funciona desde la red de casa: consulta [Tailscale](#tailscale).
 
 **Forge / NeoForge**: la app descarga y ejecuta el instalador oficial en modo servidor, y elige la versión recomendada del loader para la versión de Minecraft que escojas.
 

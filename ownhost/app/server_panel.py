@@ -491,11 +491,18 @@ class ServerPanel(QWidget):
         pack = (s.get("extra") or {}).get("modpack")
         self.subtitle.setText(f"{s['game_name']} · {s.get('flavor_name', s['flavor'])} {version}{build}".rstrip()
                               + (f" · modpack {pack['name']} {pack['version']}".rstrip() if pack else ""))
+        # Bedrock (26.60+, NetherNet) only joins from the home network: from outside, over Tailscale, the
+        # Minecraft app gives up before asking to join. Only the home address is offered for it.
+        bedrock = s["game"] == "bedrock"
+        addresses = self.addresses[:1] if bedrock else self.addresses
         text = tr("Conectar a: {addresses}", addresses=" · ".join(
-            f"<b>{ip}:{s['port']}</b> ({where})" for ip, where in self.addresses))
+            f"<b>{ip}:{s['port']}</b> ({where})" for ip, where in addresses))
         if cp := s.get("crossplay"):
             ip = self.addresses[0][0] if self.addresses else ""
             text += "<br>" + tr("Bedrock: <b>{ip}</b> puerto <b>{port}</b>", ip=ip, port=cp["bedrock_port"])
+        if bedrock or cp:
+            text += "<br>" + tr("Bedrock solo funciona por ahora desde la red de casa: desde fuera, por Tailscale, "
+                                "Minecraft no llega a entrar (es un fallo de Minecraft, no de Ownhost).")
         self.address.setText(text)
         self._refresh_crossplay()
         self._refresh_addons()
@@ -663,8 +670,6 @@ class ServerPanel(QWidget):
                 (tr("Activada. Los jugadores de Bedrock entran por el puerto <b>{port}</b>, sin cuenta de Java.",
                     port=port) if cp.get("floodgate") else
                  tr("Activada. Los jugadores de Bedrock entran por el puerto <b>{port}</b>.", port=port))
-                + " " + tr("Para jugar desde fuera de casa, abre en el router el {port} (TCP y UDP) y el {next_port} (UDP), o usad Tailscale.",
-                           port=port, next_port=port + 1)
                 + "<br>" + tr("Los jugadores de Bedrock ven el nombre <b>{name}</b> y la misma descripción y límite de jugadores que en Java (los de arriba).",
                               name=s["name"]))
             self.crossplay_button.setText(tr("Desactivar multiplataforma"))
