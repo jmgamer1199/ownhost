@@ -15,6 +15,11 @@ from ownhost.sysenv import clean_env
 NO_WINDOW = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
 
 
+def plain_level_name(name: str) -> bool:
+    """A world folder name that stays inside the server's folder: no separators, no '..', no drive letter."""
+    return bool(name) and name not in (".", "..") and not re.search(r'[\\/:\x00]', name) and len(name) <= 100
+
+
 @dataclass
 class Flavor:
     id: str

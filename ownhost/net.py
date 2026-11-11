@@ -102,7 +102,9 @@ class TailscaleOwnerCheck:
         stamp, owner = self._owner
         if time.time() - stamp > 60:
             status = _tailscale_json("status") or {}
-            owner = (status.get("Self") or {}).get("UserID") or None
+            me = status.get("Self") or {}
+            # A node with tags belongs to a shared "tagged-devices" user, not to a person: nobody is the owner then.
+            owner = None if me.get("Tags") else (me.get("UserID") or None)
             self._owner = (time.time(), owner)
         return owner
 
@@ -121,7 +123,8 @@ class TailscaleOwnerCheck:
             return hit[1]
         owner = self._owner_id()
         who = _tailscale_json("whois", remote_ip) or {}
-        result = bool(owner) and (who.get("UserProfile") or {}).get("ID") == owner
+        tagged = bool((who.get("Node") or {}).get("Tags"))
+        result = bool(owner) and not tagged and (who.get("UserProfile") or {}).get("ID") == owner
         self._cache[remote_ip] = (time.time(), result)
         return result
 

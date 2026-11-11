@@ -26,7 +26,9 @@ from ownhost.i18n import tr
 from ownhost.sysenv import clean_env
 from ownhost.agent.errors import UserError
 from ownhost.agent.games import GAMES
-from ownhost.agent.games.base import NO_WINDOW, GameAdapter, InstallContext, read_properties, write_properties
+from ownhost.agent.games.base import (
+    NO_WINDOW, GameAdapter, InstallContext, plain_level_name, read_properties, write_properties,
+)
 from ownhost.agent.java import JavaManager
 from ownhost.agent.models import ServerMeta
 
@@ -185,9 +187,21 @@ class Server:
         except psutil.Error:
             return {}
 
+    def public_meta(self, for_backup: bool = False) -> dict:
+        """The server's settings without the remote-backup token (and, in a backup, without that link at all:
+        a restored copy must not inherit another computer's credentials)."""
+        meta = self.meta.to_dict()
+        extra = dict(meta.get("extra") or {})
+        if for_backup:
+            extra.pop("replica", None)
+        elif isinstance(extra.get("replica"), dict):
+            extra["replica"] = {k: v for k, v in extra["replica"].items() if k != "token"}
+        meta["extra"] = extra
+        return meta
+
     def to_dict(self) -> dict:
         return {
-            **self.meta.to_dict(),
+            **self.public_meta(),
             "status": self.task or self.state,
             "task": self.task,
             "state": self.state,
@@ -975,6 +989,8 @@ class ServerManager:
         s = self.get(server_id)
         if not s.game.properties_file:
             raise UserError(tr("Este juego no usa archivo de propiedades"))
+        if "level-name" in props and not plain_level_name(props["level-name"]):
+            raise UserError(tr("El nombre del mundo (level-name) no es válido: no puede llevar carpetas"))
         s.game.write_config(s.server_dir, props)
         if "server-port" in props and props["server-port"].isdigit():
             s.meta.port = int(props["server-port"])
@@ -1033,7 +1049,7 @@ class ServerManager:
         try:
             s.log(tr("Creando copia {name}...", name=target.name))
             with zipfile.ZipFile(target, "w", zipfile.ZIP_DEFLATED) as z:
-                z.writestr(BACKUP_META, json.dumps(s.meta.to_dict()))
+                z.writestr(BACKUP_META, json.dumps(s.public_meta(for_backup=True)))
                 for path in s.server_dir.rglob("*"):
                     rel = path.relative_to(s.server_dir)
                     if rel.parts[0] in BACKUP_EXCLUDE or path.name in BACKUP_EXCLUDE or not path.is_file():
@@ -1094,6 +1110,13 @@ class ServerManager:
 
         def run():
             s.log(tr("Restaurando {name}...", name=name))
+            try:
+                with zipfile.ZipFile(archive) as z:
+                    damaged = z.testzip()
+            except (zipfile.BadZipFile, OSError):
+                damaged = "?"
+            if damaged is not None:
+                raise UserError(tr("La copia de seguridad está dañada; el servidor no se ha tocado"))
             for child in s.server_dir.iterdir():
                 if child.name in BACKUP_EXCLUDE:
                     continue
@@ -1143,6 +1166,10 @@ class ServerManager:
                 s.log(tr("Copia de seguridad del mundo actual antes de importar..."))
                 self._backup(s)
                 level, *extra_dims = s.game.world_dirs(s.server_dir)
+                root = s.server_dir.resolve()
+                for d in [level, *extra_dims]:
+                    if (s.server_dir / d).resolve().parent != root:
+                        raise UserError(tr("El nombre del mundo (level-name) no es válido: no puede llevar carpetas"))
                 for d in [level, *extra_dims]:
                     shutil.rmtree(s.server_dir / d, ignore_errors=True)
                 mods_added = 0
@@ -1194,9 +1221,15 @@ class ServerManager:
             archive.unlink(missing_ok=True)
             raise UserError(tr("Juego desconocido: {game}", game=old.get("game")))
         adapter = GAMES[old["game"]]
+        memory = old.get("memory_mb")
+        if (old.get("flavor") not in {f.id for f in adapter.flavors}
+                or not re.fullmatch(r"[\w.+-]{1,40}", str(old.get("version", "")))
+                or not isinstance(memory, int) or isinstance(memory, bool) or not 256 <= memory <= 1 << 20):
+            archive.unlink(missing_ok=True)
+            raise UserError(tr("El archivo no es una copia de seguridad de Ownhost"))
         port = self._free_port(old.get("port") or adapter.default_port,
                                span=2 if adapter.id == "bedrock" else 1)
-        meta = ServerMeta(id=uuid.uuid4().hex[:12], name=name or old["name"], game=old["game"],
+        meta = ServerMeta(id=uuid.uuid4().hex[:12], name=str(name or old.get("name") or "Server")[:60], game=old["game"],
                           flavor=old["flavor"], version=old["version"], memory_mb=old["memory_mb"],
                           port=port, auto_start=old.get("auto_start", False))
         if cp := (old.get("extra") or {}).get("crossplay"):

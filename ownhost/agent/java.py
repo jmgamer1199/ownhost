@@ -6,7 +6,7 @@ import sys
 import threading
 from pathlib import Path
 
-from ownhost.agent.downloads import Log, download, extract, get_json
+from ownhost.agent.downloads import Log, download, extract, get_json, safe_name
 from ownhost.i18n import tr
 
 ADOPTIUM = "https://api.adoptium.net/v3/assets/latest/{major}/hotspot"
@@ -54,11 +54,19 @@ class JavaManager:
                 raise RuntimeError(tr("Adoptium no ofrece Java {major} para {system}", major=major, system=f"{_os()}/{_arch()}"))
             package = assets[0]["binary"]["package"]
             target = self.root / str(major)
-            if target.exists():
-                shutil.rmtree(target)
-            archive = download(package["link"], self.root / package["name"], log)
-            extract(archive, target)
-            archive.unlink()
+            partial = self.root / f"{major}.partial"
+            for old in (target, partial):
+                if old.exists():
+                    shutil.rmtree(old)
+            archive = download(package["link"], self.root / safe_name(package["name"]), log,
+                               sha256=package.get("checksum"))
+            try:
+                # Extracted aside and renamed at the end: an interrupted extraction never leaves a half Java behind.
+                extract(archive, partial)
+                partial.rename(target)
+            finally:
+                archive.unlink(missing_ok=True)
+                shutil.rmtree(partial, ignore_errors=True)
             found = self._find_java(major)
             if not found:
                 raise RuntimeError(tr("Java descargado pero no se encontró el ejecutable"))

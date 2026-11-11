@@ -6,6 +6,7 @@ binary). The app and the agent compare that date with their own and, if it is ne
 for their system and replace their own executable.
 """
 
+import hashlib
 import os
 import platform
 import shutil
@@ -41,6 +42,8 @@ def latest_release() -> dict | None:
         "notes": (data.get("body") or "").strip(),
         "url": data.get("html_url") or RELEASES_PAGE,
         "assets": {a["name"]: a["browser_download_url"] for a in data.get("assets", [])},
+        # GitHub publishes each file's SHA-256 ("sha256:<hex>") next to it: it is checked after downloading.
+        "digests": {a["name"]: a.get("digest") for a in data.get("assets", [])},
     }
 
 
@@ -73,32 +76,63 @@ def asset_name() -> str | None:
 def download_url(release: dict) -> str | None:
     """File of this version for this system, if it can update itself."""
     name = asset_name()
-    return release["assets"].get(name) if name and running_binary() else None
+    binary = running_binary()
+    # A copy that can't write next to itself (the systemd service's binary belongs to root) can't replace itself.
+    if not (name and binary and os.access(binary.parent, os.W_OK)):
+        return None
+    return release["assets"].get(name)
 
 
-def install(url: str, progress=lambda done, total: None) -> Path:
-    """Downloads the new version and puts it in place of the current executable. Returns its path."""
+def download_digest(release: dict) -> str | None:
+    """The SHA-256 (hex) GitHub publishes for this system's file, if it does."""
+    value = (release.get("digests") or {}).get(asset_name() or "") or ""
+    return value.removeprefix("sha256:").lower() if value.startswith("sha256:") else None
+
+
+def install(url: str, progress=lambda done, total: None, sha256: str | None = None) -> Path:
+    """Downloads the new version and puts it in place of the current executable. Returns its path.
+
+    The file is only used if its SHA-256 matches the one GitHub publishes for it. (Only a test server set with
+    OWNHOST_RELEASES_API may skip that.)"""
     binary = running_binary()
     if not binary:
         raise RuntimeError(tr("Esta copia de Ownhost no se puede actualizar sola"))
+    testing = bool(os.environ.get("OWNHOST_RELEASES_API"))
+    if not testing and not url.startswith("https://"):
+        raise RuntimeError(tr("La descarga no es segura (no es HTTPS); no se actualiza"))
+    if not testing and not sha256:
+        raise RuntimeError(tr("No se puede comprobar la descarga: la versión publicada no trae su huella SHA-256"))
     new = binary.with_name(binary.name + ".new")
-    with httpx.stream("GET", url, timeout=httpx.Timeout(60, connect=15), follow_redirects=True,
-                      headers={"User-Agent": "Ownhost"}) as r:
-        r.raise_for_status()
-        total = int(r.headers.get("Content-Length") or 0)
-        done = 0
-        with open(new, "wb") as f:
-            for chunk in r.iter_bytes(1 << 20):
-                f.write(chunk)
-                done += len(chunk)
-                progress(done, total)
-    if new.stat().st_size < MIN_SIZE or (total and new.stat().st_size != total):
+    digest = hashlib.sha256()
+    try:
+        with httpx.stream("GET", url, timeout=httpx.Timeout(60, connect=15), follow_redirects=True,
+                          headers={"User-Agent": "Ownhost"}) as r:
+            r.raise_for_status()
+            total = int(r.headers.get("Content-Length") or 0)
+            done = 0
+            with open(new, "wb") as f:
+                for chunk in r.iter_bytes(1 << 20):
+                    f.write(chunk)
+                    digest.update(chunk)
+                    done += len(chunk)
+                    progress(done, total)
+        if new.stat().st_size < MIN_SIZE or (total and new.stat().st_size != total):
+            raise RuntimeError(tr("La descarga ha llegado incompleta; vuelve a intentarlo"))
+        if sha256 and digest.hexdigest() != sha256.lower():
+            raise RuntimeError(tr("La descarga no coincide con su huella SHA-256; se ha descartado"))
+    except BaseException:
         new.unlink(missing_ok=True)
-        raise RuntimeError(tr("La descarga ha llegado incompleta; vuelve a intentarlo"))
+        raise
     if sys.platform == "win32":
         # Windows does not allow overwriting an .exe in use, but does allow renaming it.
-        binary.rename(binary.with_name(f"{binary.name}.{int(time.time())}.old"))
-        new.rename(binary)
+        aside = binary.with_name(f"{binary.name}.{int(time.time())}.old")
+        binary.rename(aside)
+        try:
+            new.rename(binary)
+        except OSError:
+            aside.rename(binary)  # put the working version back: never leave the program missing
+            new.unlink(missing_ok=True)
+            raise
     else:
         new.chmod(0o755)
         os.replace(new, binary)  # the running process keeps using the old file until it closes

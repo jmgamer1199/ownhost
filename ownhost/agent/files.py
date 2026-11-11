@@ -4,9 +4,11 @@ Only text configuration files inside the server folder: no worlds, executables o
 """
 
 import json
+import re
 from pathlib import Path
 
 from ownhost.agent.errors import UserError
+from ownhost.agent.games.base import plain_level_name
 from ownhost.i18n import tr
 
 TEXT_EXTENSIONS = {".yml", ".yaml", ".json", ".json5", ".toml", ".properties", ".conf", ".cfg", ".ini", ".txt",
@@ -90,6 +92,10 @@ def write(server_dir: Path, rel: str, content: str) -> None:
             json.loads(content)
         except json.JSONDecodeError as e:
             raise UserError(tr("El JSON no es válido (línea {line}): revísalo antes de guardar", line=e.lineno)) from None
+    if path.name == "server.properties":
+        for found in re.findall(r"^\s*level-name\s*[=:]\s*(.*?)\s*$", content, re.M):
+            if not plain_level_name(found):
+                raise UserError(tr("El nombre del mundo (level-name) no es válido: no puede llevar carpetas"))
     # Saved separately first: if something fails halfway, the original file stays intact.
     tmp = path.with_name(path.name + ".ownhost-tmp")
     tmp.write_text(content, encoding="utf-8", newline="")

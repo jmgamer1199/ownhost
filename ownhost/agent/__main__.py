@@ -55,7 +55,9 @@ def main(argv: list[str] | None = None) -> None:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
     print(tr("Agente '{name}' escuchando en {bind}:{port}", name=config.name, bind=config.bind, port=config.port))
     print(tr("Datos en: {folder}", folder=data_dir))
-    print(tr("Token para añadir este equipo en la app: {token}", token=config.token))
+    if sys.stdout is not None and sys.stdout.isatty():
+        # Only on a terminal someone is looking at: in a service it would end up in the system log.
+        print(tr("Token para añadir este equipo en la app: {token}", token=config.token))
 
     wait_for_port(config.bind, config.port)
     updates.cleanup_old()  # Windows: the previous version's .exe, renamed when updating

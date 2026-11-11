@@ -20,9 +20,15 @@ STRINGS = {
     "Servidor no encontrado: {server}": "Server not found: {server}",
     "No tienes permiso para hacer esto en este equipo": "You don't have permission to do this on this computer",
     "Este agente ya tiene la última versión": "This agent already has the latest version",
-    "Este agente no se puede actualizar solo (se instaló desde el código o con pip, o no hay versión para este sistema). Actualízalo a mano.":
-        "This agent can't update itself (it was installed from source or with pip, or there is no version for "
-        "this system). Update it manually.",
+    "Este agente no se puede actualizar solo (se instaló desde el código o con pip, no hay versión para este sistema, o su carpeta no se puede modificar: en un equipo Linux instalado como servicio, vuelve a ejecutar install-agent-service.sh con la versión nueva). Actualízalo a mano.":
+        "This agent can't update itself (it was installed from source or with pip, there is no version for this "
+        "system, or its folder can't be modified: on a Linux computer installed as a service, run "
+        "install-agent-service.sh again with the new version). Update it manually.",
+    "El nombre del mundo (level-name) no es válido: no puede llevar carpetas":
+        "The world name (level-name) isn't valid: it can't contain folders",
+    "La copia de seguridad está dañada; el servidor no se ha tocado":
+        "The backup is damaged; the server was left untouched",
+    "No se encontró {asset} en la última versión de {repo}": "{asset} wasn't found in the latest version of {repo}",
     "Juego desconocido": "Unknown game",
     "Servidor no encontrado": "Server not found",
     "No tienes permiso para hacer esto en este servidor": "You don't have permission to do this on this server",
@@ -40,6 +46,10 @@ STRINGS = {
 
     # downloads.py
     "Descargando {url}": "Downloading {url}",
+    "Nombre de archivo no válido: {name}": "Invalid file name: {name}",
+    "La descarga es demasiado grande": "The download is too big",
+    "La descarga no coincide con su huella {name}; se ha descartado":
+        "The download doesn't match its {name} checksum; it was discarded",
 
     # files.py
     "Ruta no válida": "Invalid path",
@@ -170,4 +180,9 @@ STRINGS = {
     # updates.py
     "Esta copia de Ownhost no se puede actualizar sola": "This copy of Ownhost can't update itself",
     "La descarga ha llegado incompleta; vuelve a intentarlo": "The download arrived incomplete; try again",
+    "La descarga no es segura (no es HTTPS); no se actualiza": "The download isn't secure (not HTTPS); not updating",
+    "No se puede comprobar la descarga: la versión publicada no trae su huella SHA-256":
+        "The download can't be checked: the published version has no SHA-256 checksum",
+    "La descarga no coincide con su huella SHA-256; se ha descartado":
+        "The download doesn't match its SHA-256 checksum; it was discarded",
 }

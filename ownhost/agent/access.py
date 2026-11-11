@@ -78,6 +78,10 @@ class GuestStore:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         tmp = self.path.with_suffix(".tmp")
         tmp.write_text(json.dumps([asdict(g) for g in self.guests], indent=2), encoding="utf-8")
+        try:
+            os.chmod(tmp, 0o600)
+        except OSError:
+            pass
         tmp.replace(self.path)
 
     def public(self) -> list[dict]:

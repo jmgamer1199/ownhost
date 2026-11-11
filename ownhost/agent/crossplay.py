@@ -9,7 +9,7 @@ import re
 from pathlib import Path
 
 from ownhost.agent import mods
-from ownhost.agent.downloads import Log, download, get_json
+from ownhost.agent.downloads import Log, download, get_json, safe_name
 from ownhost.agent.errors import UserError
 from ownhost.agent.mods import ModTarget
 from ownhost.i18n import tr
@@ -301,18 +301,22 @@ def extensions_dir(server_dir: Path, flavor: str) -> Path:
     return server_dir / CONFIG_PATHS[flavor].parent / "extensions"
 
 
-def _latest_geysermc(project: str) -> tuple[str, str]:
+def _latest_geysermc(project: str) -> tuple[str, str, str | None]:
     versions = [v for v in get_json(f"{GEYSERMC_API}/{project}")["versions"] if v]
     version = versions[-1]
     build = get_json(f"{GEYSERMC_API}/{project}/versions/{version}/builds")["builds"][-1]
     key, info = next(iter(build["downloads"].items()))
-    return f"{GEYSERMC_API}/{project}/versions/{version}/builds/{build['build']}/downloads/{key}", info["name"]
+    url = f"{GEYSERMC_API}/{project}/versions/{version}/builds/{build['build']}/downloads/{key}"
+    return url, safe_name(info["name"]), info.get("sha256")
 
 
-def _latest_github(repo: str, asset: str) -> tuple[str, str]:
+def _latest_github(repo: str, asset: str) -> tuple[str, str, str | None]:
     release = get_json(f"https://api.github.com/repos/{repo}/releases/latest")
-    url = next(a["browser_download_url"] for a in release["assets"] if a["name"] == asset)
-    return url, asset
+    found = next((a for a in release["assets"] if a["name"] == asset), None)
+    if not found:
+        raise UserError(tr("No se encontró {asset} en la última versión de {repo}", asset=asset, repo=repo))
+    digest = found.get("digest") or ""
+    return found["browser_download_url"], asset, (digest.removeprefix("sha256:") if digest.startswith("sha256:") else None)
 
 
 def install_extra(key: str, server_dir: Path, flavor: str, log: Log) -> str:
@@ -322,10 +326,10 @@ def install_extra(key: str, server_dir: Path, flavor: str, log: Log) -> str:
         raise UserError(tr("Extra desconocido: {key}", key=key))
     check_supported(flavor)
     if spec["source"] == "github":
-        url, name = _latest_github(spec["repo"], spec["asset"])
+        url, name, sha256 = _latest_github(spec["repo"], spec["asset"])
     else:
-        url, name = _latest_geysermc(spec["project"])
-    download(url, extensions_dir(server_dir, flavor) / name, log)
+        url, name, sha256 = _latest_geysermc(spec["project"])
+    download(url, extensions_dir(server_dir, flavor) / name, log, sha256=sha256)
     return name
 
 

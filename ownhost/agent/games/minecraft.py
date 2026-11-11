@@ -5,8 +5,9 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 
 from ownhost.agent.downloads import download, get_json, http
+from ownhost.agent.errors import UserError
 from ownhost.agent.games.base import (
-    Flavor, GameAdapter, InstallContext, read_properties, run_logged, write_properties,
+    Flavor, GameAdapter, InstallContext, plain_level_name, read_properties, run_logged, write_properties,
 )
 from ownhost.agent.models import ServerMeta
 from ownhost.agent.mods import ModTarget
@@ -21,6 +22,18 @@ NEOFORGE_MAVEN = "https://maven.neoforged.net/releases/net/neoforged/neoforge"
 
 CACHE_SECONDS = 600
 LOADERS = ("forge", "neoforge")
+
+
+def _maven_sha1(url: str) -> str | None:
+    """The checksum the Maven host publishes next to each file (`<file>.sha1`), if it can be read."""
+    try:
+        with http() as c:
+            r = c.get(url + ".sha1")
+            r.raise_for_status()
+            value = r.text.split()[0].strip().lower() if r.text.strip() else ""
+    except Exception:  # noqa: BLE001 - without a checksum it installs as before
+        return None
+    return value if re.fullmatch(r"[0-9a-f]{40}", value) else None
 
 
 def version_key(version: str) -> tuple[int, ...]:
@@ -152,12 +165,16 @@ class MinecraftAdapter(GameAdapter):
         if meta.flavor in LOADERS:
             self._install_loader(ctx)
         else:
+            sums: dict[str, str] = {}
             if meta.flavor == "vanilla":
-                url = self._version_json(meta.version)["downloads"]["server"]["url"]
+                server = self._version_json(meta.version)["downloads"]["server"]
+                url = server["url"]
+                sums = {"sha1": server.get("sha1")}
                 meta.build = None
             elif meta.flavor == "paper":
                 build = get_json(f"{PAPER_API}/versions/{meta.version}/builds/latest")
                 url = build["downloads"]["server:default"]["url"]
+                sums = {"sha256": (build["downloads"]["server:default"].get("checksums") or {}).get("sha256")}
                 meta.build = str(build["id"])
             elif meta.flavor == "fabric":
                 loader = meta.extra.get("loader_version") or                     next(l["version"] for l in get_json(f"{FABRIC_META}/versions/loader") if l["stable"])
@@ -166,7 +183,7 @@ class MinecraftAdapter(GameAdapter):
                 meta.build = f"loader {loader}"
             else:
                 raise ValueError(tr("Tipo desconocido: {flavor}", flavor=meta.flavor))
-            download(url, ctx.server_dir / "server.jar", ctx.log)
+            download(url, ctx.server_dir / "server.jar", ctx.log, **sums)
 
         if ctx.first_install:
             # The app only creates the server if the user has accepted the EULA.
@@ -183,7 +200,7 @@ class MinecraftAdapter(GameAdapter):
         else:
             url = f"{NEOFORGE_MAVEN}/{loader}/neoforge-{loader}-installer.jar"
         installer = ctx.server_dir / "installer.jar"
-        download(url, installer, ctx.log)
+        download(url, installer, ctx.log, sha1=_maven_sha1(url))
         ctx.log(tr("Ejecutando el instalador de {flavor} {loader} (puede tardar unos minutos)...",
                    flavor=meta.flavor, loader=loader))
         try:
@@ -205,6 +222,8 @@ class MinecraftAdapter(GameAdapter):
 
     def world_dirs(self, server_dir: Path) -> list[str]:
         level = read_properties(server_dir / self.properties_file).get("level-name") or "world"
+        if not plain_level_name(level):
+            raise UserError(tr("El nombre del mundo (level-name) no es válido: no puede llevar carpetas"))
         # Paper/Spigot keep the Nether and the End in separate folders.
         return [level, f"{level}_nether", f"{level}_the_end"]
 

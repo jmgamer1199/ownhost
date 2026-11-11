@@ -25,6 +25,7 @@ python3 -m venv "$APP_DIR/venv"
 "$APP_DIR/venv/bin/pip" install --upgrade pip
 "$APP_DIR/venv/bin/pip" install "$APP_DIR"
 chown -R "$USER_NAME:$USER_NAME" "$DATA_DIR"
+chmod 750 "$DATA_DIR"   # agent.json holds the token
 
 cp "$SRC/scripts/ownhost-agent.service" /etc/systemd/system/
 systemctl daemon-reload
@@ -43,4 +44,6 @@ echo "Add it in the app with 'Connect to a computer'. If you use ufw, allow the 
 echo "network and Tailscale (never for the whole internet), for example:"
 echo "  sudo ufw allow from 192.168.0.0/16 to any port 8765 proto tcp"
 echo "  sudo ufw allow from 100.64.0.0/10 to any port 8765 proto tcp"
-echo "(and the same for 25565 tcp, 5520 udp and, with crossplay, 19132 udp)."
+echo "(and the same for 8765 udp, 25565:25575 tcp, 5520:5530 udp, 8100:8110 tcp (map) and, for Bedrock,"
+echo "19132:19140 tcp and udp, 19200:19299 udp and 7551 udp). scripts/install-agent-service.sh does all of"
+echo "this by itself for ufw and firewalld."

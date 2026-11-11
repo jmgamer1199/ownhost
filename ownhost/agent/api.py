@@ -1,4 +1,5 @@
 import asyncio
+import ipaddress
 import logging
 import os
 import sys
@@ -8,6 +9,7 @@ import secrets
 import socket
 from contextlib import asynccontextmanager
 from pathlib import Path
+from urllib.parse import urlsplit
 
 import httpx
 import psutil
@@ -26,6 +28,9 @@ from ownhost.agent.games import GAMES
 from ownhost.agent.manager import ServerManager
 from ownhost.i18n import tr
 from ownhost.net import TailscaleOwnerCheck, lan_ip, tailscale_ip
+
+# Biggest file a friend or the app can upload (a world or a backup): stops a full disk.
+MAX_UPLOAD = 16 << 30
 
 
 class CreateServer(BaseModel):
@@ -141,26 +146,53 @@ def create_app(config: AgentConfig, manager: ServerManager) -> FastAPI:
         # Errors are returned in the language of the app that asks (the header it sends with every request).
         token = i18n.use_language(request.headers.get(i18n.HEADER))
         try:
-            return await call_next(request)
+            response = await call_next(request)
+            response.headers["X-Frame-Options"] = "DENY"  # the panel can't be framed by another page
+            response.headers["X-Content-Type-Options"] = "nosniff"
+            response.headers["Referrer-Policy"] = "no-referrer"
+            return response
         finally:
             i18n.reset_language(token)
 
     owner_check = TailscaleOwnerCheck()
     guests = GuestStore(manager.data_dir)
 
-    def identify(token: str, client, server) -> Principal | None:
+    def from_a_web_page(headers) -> bool:
+        """Whether a request without a token looks like a web page acting on the owner's behalf (a page open in a
+        browser of the same Tailscale account) instead of the app or the panel itself. Those must not get the owner's
+        access just because the device is theirs: cross-site requests and DNS rebinding."""
+        host = (headers.get("host") or "").strip().lower()
+        if host.startswith("[") and "]" in host:
+            name = host[1:host.index("]")]
+        elif host.count(":") == 1:
+            name = host.rsplit(":", 1)[0]
+        else:
+            name = host
+        try:
+            ipaddress.ip_address(name)
+        except ValueError:
+            # A name is only accepted if it can't be a public domain (single word, Tailscale's or the local one).
+            if "." in name and not name.endswith((".ts.net", ".local")):
+                return True
+        origin = headers.get("origin")
+        if origin and (origin == "null" or urlsplit(origin).netloc.lower() != host):
+            return True
+        return headers.get("sec-fetch-site") not in (None, "", "same-origin", "none")
+
+    def identify(token: str, client, server, headers=None) -> Principal | None:
         """The owner (agent token, or Tailscale from a device of their account) or a friend with their code."""
         if token and secrets.compare_digest(token.encode(), config.token.encode()):
             return OWNER_PRINCIPAL
         if guest := guests.find(token):
             return guest
-        if config.trust_tailscale and client and owner_check.is_owner(client[0], server[0] if server else None):
+        if (config.trust_tailscale and client and owner_check.is_owner(client[0], server[0] if server else None)
+                and not (headers is not None and from_a_web_page(headers))):
             return OWNER_PRINCIPAL
         return None
 
     def principal(request: Request, authorization: str = Header("")) -> Principal:
         token = authorization.removeprefix("Bearer ").strip()
-        who = identify(token, request.scope.get("client"), request.scope.get("server"))
+        who = identify(token, request.scope.get("client"), request.scope.get("server"), request.headers)
         if not who:
             raise HTTPException(401, tr("Token incorrecto"))
         return who
@@ -212,9 +244,17 @@ def create_app(config: AgentConfig, manager: ServerManager) -> FastAPI:
         tmp_dir = manager.data_dir / "tmp"
         tmp_dir.mkdir(parents=True, exist_ok=True)
         archive = tmp_dir / f"upload-{secrets.token_hex(6)}.zip"
-        with open(archive, "wb") as f:
-            async for chunk in request.stream():
-                f.write(chunk)
+        size = 0
+        try:
+            with open(archive, "wb") as f:
+                async for chunk in request.stream():
+                    size += len(chunk)
+                    if size > MAX_UPLOAD:
+                        raise UserError(tr("El archivo es demasiado grande"))
+                    f.write(chunk)
+        except BaseException:
+            archive.unlink(missing_ok=True)  # cut connection or too big: nothing is left behind
+            raise
         return archive
 
     @app.get("/api/hello")
@@ -274,11 +314,15 @@ def create_app(config: AgentConfig, manager: ServerManager) -> FastAPI:
         url = updates.download_url(release)
         if not url:
             raise UserError(tr("Este agente no se puede actualizar solo (se instaló desde el código o con pip, "
-                               "o no hay versión para este sistema). Actualízalo a mano."))
+                               "no hay versión para este sistema, o su carpeta no se puede modificar: en un equipo "
+                               "Linux instalado como servicio, vuelve a ejecutar install-agent-service.sh con la "
+                               "versión nueva). Actualízalo a mano."))
+
+        digest = updates.download_digest(release)
 
         def run():
             try:
-                binary = updates.install(url)
+                binary = updates.install(url, sha256=digest)
             except Exception:  # noqa: BLE001 - keeps the current version
                 logging.getLogger(__name__).exception("Could not update the agent")
                 return
@@ -548,7 +592,7 @@ def create_app(config: AgentConfig, manager: ServerManager) -> FastAPI:
     @app.websocket("/api/servers/{sid}/console")
     async def console(ws: WebSocket, sid: str, token: str = ""):
         # Browsers/WebSocket clients cannot easily send headers: token in the query.
-        who = identify(token, ws.scope.get("client"), ws.scope.get("server"))
+        who = identify(token, ws.scope.get("client"), ws.scope.get("server"), ws.headers)
         if not who or who.level < MODERATE or not who.can_see(sid) or sid not in manager.servers:
             await ws.close(code=4401)
             return

@@ -318,6 +318,8 @@ En la ficha de un equipo tuyo, **Accesos para amigos...** crea un código para c
 | Moderar | Lo anterior, la consola, los jugadores (operadores, lista blanca, baneos) y hacer copias |
 | Gestionar | Lo anterior, ajustes, propiedades, mods, actualizar, restaurar copias e importar mundos |
 
+**Da «Moderar» y «Gestionar» solo a gente de confianza:** «Moderar» incluye la consola sin filtros, que equivale a ser operador de ese servidor (puede ejecutar cualquier comando del juego). «Gestionar» permite instalar mods e importar mundos, y eso son programas que se ejecutan en tu equipo. «Encender y apagar» es el permiso seguro para dárselo a cualquiera.
+
 Nadie con un código puede crear ni borrar servidores, clonarlos o moverlos, descargar copias ni ver la carpeta del equipo. Tu amigo entra con «Conectar a un equipo» poniendo el código en «Token o código», o desde el navegador (abajo). El código solo se ve al crearlo (ver [Seguridad](#seguridad)). Para quitarle el acceso, pulsa **Quitar acceso**; deja de funcionar al momento.
 
 Tu amigo tiene que estar en tu red local o en tu Tailscale (desde Tailscale puedes compartirle solo ese equipo con «Share»). No se abre nada a internet.
@@ -338,7 +340,7 @@ Cada servidor tiene la opción **«Actualizar automáticamente al encender»** e
 
 ## Actualizar Ownhost
 
-Al abrirse, la app mira si hay una versión nueva en las [Releases](https://github.com/jmgamer1199/ownhost/releases) del proyecto (se puede desactivar en **Ajustes**, donde también está **Buscar ahora**). Si la hay, la descarga, se cierra y se abre ya actualizada; los servidores siguen encendidos y el agente del mismo PC se actualiza solo. Los agentes de otros equipos se actualizan desde su ficha con **Actualizar agente**: apagan los servidores guardando el mundo, se reinician con la versión nueva y los vuelven a encender. Solo se actualizan solos el `.exe` y el AppImage o binario de Linux; si instalaste el agente con pip, actualízalo con pip.
+Al abrirse, la app mira si hay una versión nueva en las [Releases](https://github.com/jmgamer1199/ownhost/releases) del proyecto (se puede desactivar en **Ajustes**, donde también está **Buscar ahora**). Si la hay, la descarga, se cierra y se abre ya actualizada; los servidores siguen encendidos y el agente del mismo PC se actualiza solo. Los agentes de otros equipos se actualizan desde su ficha con **Actualizar agente**: apagan los servidores guardando el mundo, se reinician con la versión nueva y los vuelven a encender. Antes de reemplazarse, el programa comprueba que lo descargado tiene la huella SHA-256 que GitHub publica para ese archivo, y lo descarta si no coincide. Solo se actualizan solos el `.exe` y el AppImage o binario de Linux; si instalaste el agente con pip, actualízalo con pip. Un agente instalado como servicio de Linux con `install-agent-service.sh` no puede reemplazar su propio archivo (es de `root` a propósito): para actualizarlo, descarga el nuevo `Ownhost` y `install-agent-service.sh` y vuelve a ejecutar el script.
 
 Para publicar versiones, ver [Publicar una versión](#publicar-una-versión).
 

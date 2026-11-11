@@ -8,7 +8,7 @@ from pathlib import Path
 
 import httpx
 
-from ownhost.agent.downloads import USER_AGENT, Log, download
+from ownhost.agent.downloads import USER_AGENT, Log, download, safe_name
 from ownhost.agent.errors import UserError
 from ownhost.i18n import tr
 
@@ -165,7 +165,7 @@ def install(source: str, project_id: str, target: ModTarget, game_version: str, 
         else:
             info = _curseforge_file(pid, target, game_version, cf_key)
         dest = folder / info["filename"]
-        download(info["url"], dest, log)
+        download(info["url"], dest, log, sha1=info.get("sha1"))
         meta[info["filename"]] = {"source": source, "project_id": pid, "title": info["title"],
                                   "version": info["version"]}
         save_metadata(folder, meta)
@@ -192,8 +192,9 @@ def _modrinth_file(project_id: str, target: ModTarget, game_version: str) -> dic
     file = next((f for f in version["files"] if f["primary"]), version["files"][0])
     project = _get(f"{MODRINTH}/project/{project_id}")
     return {
-        "filename": file["filename"],
+        "filename": safe_name(file["filename"]),
         "url": file["url"],
+        "sha1": (file.get("hashes") or {}).get("sha1"),
         "title": project["title"],
         "version": version["version_number"],
         "dependencies": [d["project_id"] for d in version["dependencies"]
@@ -220,8 +221,10 @@ def _curseforge_file(mod_id: str, target: ModTarget, game_version: str, cf_key: 
                            "Descárgalo desde su página: {url}",
                            name=mod["name"], url=(mod.get("links") or {}).get("websiteUrl", "")))
     return {
-        "filename": file["fileName"],
+        "filename": safe_name(file["fileName"]),
         "url": file["downloadUrl"],
+        # CurseForge lists its hashes as [{"value": ..., "algo": 1 (SHA-1) or 2 (MD5)}]
+        "sha1": next((h["value"] for h in file.get("hashes") or [] if h.get("algo") == 1), None),
         "title": mod["name"],
         "version": file["displayName"],
         "dependencies": [str(d["modId"]) for d in file.get("dependencies", [])
@@ -319,7 +322,8 @@ def check_updates(folder: Path, target: ModTarget, game_version: str, cf_key: st
             updates.append({"filename": name, "title": titles.get(version["project_id"], name),
                             "current": meta.get(name, {}).get("version", ""), "latest": version["version_number"],
                             "source": "modrinth", "project_id": version["project_id"],
-                            "new_filename": file["filename"], "url": file["url"]})
+                            "new_filename": file["filename"], "url": file["url"],
+                            "sha1": (file.get("hashes") or {}).get("sha1")})
 
     if cf_key:
         for name, info in meta.items():
@@ -334,7 +338,8 @@ def check_updates(folder: Path, target: ModTarget, game_version: str, cf_key: st
                 updates.append({"filename": name, "title": info.get("title") or name,
                                 "current": info.get("version", ""), "latest": new["version"],
                                 "source": "curseforge", "project_id": info["project_id"],
-                                "new_filename": new["filename"], "url": new["url"]})
+                                "new_filename": new["filename"], "url": new["url"],
+                                "sha1": new.get("sha1")})
     return sorted(updates, key=lambda u: u["title"].lower())
 
 
@@ -344,7 +349,7 @@ def apply_update(folder: Path, update: dict) -> None:
     disabled = not old.exists() and _mod_path(folder, update["filename"] + ".disabled").exists()
     new_name = _mod_path(folder, update["new_filename"]).name
     tmp = folder / (new_name + ".part-update")
-    download(update["url"], tmp, lambda _msg: None)
+    download(update["url"], tmp, lambda _msg: None, sha1=update.get("sha1"))
     remove(folder, update["filename"])
     tmp.rename(folder / (new_name + (".disabled" if disabled else "")))
     meta = load_metadata(folder)

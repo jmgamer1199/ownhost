@@ -59,10 +59,10 @@ def offer(parent, release: dict) -> None:
     if not url:
         QDesktopServices.openUrl(QUrl(release["url"]))
         return
-    _install(parent, url)
+    _install(parent, url, updates.download_digest(release))
 
 
-def _install(parent, url: str) -> None:
+def _install(parent, url: str, sha256: str | None) -> None:
     progress = QProgressDialog(tr("Descargando la versión nueva..."), None, 0, 100, parent)
     progress.setWindowTitle(tr("Actualizando"))
     progress.setMinimumDuration(0)
@@ -92,4 +92,4 @@ def _install(parent, url: str) -> None:
         progress.close()
         QMessageBox.warning(parent, tr("Actualizando"), tr("No se pudo actualizar:\n{msg}", msg=msg))
 
-    run_async(lambda: updates.install(url, report), done, failed)
+    run_async(lambda: updates.install(url, report, sha256), done, failed)

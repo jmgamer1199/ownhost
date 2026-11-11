@@ -318,6 +318,8 @@ On the card of one of your computers, **Friend access...** creates a code for ea
 | Moderate | All of the above, plus the console, players (operators, whitelist, bans) and making backups |
 | Manage | All of the above, plus settings, properties, mods, updating, restoring backups and importing worlds |
 
+**Give "Moderate" and "Manage" only to people you trust:** "Moderate" includes the raw console, which is the same as being an operator of that server (they can run any game command). "Manage" lets them install mods and import worlds, and those are programs that run on your computer. "Start and stop" is the safe one to share widely.
+
 Nobody with a code can create or delete servers, clone or move them, download backups or see the computer's folder. Your friend connects with "Connect to a computer" by entering the code in "Token or code", or from the browser (below). The code is only shown when it's created (see [Security](#security)). To revoke access, click **Revoke access**; it stops working immediately.
 
 Your friend has to be on your local network or your Tailscale network (in Tailscale you can share just that computer with "Share"). Nothing is opened to the internet.
@@ -338,7 +340,7 @@ Each server has the **"Update automatically on start"** option in Settings, on b
 
 ## Updating Ownhost
 
-When it opens, the app checks whether there's a new version in the project's [Releases](https://github.com/jmgamer1199/ownhost/releases) (this can be turned off in **Settings**, which also has **Check now**). If there is, it downloads it, closes and reopens already updated; the servers keep running and the agent on the same PC updates itself. Agents on other computers are updated from their card with **Update agent**: they stop the servers saving the world, restart with the new version and start them again. Only the `.exe` and the Linux AppImage or binary update themselves; if you installed the agent with pip, update it with pip.
+When it opens, the app checks whether there's a new version in the project's [Releases](https://github.com/jmgamer1199/ownhost/releases) (this can be turned off in **Settings**, which also has **Check now**). If there is, it downloads it, closes and reopens already updated; the servers keep running and the agent on the same PC updates itself. Agents on other computers are updated from their card with **Update agent**: they stop the servers saving the world, restart with the new version and start them again. Before replacing itself, the program checks that what it downloaded has the SHA-256 checksum GitHub publishes for that file, and discards it if it doesn't match. Only the `.exe` and the Linux AppImage or binary update themselves; if you installed the agent with pip, update it with pip. An agent installed as a Linux service with `install-agent-service.sh` can't replace its own file (it belongs to `root` on purpose): to update it, download the new `Ownhost` and `install-agent-service.sh` and run the script again.
 
 To publish releases, see [Publishing a release](#publishing-a-release).
 

@@ -12,6 +12,9 @@ KillMode=mixed
 TimeoutStopSec=120
 Restart=on-failure
 RestartSec=5
+NoNewPrivileges=yes
+LockPersonality=yes
+RestrictSUIDSGID=yes
 
 [Install]
 WantedBy=multi-user.target

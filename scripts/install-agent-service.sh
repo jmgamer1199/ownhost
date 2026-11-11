@@ -28,6 +28,7 @@ mkdir -p "$APP_DIR" "$DATA_DIR"
 systemctl stop ownhost-agent 2>/dev/null || true
 install -m 755 "$HERE/Ownhost" "$APP_DIR/Ownhost"
 chown -R "$USER_NAME:$USER_NAME" "$DATA_DIR"
+chmod 750 "$DATA_DIR"   # agent.json holds the token: other users of this computer can't read it
 
 cat > /etc/systemd/system/ownhost-agent.service <<EOF
 [Unit]
@@ -44,6 +45,10 @@ KillMode=mixed
 TimeoutStopSec=120
 Restart=on-failure
 RestartSec=5
+# Hardening that doesn't get in the way of Java or Bedrock: the service can't gain privileges.
+NoNewPrivileges=yes
+LockPersonality=yes
+RestrictSUIDSGID=yes
 
 [Install]
 WantedBy=multi-user.target
@@ -57,7 +62,7 @@ systemctl enable --now ownhost-agent
 SOURCES="192.168.0.0/16 10.0.0.0/8 172.16.0.0/12 100.64.0.0/10 fc00::/7 fe80::/10"
 # agent (app / discovery), Minecraft Java, Bedrock/Geyser, Hytale, web map, Bedrock NetherNet, Bedrock LAN
 PORTS="$PORT/tcp $PORT/udp 25565:25575/tcp 19132:19140/udp 19132:19140/tcp 5520:5530/udp 8100:8110/tcp 19200:19299/udp 7551/udp"
-if command -v ufw >/dev/null && ufw status | grep -q "Status: active"; then
+if command -v ufw >/dev/null && [[ "$(ufw status)" == *"Status: active"* ]]; then
     for rule in $PORT $PORTS 25565/tcp 19132/udp 5520/udp; do   # rules of older versions, open to anyone
         ufw delete allow "$rule" >/dev/null 2>&1 || true
     done
@@ -84,7 +89,7 @@ for _ in $(seq 1 15); do
     [[ -f "$DATA_DIR/agent.json" ]] && break
     sleep 1
 done
-TOKEN=$(runuser -u "$USER_NAME" -- env OWNHOST_DATA_DIR="$DATA_DIR" "$APP_DIR/Ownhost" --agent --show-token 2>/dev/null | tail -1)
+TOKEN=$(runuser -u "$USER_NAME" -- env OWNHOST_DATA_DIR="$DATA_DIR" "$APP_DIR/Ownhost" --agent --show-token 2>/dev/null | tail -1 || true)
 # "hostname -I" doesn't exist on every distribution (e.g. Arch): use "ip" if available.
 LAN_IP=$(ip -4 route get 1.1.1.1 2>/dev/null | awk '{for(i=1;i<NF;i++) if ($i=="src") print $(i+1)}' | head -1)
 [[ -z "$LAN_IP" ]] && LAN_IP=$(hostname -I 2>/dev/null | awk '{print $1}')
