@@ -4,6 +4,13 @@ import sys
 def main() -> None:
     # The same executable acts as the agent when launched with --agent
     # (so the .exe does not need Python installed to host servers).
+    if "--apply-update" in sys.argv[1:]:
+        # Run by ownhost-update.service (as root) to update the service's binary; see ownhost/updates.py.
+        from ownhost import updates
+        from ownhost.paths import default_data_dir
+
+        sys.exit(updates.apply_update(default_data_dir()))
+
     if "--agent" in sys.argv[1:]:
         from ownhost.agent.__main__ import main as agent_main
 

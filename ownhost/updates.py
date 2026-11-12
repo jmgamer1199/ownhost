@@ -139,6 +139,58 @@ def install(url: str, progress=lambda done, total: None, sha256: str | None = No
     return binary
 
 
+# --- Linux service whose binary belongs to root: the agent can't replace itself, so a root-owned systemd unit does it.
+# The agent only creates an empty file in its data folder (UPDATE_FLAG); ownhost-update.path sees it and starts
+# ownhost-update.service, which runs `Ownhost --apply-update` as root. That run takes nothing from the agent: it asks
+# GitHub for the latest version, checks it is newer and that its SHA-256 matches, and replaces the binary.
+UPDATE_FLAG = "update-requested"
+ROOT_UPDATER_UNIT = Path(os.environ.get("OWNHOST_ROOT_UPDATER_UNIT", "/etc/systemd/system/ownhost-update.path"))
+
+
+def root_updater_ready(data_dir: Path) -> bool:
+    """Whether this agent can ask a root-owned updater (installed by install-agent-service.sh) to update it."""
+    return sys.platform.startswith("linux") and ROOT_UPDATER_UNIT.exists() and os.access(data_dir, os.W_OK)
+
+
+def request_root_update(data_dir: Path) -> None:
+    (data_dir / UPDATE_FLAG).write_bytes(b"")
+
+
+def binary_stamp() -> tuple | None:
+    """Changes when the running executable's file is replaced by another one."""
+    binary = running_binary()
+    try:
+        st = binary.stat() if binary else None
+    except OSError:
+        return None
+    return (st.st_ino, st.st_mtime_ns, st.st_size) if st else None
+
+
+def apply_update(data_dir: Path) -> int:
+    """`Ownhost --apply-update`, run by ownhost-update.service as root. Returns the exit code."""
+    (data_dir / UPDATE_FLAG).unlink(missing_ok=True)  # first, so a failure can't make the unit run again and again
+    try:
+        release = latest_release()
+    except (httpx.HTTPError, ValueError, KeyError) as e:
+        print(tr("No se pudo consultar la última versión: {error}", error=e), file=sys.stderr)
+        return 1
+    if not release or not is_newer(release["build"]):
+        print(tr("Ya tiene la última versión"))
+        return 0
+    name = asset_name()
+    url = release["assets"].get(name or "")
+    if not url:
+        print(tr("No hay versión publicada para este sistema"), file=sys.stderr)
+        return 1
+    try:
+        install(url, sha256=download_digest(release))
+    except Exception as e:  # noqa: BLE001 - leaves the current version in place
+        print(tr("No se pudo actualizar: {error}", error=e), file=sys.stderr)
+        return 1
+    print(tr("Actualizado a la versión del {date}", date=build_date(release["build"])))
+    return 0
+
+
 def cleanup_old() -> None:
     """Deletes the old executables left after updating on Windows (no longer in use)."""
     binary = running_binary()
@@ -172,10 +224,21 @@ def _restarts_by_itself(unit: str, user: bool) -> bool:
     """Whether systemd starts this service again when it exits with an error (Restart=on-failure...)."""
     cmd = ["systemctl", *(["--user"] if user else []), "show", "-p", "Restart", "--value", unit]
     try:
-        value = subprocess.run(cmd, capture_output=True, text=True, timeout=10, env=clean_env()).stdout.strip()
+        done = subprocess.run(cmd, capture_output=True, text=True, timeout=10, env=clean_env())
     except (OSError, subprocess.SubprocessError):
-        return False
-    return value not in ("", "no")
+        done = None
+    if done is not None and done.returncode == 0:
+        return done.stdout.strip() not in ("", "no")
+    # systemctl needs the system bus for a normal user, and minimal servers (no dbus) don't have one: read the
+    # unit file instead.
+    for folder in ("/etc/systemd/system", "/usr/lib/systemd/system", "/lib/systemd/system"):
+        try:
+            for line in Path(folder, unit).read_text(encoding="utf-8").splitlines():
+                if line.strip().startswith("Restart="):
+                    return line.split("=", 1)[1].strip() not in ("", "no")
+        except OSError:
+            continue
+    return False
 
 
 def restart_agent(binary: Path, args: list[str]) -> None:

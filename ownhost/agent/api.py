@@ -4,6 +4,7 @@ import logging
 import os
 import sys
 import threading
+import time
 import platform
 import secrets
 import socket
@@ -349,11 +350,13 @@ def create_app(config: AgentConfig, manager: ServerManager) -> FastAPI:
         if not release or not updates.is_newer(release["build"]):
             raise UserError(tr("Este agente ya tiene la última versión"))
         url = updates.download_url(release)
+        if not url and release["assets"].get(updates.asset_name() or "") and updates.root_updater_ready(manager.data_dir):
+            return ask_root_updater(release)
         if not url:
             raise UserError(tr("Este agente no se puede actualizar solo (se instaló desde el código o con pip, "
                                "no hay versión para este sistema, o su carpeta no se puede modificar: en un equipo "
-                               "Linux instalado como servicio, vuelve a ejecutar install-agent-service.sh con la "
-                               "versión nueva). Actualízalo a mano."))
+                               "Linux instalado como servicio antes de que existiera la actualización desde la app, vuelve a "
+                               "ejecutar install-agent-service.sh una vez con la versión nueva: eso la activa). Actualízalo a mano."))
 
         digest = updates.download_digest(release)
 
@@ -368,6 +371,24 @@ def create_app(config: AgentConfig, manager: ServerManager) -> FastAPI:
             updates.restart_agent(binary, sys.argv[1:])
 
         threading.Thread(target=run, daemon=True).start()
+        return {"detail": tr("Actualizando a la versión del {date}", date=updates.build_date(release["build"]))}
+
+    def ask_root_updater(release: dict) -> dict:
+        """Linux service whose binary belongs to root: asks the root-owned updater (see ownhost/updates.py), then
+        restarts, stopping the servers cleanly, once the binary has been replaced."""
+        before = updates.binary_stamp()
+        updates.request_root_update(manager.data_dir)
+
+        def wait_and_restart():
+            deadline = time.monotonic() + 20 * 60
+            while time.monotonic() < deadline:
+                time.sleep(3)
+                if updates.binary_stamp() != before:
+                    manager.shutdown(resume=True)
+                    updates.restart_agent(updates.running_binary(), sys.argv[1:])
+            logging.getLogger(__name__).error("The root updater didn't replace the binary: see journalctl -u ownhost-update")
+
+        threading.Thread(target=wait_and_restart, daemon=True).start()
         return {"detail": tr("Actualizando a la versión del {date}", date=updates.build_date(release["build"]))}
 
     @app.get("/api/games", dependencies=need(MANAGE))

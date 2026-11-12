@@ -356,7 +356,18 @@ Cada servidor tiene la opción **«Actualizar automáticamente al encender»** e
 
 ## Actualizar Ownhost
 
-Al abrirse, la app mira si hay una versión nueva en las [Releases](https://github.com/jmgamer1199/ownhost/releases) del proyecto (se puede desactivar en **Ajustes**, donde también está **Buscar ahora**). Si la hay, la descarga, se cierra y se abre ya actualizada; los servidores siguen encendidos y el agente del mismo PC se actualiza solo. Los agentes de otros equipos se actualizan desde su ficha con **Actualizar agente**: apagan los servidores guardando el mundo, se reinician con la versión nueva y los vuelven a encender. Antes de reemplazarse, el programa comprueba que lo descargado tiene la huella SHA-256 que GitHub publica para ese archivo, y lo descarta si no coincide. Solo se actualizan solos el `.exe` y el AppImage o binario de Linux; si instalaste el agente con pip, actualízalo con pip. Un agente instalado como servicio de Linux con `install-agent-service.sh` no puede reemplazar su propio archivo (es de `root` a propósito): para actualizarlo, descarga el nuevo `Ownhost` y `install-agent-service.sh` y vuelve a ejecutar el script.
+Al abrirse, la app mira si hay una versión nueva en las [Releases](https://github.com/jmgamer1199/ownhost/releases) del proyecto (se puede desactivar en **Ajustes**, donde también está **Buscar ahora**). Si la hay, la descarga, se cierra y se abre ya actualizada; los servidores siguen encendidos y el agente del mismo PC se actualiza solo. Los agentes de otros equipos se actualizan desde su ficha con **Actualizar agente**: apagan los servidores guardando el mundo, se reinician con la versión nueva y los vuelven a encender. Antes de reemplazarse, el programa comprueba que lo descargado tiene la huella SHA-256 que GitHub publica para ese archivo, y lo descarta si no coincide. Solo se actualizan solos el `.exe` y el AppImage o binario de Linux; si instalaste el agente con pip, actualízalo con pip.
+
+Cómo se actualiza cada tipo de instalación desde la app (**Actualizar agente**):
+
+| Dónde corre el agente | Actualización remota |
+|---|---|
+| Windows | Funciona: el agente reemplaza su propio `.exe`. |
+| Linux, AppImage o binario ejecutado por tu usuario | Funciona: el archivo es de ese usuario. |
+| Linux con systemd, instalado con `install-agent-service.sh` (máquina física, VM, VPS o contenedor) | Funciona: el script instala además un pequeño actualizador que es de `root` (`ownhost-update`). El agente no puede cambiar su propio programa (es de `root` a propósito); solo crea un archivo de petición vacío, y el actualizador pregunta a GitHub por la última versión, la acepta solo si es más nueva y su SHA-256 coincide, reemplaza el binario y el agente se reinicia solo. Su registro: `journalctl -u ownhost-update`. |
+| Linux sin systemd | Todavía no hay servicio para él: actualízalo a mano. |
+
+Un agente instalado como servicio **antes** de que esto existiera necesita ejecutar `install-agent-service.sh` una vez con la versión nueva (descarga `Ownhost` y el script en la misma carpeta); desde entonces se actualiza desde la app.
 
 Para publicar versiones, ver [Publicar una versión](#publicar-una-versión).
 

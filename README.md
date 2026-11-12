@@ -356,7 +356,18 @@ Each server has the **"Update automatically on start"** option in Settings, on b
 
 ## Updating Ownhost
 
-When it opens, the app checks whether there's a new version in the project's [Releases](https://github.com/jmgamer1199/ownhost/releases) (this can be turned off in **Settings**, which also has **Check now**). If there is, it downloads it, closes and reopens already updated; the servers keep running and the agent on the same PC updates itself. Agents on other computers are updated from their card with **Update agent**: they stop the servers saving the world, restart with the new version and start them again. Before replacing itself, the program checks that what it downloaded has the SHA-256 checksum GitHub publishes for that file, and discards it if it doesn't match. Only the `.exe` and the Linux AppImage or binary update themselves; if you installed the agent with pip, update it with pip. An agent installed as a Linux service with `install-agent-service.sh` can't replace its own file (it belongs to `root` on purpose): to update it, download the new `Ownhost` and `install-agent-service.sh` and run the script again.
+When it opens, the app checks whether there's a new version in the project's [Releases](https://github.com/jmgamer1199/ownhost/releases) (this can be turned off in **Settings**, which also has **Check now**). If there is, it downloads it, closes and reopens already updated; the servers keep running and the agent on the same PC updates itself. Agents on other computers are updated from their card with **Update agent**: they stop the servers saving the world, restart with the new version and start them again. Before replacing itself, the program checks that what it downloaded has the SHA-256 checksum GitHub publishes for that file, and discards it if it doesn't match. Only the `.exe` and the Linux AppImage or binary update themselves; if you installed the agent with pip, update it with pip.
+
+How each kind of installation is updated from the app (**Update agent**):
+
+| Where the agent runs | Remote update |
+|---|---|
+| Windows | Works: the agent replaces its own `.exe`. |
+| Linux, AppImage or binary run by your user | Works: the file belongs to that user. |
+| Linux with systemd, installed with `install-agent-service.sh` (physical machine, VM, VPS or container) | Works: the script also installs a small root-owned updater (`ownhost-update`). The agent can't change its own program (it belongs to `root` on purpose); it only creates an empty request file, and the updater asks GitHub for the latest version, accepts it only if it is newer and its SHA-256 matches, replaces the binary, and the agent restarts by itself. Its log: `journalctl -u ownhost-update`. |
+| Linux without systemd | There is no service for it yet: update it by hand. |
+
+An agent installed as a service **before** this existed needs to run `install-agent-service.sh` once with the new version (download `Ownhost` and the script into the same folder); from then on it updates from the app.
 
 To publish releases, see [Publishing a release](#publishing-a-release).
 

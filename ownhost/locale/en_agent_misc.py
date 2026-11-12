@@ -20,10 +20,16 @@ STRINGS = {
     "Servidor no encontrado: {server}": "Server not found: {server}",
     "No tienes permiso para hacer esto en este equipo": "You don't have permission to do this on this computer",
     "Este agente ya tiene la última versión": "This agent already has the latest version",
-    "Este agente no se puede actualizar solo (se instaló desde el código o con pip, no hay versión para este sistema, o su carpeta no se puede modificar: en un equipo Linux instalado como servicio, vuelve a ejecutar install-agent-service.sh con la versión nueva). Actualízalo a mano.":
+    "Este agente no se puede actualizar solo (se instaló desde el código o con pip, no hay versión para este sistema, o su carpeta no se puede modificar: en un equipo Linux instalado como servicio antes de que existiera la actualización desde la app, vuelve a ejecutar install-agent-service.sh una vez con la versión nueva: eso la activa). Actualízalo a mano.":
         "This agent can't update itself (it was installed from source or with pip, there is no version for this "
-        "system, or its folder can't be modified: on a Linux computer installed as a service, run "
-        "install-agent-service.sh again with the new version). Update it manually.",
+        "system, or its folder can't be modified: on a Linux computer installed as a service before updating from "
+        "the app existed, run install-agent-service.sh once with the new version: that turns it on). Update it "
+        "manually.",
+    "No se pudo consultar la última versión: {error}": "Couldn't check the latest version: {error}",
+    "Ya tiene la última versión": "It already has the latest version",
+    "No hay versión publicada para este sistema": "There is no published version for this system",
+    "No se pudo actualizar: {error}": "Couldn't update: {error}",
+    "Actualizado a la versión del {date}": "Updated to the version from {date}",
     "El nombre del mundo (level-name) no es válido: no puede llevar carpetas":
         "The world name (level-name) isn't valid: it can't contain folders",
     "La copia de seguridad está dañada; el servidor no se ha tocado":

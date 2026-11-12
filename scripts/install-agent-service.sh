@@ -54,8 +54,48 @@ RestrictSUIDSGID=yes
 WantedBy=multi-user.target
 EOF
 
+# Updates from the app: the agent (which can't change its own program: it belongs to root) creates an empty file;
+# this unit sees it and runs the updater as root. The updater takes nothing from the agent: it asks GitHub for the
+# latest version, only accepts a newer one and checks its SHA-256 before replacing the binary.
+cat > /etc/systemd/system/ownhost-update.path <<EOF
+[Unit]
+Description=Ownhost - update asked for by the agent
+
+[Path]
+PathExists=$DATA_DIR/update-requested
+Unit=ownhost-update.service
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+cat > /etc/systemd/system/ownhost-update.service <<EOF
+[Unit]
+Description=Ownhost - update the agent to the latest published version
+After=network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=600
+StartLimitBurst=3
+
+[Service]
+Type=oneshot
+Environment=OWNHOST_DATA_DIR=$DATA_DIR
+ExecStart=$APP_DIR/Ownhost --apply-update
+TimeoutStartSec=900
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectHome=yes
+ProtectSystem=strict
+ReadWritePaths=$APP_DIR $DATA_DIR
+ProtectKernelTunables=yes
+ProtectControlGroups=yes
+LockPersonality=yes
+RestrictSUIDSGID=yes
+EOF
+
 systemctl daemon-reload
 systemctl enable --now ownhost-agent
+systemctl enable --now ownhost-update.path
 
 # Firewall (only if ufw or firewalld is active), ONLY for the home network and Tailscale: from the internet the
 # ports stay closed even if a router forwarded them. Same rules as the app (ownhost/app/firewall.py).
@@ -104,3 +144,4 @@ echo "  Token:         $TOKEN"
 echo
 echo "In the app on the other PC: \"Connect to a computer\", pick this computer under \"Found on your network\" and paste the token."
 echo "To see what it's doing:  journalctl -u ownhost-agent -f"
+echo "Updates: from the app (the update button on this computer's page), or by hand:  sudo touch $DATA_DIR/update-requested  (log: journalctl -u ownhost-update)"
