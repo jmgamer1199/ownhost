@@ -10,7 +10,32 @@ from ownhost.i18n import tr
 
 
 class ApiError(Exception):
-    pass
+    """`kind` says what went wrong: "token" (401), "forbidden" (403), "refused" (the computer is on but nothing listens
+    on that port), "silent" (no answer: off, another network or a firewall) or "other"."""
+
+    def __init__(self, message: str, kind: str = "other"):
+        super().__init__(message)
+        self.kind = kind
+
+
+def _refused(error: BaseException | None) -> bool:
+    """Whether the connection was actively refused (somewhere in the chain of causes)."""
+    for _ in range(6):
+        if error is None:
+            return False
+        if isinstance(error, ConnectionRefusedError):
+            return True
+        error = error.__cause__ or error.__context__
+    return False
+
+
+def fetch_hello(host: Host) -> dict | None:
+    """What the agent says about itself without a token (name, system...), or None if it doesn't answer."""
+    try:
+        r = httpx.get(f"http://{host.address}:{host.port}/api/hello", timeout=httpx.Timeout(4, connect=3))
+        return r.json() if r.status_code == 200 else None
+    except (httpx.HTTPError, ValueError):
+        return None
 
 
 class AgentClient:
@@ -18,8 +43,10 @@ class AgentClient:
         self.host = host
         self.base = f"http://{host.address}:{host.port}/api"
         # Short connect timeout: if a computer is off we do not want to wait 15 s.
-        self.http = httpx.Client(timeout=httpx.Timeout(15, connect=3),
-                                 headers={"Authorization": f"Bearer {host.token}", i18n.HEADER: i18n.language()})
+        headers = {i18n.HEADER: i18n.language()}
+        if host.token:  # without a token, no header: an empty "Bearer " is refused by the HTTP library
+            headers["Authorization"] = f"Bearer {host.token}"
+        self.http = httpx.Client(timeout=httpx.Timeout(15, connect=3), headers=headers)
 
     def close(self) -> None:
         self.http.close()
@@ -27,19 +54,23 @@ class AgentClient:
     def _req(self, method: str, path: str, **kwargs):
         try:
             r = self.http.request(method, self.base + path, **kwargs)
-        except httpx.ConnectError:
+        except httpx.ConnectError as e:
             raise ApiError(tr("No se puede conectar con {address}:{port}", address=self.host.address,
-                              port=self.host.port)) from None
+                              port=self.host.port), "refused" if _refused(e) else "silent") from None
         except httpx.TimeoutException:
-            raise ApiError(tr("El agente no responde")) from None
+            raise ApiError(tr("El agente no responde"), "silent") from None
+        except httpx.HTTPError as e:  # a connection cut halfway, a header the library refuses...
+            raise ApiError(tr("Error de comunicación con {address}:{port}: {detail}", address=self.host.address,
+                              port=self.host.port, detail=str(e) or type(e).__name__)) from None
         if r.status_code == 401:
-            raise ApiError(tr("Token incorrecto"))
+            raise ApiError(tr("Token incorrecto"), "token")
         if r.status_code >= 400:
             try:
                 detail = r.json().get("detail")
             except ValueError:
                 detail = r.text
-            raise ApiError(str(detail) if detail else tr("Error {code}", code=r.status_code))
+            raise ApiError(str(detail) if detail else tr("Error {code}", code=r.status_code),
+                           "forbidden" if r.status_code == 403 else "other")
         return r.json() if r.content else None
 
     def ws_url(self, server_id: str) -> str:

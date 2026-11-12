@@ -12,6 +12,7 @@ from ownhost import i18n
 from ownhost.i18n import tr
 from ownhost.app import theme
 from ownhost.app.client import AgentClient
+from ownhost.app.diagnose import explain, try_connect
 from ownhost.app.hosts import Host
 from ownhost.app.memory import MemoryAdvice, count_modpack_mods
 from ownhost.app.settings import curseforge_key, embedded_curseforge_key, load_settings, save_settings
@@ -19,7 +20,7 @@ from ownhost.app.tasks import run_async, run_with_progress
 from ownhost.app.world_import import WorldSource, default_saves_dir
 from ownhost.app.world_import import inspect as inspect_world
 from ownhost.discovery import discover
-from ownhost.net import is_reachable, lan_ip, own_ips, tailscale_peers
+from ownhost.net import lan_ip, own_ips, tailscale_peers
 
 
 class HostDialog(QDialog):
@@ -123,30 +124,20 @@ class HostDialog(QDialog):
             return
         self.ok_button.setEnabled(False)
         self.ok_button.setText(tr("Probando..."))
-        client = AgentClient(host)
-
-        def done(_):
-            client.close()
-            self.accept()
-
-        def failed(msg: str):
-            client.close()
-            # If the computer answers ping but not the agent, it is almost always its firewall.
-            run_async(lambda: is_reachable(host.address), lambda up: explain(msg, up), lambda _: explain(msg, False))
-
-        def explain(msg: str, reachable: bool):
+        def finished(result: dict):
+            if result["ok"]:
+                self.accept()
+                return
             self.ok_button.setEnabled(True)
             self.ok_button.setText(tr("OK"))
-            # The client raises ApiError(tr("Token incorrecto")): compare in the same language.
-            if reachable and msg != tr("Token incorrecto"):
-                msg = tr("El equipo {address} está encendido y responde, pero no deja conectar con el "
-                         "Ownhost (puerto {port}). Casi seguro es su cortafuegos.\n\n"
-                         "En ese equipo, abre Ownhost y pulsa «Abrir puertos del cortafuegos» en la ficha "
-                         "«Este PC» (en Linux), o permite Ownhost en el Firewall de Windows.",
-                         address=host.address, port=host.port)
+            QMessageBox.warning(self, tr("No se pudo conectar"), explain(result, host))
+
+        def broke(msg: str):
+            self.ok_button.setEnabled(True)
+            self.ok_button.setText(tr("OK"))
             QMessageBox.warning(self, tr("No se pudo conectar"), msg)
 
-        run_async(client.info, done, failed)
+        run_async(lambda: try_connect(host), finished, broke)
 
 
 class CreateServerDialog(QDialog):

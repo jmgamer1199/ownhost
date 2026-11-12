@@ -364,7 +364,7 @@ En la pestaña **Propiedades** se edita el `config.json` de Hytale (nombre, cont
 
 ### El cortafuegos de Windows bloquea la conexión
 
-Síntoma: desde otro equipo, la app dice que el equipo «está encendido y responde, pero no deja conectar con el Ownhost», o los jugadores no pueden entrar.
+Síntoma: desde otro equipo, la app dice que el equipo «está encendido y responde al ping, pero el Ownhost no contesta... Casi seguro es su cortafuegos», o los jugadores no pueden entrar. La app distingue las causas: si dice que el equipo «responde, pero no te deja entrar sin el token», no es el cortafuegos (escribe el token en «Token o código»); si dice que «el Ownhost no responde en el puerto 8765: el agente no está en marcha», el equipo está encendido pero el agente no (en un servidor Linux, `sudo systemctl status ownhost-agent` y `journalctl -u ownhost-agent -n 50`). Los consejos que muestra dependen del sistema del equipo (Windows, Linux con o sin pantalla).
 
 1. Comprueba que la red está como **Privada**: **Configuración → Red e Internet → (tu red) → Tipo de perfil de red**. En una red pública (cafeterías, hoteles...) es mejor no aceptar conexiones.
 2. En **Seguridad de Windows → Firewall y protección de red → Permitir una aplicación a través del firewall**, comprueba que Ownhost (y, para los jugadores, Java o `bedrock_server.exe`) está permitido solo en **Privada**.

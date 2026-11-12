@@ -2,6 +2,7 @@
 
 import ipaddress
 import json
+import re
 import shutil
 import socket
 import subprocess
@@ -38,6 +39,25 @@ def is_reachable(address: str) -> bool:
         return out.returncode == 0
     except (OSError, subprocess.SubprocessError):
         return False
+
+
+def ping_system(address: str) -> tuple[bool, str | None]:
+    """(does it answer ping?, a guess of its system from the reply's TTL: "linux" or "windows", or None).
+
+    Linux and macOS start the TTL at 64 and Windows at 128; over Tailscale the reply keeps that value."""
+    count = ["-n", "1", "-w", "1500"] if sys.platform == "win32" else ["-c", "1", "-W", "2"]
+    try:
+        out = subprocess.run(["ping", *count, address], capture_output=True, timeout=5,
+                             creationflags=NO_WINDOW, env=clean_env())
+    except (OSError, subprocess.SubprocessError):
+        return False, None
+    if out.returncode != 0:
+        return False, None
+    found = re.search(rb"ttl[=:]\s*(\d+)", out.stdout, re.I)
+    if not found:
+        return True, None
+    ttl = int(found.group(1))
+    return True, "linux" if ttl <= 64 else "windows" if ttl <= 128 else None
 
 
 def own_ips() -> set[str]:

@@ -260,8 +260,13 @@ def create_app(config: AgentConfig, manager: ServerManager) -> FastAPI:
     @app.get("/api/hello")
     def hello():
         """No token: only identifies the computer so the app can find it on the network."""
+        linux = sys.platform.startswith("linux")
         return {"name": config.name, "hostname": socket.gethostname(), "version": __version__,
-                "build": BUILD, "port": config.port, "trust_tailscale": config.trust_tailscale}
+                "build": BUILD, "port": config.port, "trust_tailscale": config.trust_tailscale,
+                # Only the kind of system and whether it has a desktop session: the app uses it to say what to try
+                # on that computer when it can't connect.
+                "os": platform.system(),
+                "headless": linux and not (os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY"))}
 
     @app.get("/api/info", dependencies=need(PLAY))
     def info(who: Principal = Depends(principal)):

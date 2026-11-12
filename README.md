@@ -364,7 +364,7 @@ The **Properties** tab edits Hytale's `config.json` (name, password, max players
 
 ### Windows Firewall blocks the connection
 
-Symptom: from another computer the app says the computer "is on and responding, but it doesn't allow connecting to Ownhost", or players can't join.
+Symptom: from another computer the app says the computer "is on and answers ping, but Ownhost doesn't answer... It is almost certainly its firewall", or players can't join. The app tells the causes apart: if it says the computer "answers, but won't let you in without the token", it isn't the firewall (type the token in "Token or code"); if it says "Ownhost doesn't answer on port 8765: the agent isn't running", the computer is on but the agent isn't (on a Linux server, `sudo systemctl status ownhost-agent` and `journalctl -u ownhost-agent -n 50`). The advice it shows depends on the computer's system (Windows, Linux with or without a screen).
 
 1. Check that the network is set as **Private**: **Settings → Network & internet → (your network) → Network profile type**. On a public network (cafés, hotels...) it's better not to accept connections.
 2. In **Windows Security → Firewall & network protection → Allow an app through firewall**, check that Ownhost (and, for players, Java or `bedrock_server.exe`) is allowed only on **Private**.

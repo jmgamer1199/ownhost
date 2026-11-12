@@ -27,7 +27,8 @@ def _hello(address: str, port: int) -> dict | None:
 def _trusted(address: str, port: int) -> bool:
     """Does it let us in without a token? (a Tailscale device on the same account)."""
     try:
-        r = httpx.get(f"http://{address}:{port}/api/info", headers={"Authorization": "Bearer "}, timeout=4)
+        # No Authorization header at all: an empty "Bearer " is refused by the HTTP library before sending anything.
+        r = httpx.get(f"http://{address}:{port}/api/info", timeout=4)
         return r.status_code == 200
     except httpx.HTTPError:
         return False

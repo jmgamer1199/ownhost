@@ -143,12 +143,39 @@ STRINGS = {
     "Probando...": "Testing...",
     "OK": "OK",
     "Token incorrecto": "Wrong token",
-    "El equipo {address} está encendido y responde, pero no deja conectar con el Ownhost (puerto {port}). Casi "
-    "seguro es su cortafuegos.\n\nEn ese equipo, abre Ownhost y pulsa «Abrir puertos del cortafuegos» en la "
-    "ficha «Este PC» (en Linux), o permite Ownhost en el Firewall de Windows.":
-        "The computer {address} is on and responding, but it doesn't allow connecting to Ownhost (port "
-        "{port}). It is almost certainly its firewall.\n\nOn that computer, open Ownhost and click \"Open "
-        "firewall ports\" on the \"This PC\" page (on Linux), or allow Ownhost in Windows Firewall.",
+    # diagnose.py: what to tell the user when the connection fails
+    "El equipo {address} responde, pero no te deja entrar sin el token. Escríbelo en «Token o código» (o entra desde un PC con tu misma cuenta de Tailscale).":
+        "The computer {address} answers, but it won't let you in without the token. Type it in \"Token or code\" "
+        "(or connect from a PC with your own Tailscale account).",
+    "Para ver el token en ese equipo, ejecuta:": "To see the token on that computer, run:",
+    "En ese equipo: abre Ownhost y pulsa «Copiar token» en la ficha «Este PC»; si no tiene pantalla, ejecuta:":
+        "On that computer: open Ownhost and click \"Copy token\" on the \"This PC\" page; if it has no screen, run:",
+    "En ese equipo, abre Ownhost y pulsa «Copiar token» en la ficha «Este PC».":
+        "On that computer, open Ownhost and click \"Copy token\" on the \"This PC\" page.",
+    "El equipo {address} está encendido, pero el Ownhost no responde en el puerto {port}: el agente no está en marcha o usa otro puerto.":
+        "The computer {address} is on, but Ownhost doesn't answer on port {port}: the agent isn't running or uses "
+        "another port.",
+    "En ese equipo (Linux), comprueba el servicio:": "On that computer (Linux), check the service:",
+    "En ese equipo, abre Ownhost y comprueba que «Este PC» funciona como servidor.":
+        "On that computer, open Ownhost and check that \"This PC\" is working as a server.",
+    "No hay respuesta de {address}: puede estar apagado, sin conexión o en otra red. Si es por Tailscale, comprueba que los dos equipos están conectados.":
+        "There is no answer from {address}: it may be off, offline or on another network. If you use Tailscale, "
+        "check that both computers are connected.",
+    "El equipo {address} está encendido y responde al ping, pero el Ownhost no contesta (puerto {port}). Casi seguro es su cortafuegos.":
+        "The computer {address} is on and answers ping, but Ownhost doesn't answer (port {port}). It is almost "
+        "certainly its firewall.",
+    "En ese equipo, permite Ownhost en el Firewall de Windows (solo en redes privadas).":
+        "On that computer, allow Ownhost in Windows Firewall (private networks only).",
+    "En ese equipo (Linux), mira el cortafuegos y permite el puerto {port} solo para tu red de casa y Tailscale (install-agent-service.sh lo hace al instalar):":
+        "On that computer (Linux), check the firewall and allow port {port} only for your home network and "
+        "Tailscale (install-agent-service.sh does it when installing):",
+    "Si tiene pantalla, abre Ownhost y pulsa «Abrir puertos del cortafuegos» en la ficha «Este PC».":
+        "If it has a screen, open Ownhost and click \"Open firewall ports\" on the \"This PC\" page.",
+    "En ese equipo, abre los puertos del cortafuegos: en Linux, «Abrir puertos del cortafuegos» en la ficha «Este PC»; en Windows, permite Ownhost en el Firewall.":
+        "On that computer, open the firewall ports: on Linux, \"Open firewall ports\" on the \"This PC\" page; on "
+        "Windows, allow Ownhost in the Firewall.",
+    "No se pudo completar la conexión: {message}": "The connection couldn't be completed: {message}",
+    "Error de comunicación con {address}:{port}: {detail}": "Communication error with {address}:{port}: {detail}",
     "No se pudo conectar": "Couldn't connect",
     "Survival con amigos": "Survival with friends",
     "Cuántos vais a jugar a la vez como mucho: sirve para recomendar la memoria":
