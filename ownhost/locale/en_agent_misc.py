@@ -185,4 +185,7 @@ STRINGS = {
         "The download can't be checked: the published version has no SHA-256 checksum",
     "La descarga no coincide con su huella SHA-256; se ha descartado":
         "The download doesn't match its SHA-256 checksum; it was discarded",
+    "En este equipo el arranque con el sistema no se puede cambiar desde aquí: es un servicio del sistema (en Linux, «sudo systemctl disable --now ownhost-agent» lo quita).":
+        "On this computer, starting with the system can't be changed from here: it is a system service (on Linux, "
+        "\"sudo systemctl disable --now ownhost-agent\" removes it).",
 }

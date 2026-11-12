@@ -91,11 +91,50 @@ STRINGS = {
     "Añadido automáticamente por Tailscale: {names}": "Added automatically via Tailscale: {names}",
     "Pulsa para conectarlo (te pedirá el token de ese equipo)":
         "Click to connect it (you'll be asked for that computer's token)",
-    "Sin equipos": "No computers",
-    "No hay ningún equipo tuyo conectado. Usa este PC o añade otro equipo primero.\n\n(En los equipos de un "
-    "amigo solo puedes usar los servidores que te haya dejado.)":
-        "None of your computers is connected. Use this PC or add another computer first.\n\n(On a friend's "
-        "computers you can only use the servers they have shared with you.)",
+    "Sin equipos encendidos": "No computers are on",
+    "No hay ningún equipo tuyo encendido. ¿Dónde quieres crear el servidor?":
+        "None of your computers is on. Where do you want to create the server?",
+    "En cuanto el equipo esté listo se abrirá la ventana para crearlo. (En los equipos de un amigo solo puedes usar los servidores que te haya dejado.)":
+        "As soon as the computer is ready, the window to create it opens. (On a friend's computers you can only "
+        "use the servers they have shared with you.)",
+    "Iniciar el agente de este PC": "Start this PC's agent",
+    "Encender «{name}»": "Switch on \"{name}\"",
+    "Encender equipo": "Switch on computer",
+    "Lo enciende con Wake-on-LAN: solo funciona dentro de tu red de casa":
+        "It switches it on with Wake-on-LAN: it only works inside your home network",
+    "Orden de encendido enviada a {name}. Puede tardar un minuto en arrancar.":
+        "Switch-on order sent to {name}. It may take a minute to start.",
+    "No se pudo enviar la orden de encendido: ¿hay conexión a la red?":
+        "The switch-on order couldn't be sent: is there a network connection?",
+    "Ajustes del equipo...": "Computer settings...",
+    "Iniciar Ownhost al encender el equipo y permitir encenderlo desde la red":
+        "Start Ownhost when the computer starts and allow switching it on from the network",
+    # computer_settings.py
+    "Ajustes del equipo": "Computer settings",
+    "Ajustes de {name}": "Settings of {name}",
+    "Cargando...": "Loading...",
+    "Guardando...": "Saving...",
+    "Iniciar Ownhost al encender el equipo": "Start Ownhost when the computer starts",
+    "Permitir encender este equipo desde otros equipos de mi red":
+        "Allow this computer to be switched on from other computers of my network",
+    "Se inicia cuando inicias sesión en Windows. Si el PC entra solo a tu cuenta, será nada más encenderlo.":
+        "It starts when you sign in to Windows. If the PC signs in to your account by itself, that is as soon as "
+        "it is switched on.",
+    "Se inicia cuando inicias sesión en el escritorio. En un servidor sin pantalla, usa el servicio del sistema (install-agent-service.sh): ese sí arranca con el equipo aunque nadie inicie sesión.":
+        "It starts when you sign in to the desktop. On a server without a screen, use the system service "
+        "(install-agent-service.sh): that one does start with the computer even if nobody signs in.",
+    "Este equipo usa el servicio del sistema «ownhost-agent»: arranca siempre con el equipo. Para quitarlo, en ese equipo: sudo systemctl disable --now ownhost-agent":
+        "This computer uses the system service \"ownhost-agent\": it always starts with the computer. To remove "
+        "it, on that computer: sudo systemctl disable --now ownhost-agent",
+    "En este sistema no se puede cambiar desde aquí.": "On this system it can't be changed from here.",
+    "Solo funciona dentro de tu red de casa (no por Tailscale ni desde fuera). El equipo tiene que tener activado Wake-on-LAN en la BIOS/UEFI y en su tarjeta de red.":
+        "It only works inside your home network (not over Tailscale or from outside). The computer must have "
+        "Wake-on-LAN turned on in its BIOS/UEFI and in its network card.",
+    "En Linux, por ejemplo: sudo ethtool -s <tarjeta> wol g": "On Linux, for example: sudo ethtool -s <card> wol g",
+    "En Windows: Administrador de dispositivos → tu tarjeta de red → Administración de energía → «Permitir que este dispositivo reactive el equipo».":
+        "On Windows: Device Manager → your network card → Power Management → \"Allow this device to wake the "
+        "computer\".",
+    "Dirección física de la tarjeta: {mac}": "Card's physical address: {mac}",
     "Arrancando el agente de este PC (la primera vez puede tardar un poco)...":
         "Starting this PC's agent (the first time it may take a while)...",
     "Agente local": "Local agent",

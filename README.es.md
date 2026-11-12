@@ -13,6 +13,7 @@ Monta tus propios servidores de **Minecraft Java** (Vanilla, Paper, Fabric, Forg
 - [Instalación](#instalación)
 - [Equipos detectados automáticamente](#equipos-detectados-automáticamente)
 - [Tailscale](#tailscale)
+- [Ajustes del equipo: arranque y encendido](#ajustes-del-equipo-arranque-y-encendido)
 - [Puertos y cortafuegos](#puertos-y-cortafuegos)
 - [Multiplataforma (Bedrock)](#multiplataforma-bedrock)
 - [Mover un servidor a otro equipo](#mover-un-servidor-a-otro-equipo)
@@ -164,6 +165,21 @@ Cada 30 segundos la app busca otros equipos con Ownhost, en la red local (por di
 - **Resto de equipos** (solo red local, o Tailscale de otra persona): aparecen en **«Detectados en tu red»**. Al pulsar uno, la app pide su token **una vez**.
 - Si quitas un equipo de la lista, no se vuelve a añadir solo; sigue apareciendo en «Detectados en tu red».
 - Para desactivar el acceso sin token por Tailscale en un equipo, pon `"trust_tailscale": false` en su `agent.json`.
+
+## Ajustes del equipo: arranque y encendido
+
+En la página de cada equipo encendido (solo para ti, que eres su dueño), el botón **«Ajustes del equipo...»** tiene dos opciones. Las dos vienen desactivadas.
+
+- **Iniciar Ownhost al encender el equipo.** Se hace a la manera de cada sistema, sin pedir permisos de administrador:
+  - **Windows:** el agente arranca cuando inicias sesión (un valor en la clave «Run» de tu usuario). Si el PC entra solo a tu cuenta, será nada más encenderlo.
+  - **Linux con escritorio:** una entrada de inicio automático en la carpeta de tu usuario, que también se ejecuta al iniciar sesión.
+  - **Servidor Linux instalado con `install-agent-service.sh`:** el servicio `ownhost-agent` de systemd ya arranca con el equipo, aunque nadie inicie sesión. La app muestra la casilla marcada y no puede cambiarla (es de `root`); para quitarlo, en ese equipo: `sudo systemctl disable --now ownhost-agent`.
+- **Permitir encender este equipo desde otros equipos de mi red (Wake-on-LAN).** Solo si la activas, el agente le dice a las apps que lo gestionan la dirección física (MAC) de su tarjeta de red, y ellas la guardan. A partir de ahí, cuando ese equipo esté apagado, su página muestra **«Encender equipo»**, que envía el paquete estándar de Wake-on-LAN (no se abre ningún puerto). Ten en cuenta:
+  - **Solo funciona dentro de tu red de casa**: el paquete no cruza routers ni Tailscale.
+  - El equipo necesita tener Wake-on-LAN activado en la BIOS/UEFI y en su tarjeta de red (en Linux, por ejemplo, `sudo ethtool -s <tarjeta> wol g`; en Windows, en el Administrador de dispositivos → la tarjeta de red → Administración de energía). La app no puede hacerlo por ti.
+  - Si desactivas la opción, las apps olvidan la dirección.
+
+Si pulsas **«Nuevo servidor»** y ninguno de tus equipos está encendido, la app no se limita a avisarte: te ofrece iniciar el agente de este PC («Usar este PC como servidor») o encender un equipo que tenga Wake-on-LAN, y abre la ventana para crear el servidor en cuanto esté listo (espera hasta 4 minutos).
 
 ## Tailscale
 

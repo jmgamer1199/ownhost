@@ -13,6 +13,7 @@ Run your own **Minecraft Java** (Vanilla, Paper, Fabric, Forge, NeoForge), **Min
 - [Installation](#installation)
 - [Automatically found computers](#automatically-found-computers)
 - [Tailscale](#tailscale)
+- [Computer settings: starting and switching on](#computer-settings-starting-and-switching-on)
 - [Ports and firewall](#ports-and-firewall)
 - [Crossplay (Bedrock)](#crossplay-bedrock)
 - [Moving a server to another computer](#moving-a-server-to-another-computer)
@@ -164,6 +165,21 @@ Every 30 seconds the app looks for other computers running Ownhost, on the local
 - **Other computers** (local network only, or someone else's Tailscale): they appear under **"Found on your network"**. When you click one, the app asks for its token **once**.
 - If you remove a computer from the list, it isn't added back automatically; it still shows up under "Found on your network".
 - To turn off token-free access over Tailscale on a computer, set `"trust_tailscale": false` in its `agent.json`.
+
+## Computer settings: starting and switching on
+
+On the page of each computer that is on (only for you, its owner), the **"Computer settings..."** button has two options. Both are off by default.
+
+- **Start Ownhost when the computer starts.** It is each system's own way, with no administrator needed:
+  - **Windows:** the agent starts when you sign in (a value in your user's "Run" key). If the PC signs in to your account by itself, that is as soon as it's switched on.
+  - **Linux with a desktop:** an autostart entry in your user's folder, which also runs when you sign in.
+  - **Linux server installed with `install-agent-service.sh`:** the `ownhost-agent` systemd service already starts with the computer, even if nobody signs in. The app shows the box checked and can't change it (it belongs to `root`); to remove it, on that computer: `sudo systemctl disable --now ownhost-agent`.
+- **Allow this computer to be switched on from other computers of my network (Wake-on-LAN).** Only if you turn it on, the agent tells the apps that manage it the physical (MAC) address of its network card, and they save it. From then on, when that computer is off, its page shows **"Switch on computer"**, which sends the standard Wake-on-LAN packet (no port is opened). Keep in mind:
+  - It **only works inside your home network**: the packet doesn't cross routers or Tailscale.
+  - The computer needs Wake-on-LAN turned on in its BIOS/UEFI and in its network card (on Linux, for example, `sudo ethtool -s <card> wol g`; on Windows, in Device Manager → the network card → Power Management). The app can't do that for you.
+  - Turning the option off makes the apps forget the address.
+
+If you press **"New server"** and none of your computers is on, the app doesn't just say so: it offers to start this PC's agent ("Use this PC as a server") or to switch on a computer that has Wake-on-LAN, and opens the window to create the server as soon as it's ready (it waits up to 4 minutes).
 
 ## Tailscale
 

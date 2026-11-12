@@ -79,6 +79,12 @@ class AgentClient:
     def info(self):
         return self._req("GET", "/info")
 
+    def agent_options(self):
+        return self._req("GET", "/agent/options")
+
+    def set_agent_options(self, **changes):
+        return self._req("PUT", "/agent/options", json=changes)
+
     def games(self):
         return self._req("GET", "/games")
 

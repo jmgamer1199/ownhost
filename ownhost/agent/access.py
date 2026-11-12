@@ -7,6 +7,7 @@ they cannot log in with them.
 
 import hashlib
 import json
+import os
 import secrets
 import threading
 import time

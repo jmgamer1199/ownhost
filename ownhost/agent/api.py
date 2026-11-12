@@ -17,7 +17,7 @@ from fastapi import Depends, FastAPI, Header, HTTPException, Request, WebSocket,
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from pydantic import BaseModel, Field
 
-from ownhost import BUILD, __version__, discovery, i18n, updates
+from ownhost import BUILD, __version__, autostart, discovery, i18n, updates
 from ownhost.agent import files
 from ownhost.agent.access import (
     MANAGE, MODERATE, OWNER, OWNER_PRINCIPAL, PLAY, GuestStore, Principal,
@@ -27,7 +27,7 @@ from ownhost.agent.errors import UserError
 from ownhost.agent.games import GAMES
 from ownhost.agent.manager import ServerManager
 from ownhost.i18n import tr
-from ownhost.net import TailscaleOwnerCheck, lan_ip, tailscale_ip
+from ownhost.net import TailscaleOwnerCheck, lan_ip, lan_mac, tailscale_ip
 
 # Biggest file a friend or the app can upload (a world or a backup): stops a full disk.
 MAX_UPLOAD = 16 << 30
@@ -115,6 +115,12 @@ class RestoreReplica(BaseModel):
 
 class LanguageChoice(BaseModel):
     language: str
+
+
+class AgentOptions(BaseModel):
+    """What the owner chooses for this computer. Each field is optional: only the ones sent change."""
+    autostart: bool | None = None
+    wake: bool | None = None
 
 
 class CreateGuest(BaseModel):
@@ -285,6 +291,9 @@ def create_app(config: AgentConfig, manager: ServerManager) -> FastAPI:
             "memory_available_mb": mem.available // (1 << 20),
             "lan_ip": lan_ip(),
             "tailscale_ip": tailscale_ip(),
+            # Only when the user has allowed it: what another computer needs to switch this one on.
+            "wake_on_lan": config.allow_wake,
+            "mac": lan_mac() if config.allow_wake else None,
         }
 
     @app.post("/api/shutdown", dependencies=owner, status_code=202)
@@ -306,6 +315,29 @@ def create_app(config: AgentConfig, manager: ServerManager) -> FastAPI:
         config.language = i18n.normalize(body.language)
         config.save(manager.data_dir)
         i18n.set_language(config.language)
+
+    def options_state() -> dict:
+        return {"autostart": autostart.status(), "wake": {"enabled": config.allow_wake, "mac": lan_mac()},
+                "os": platform.system()}
+
+    @app.get("/api/agent/options", dependencies=owner)
+    def get_agent_options():
+        """The choices for this computer: start with the computer, and be switched on from the network."""
+        return options_state()
+
+    @app.put("/api/agent/options", dependencies=owner)
+    def set_agent_options(body: AgentOptions):
+        if body.autostart is not None:
+            try:
+                autostart.set_enabled(body.autostart)
+            except RuntimeError:
+                raise UserError(tr("En este equipo el arranque con el sistema no se puede cambiar desde aquí: "
+                                   "es un servicio del sistema (en Linux, «sudo systemctl disable --now "
+                                   "ownhost-agent» lo quita).")) from None
+        if body.wake is not None:
+            config.allow_wake = body.wake
+            config.save(manager.data_dir)
+        return options_state()
 
     @app.post("/api/agent/update", dependencies=owner, status_code=202)
     def update_agent():

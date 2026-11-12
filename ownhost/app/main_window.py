@@ -1,3 +1,5 @@
+import time
+
 import httpx
 from PySide6.QtCore import QPointF, QRect, Qt, QTimer
 from PySide6.QtGui import QBrush, QColor, QFontMetrics, QIcon, QPainter, QPixmap
@@ -8,10 +10,11 @@ from PySide6.QtWidgets import (
 
 from ownhost.app import ASSETS, theme
 from ownhost.app.client import AgentClient, ApiError
+from ownhost.app.computer_settings import ComputerSettingsDialog
 from ownhost.app.dialogs import (
     AccountLoginDialog, CreateServerDialog, HostDialog, ImportModpackDialog, SettingsDialog,
 )
-from ownhost import BUILD, i18n, updates
+from ownhost import BUILD, i18n, updates, wol
 from ownhost.i18n import tr
 from ownhost.app import app_update
 from ownhost.app.hosts import (
@@ -102,6 +105,8 @@ class MainWindow(QMainWindow):
         self.seen_events: dict[str, set[tuple]] = {}
         self.server_icons: dict[tuple[str, str], tuple[int | None, QIcon]] = {}  # (computer, server) -> (date, icon)
         self.local_launch_tried = False
+        # After choosing to start or switch on a computer to create a server there: when it is up, the dialog opens.
+        self.create_when_online_until = 0.0
         self.upgrading_agent = False
         self.local_ip = lan_ip()
         self.login_dialogs: dict[tuple[str, str], AccountLoginDialog] = {}
@@ -270,6 +275,12 @@ class MainWindow(QMainWindow):
         self.btn_host_start.clicked.connect(self._start_local_agent)
         self.btn_copy_token = QPushButton(tr("Copiar token"))
         self.btn_copy_token.clicked.connect(self._copy_token)
+        self.btn_host_settings = QPushButton(tr("Ajustes del equipo..."))
+        self.btn_host_settings.setToolTip(tr("Iniciar Ownhost al encender el equipo y permitir encenderlo desde la red"))
+        self.btn_host_settings.clicked.connect(self._computer_settings)
+        self.btn_host_wake = QPushButton(tr("Encender equipo"))
+        self.btn_host_wake.setToolTip(tr("Lo enciende con Wake-on-LAN: solo funciona dentro de tu red de casa"))
+        self.btn_host_wake.clicked.connect(lambda: self._wake_host(self._selected()[0]))
         # Linux with an active firewall (ufw/firewalld): open the ports with the system password.
         self.firewall_kind = firewall.detect()
         self.btn_firewall = QPushButton(tr("Abrir puertos del cortafuegos"))
@@ -297,14 +308,16 @@ class MainWindow(QMainWindow):
         # Hidden until we know which computer it is: otherwise the window would widen on opening and never
         # shrink back (on a 1366 px laptop it would end up wider than the screen).
         for b in (self.btn_guests, self.btn_host_start, self.btn_copy_token, self.btn_firewall,
-                  self.btn_agent_update, self.btn_received, self.btn_phone):
+                  self.btn_agent_update, self.btn_received, self.btn_phone, self.btn_host_settings,
+                  self.btn_host_wake):
             b.hide()
         row = QHBoxLayout()
         for b in (self.btn_host_new, self.btn_phone, self.btn_guests, self.btn_received):
             row.addWidget(b)
         row.addStretch()
         manage = QHBoxLayout()
-        for b in (self.btn_host_start, self.btn_copy_token, self.btn_firewall, self.btn_agent_update):
+        for b in (self.btn_host_start, self.btn_host_wake, self.btn_host_settings, self.btn_copy_token,
+                  self.btn_firewall, self.btn_agent_update):
             manage.addWidget(b)
         manage.addStretch()
         manage.addWidget(edit)
@@ -591,6 +604,8 @@ class MainWindow(QMainWindow):
             owner and bool(st.get("online")) and not host.is_local and bool(self.latest_release)
             and updates.is_newer(self.latest_release["build"], agent_build))
         self.btn_host_start.setVisible(host.is_local and not st.get("online"))
+        self.btn_host_settings.setVisible(owner and bool(st.get("online")))
+        self.btn_host_wake.setVisible(not host.is_local and not st.get("online") and bool(host.mac))
         self.btn_copy_token.setVisible(host.is_local and bool(local_agent_config()))
         self.btn_firewall.setVisible(host.is_local and bool(self.firewall_kind))
         if host.is_local and self.firewall_kind and st.get("online")                 and load_settings().get("firewall_rules") != firewall.commands(self.firewall_kind):
@@ -632,6 +647,11 @@ class MainWindow(QMainWindow):
             return
         info, servers = result
         self.state[host_id] = {"online": True, "info": info, "servers": servers}
+        host = self._host(host_id)
+        mac = info.get("mac") or ""
+        if "wake_on_lan" in info and mac != host.mac:
+            host.mac = mac  # only while its owner allows it
+            save_hosts(self.hosts)
         self._sync_agent_language(host_id, info)
         self._show_events(host_id, servers)
         self._update_login_dialogs(host_id)
@@ -642,6 +662,11 @@ class MainWindow(QMainWindow):
         agent_build = info.get("build") or "dev"
         if host.is_local and BUILD != "dev" and (agent_build == "dev" or agent_build < BUILD):
             self._upgrade_local_agent(host_id, servers)
+        if self.create_when_online_until and self._level(host_id) >= OWNER:
+            wanted = time.time() <= self.create_when_online_until
+            self.create_when_online_until = 0.0
+            if wanted:
+                QTimer.singleShot(0, self.new_server)
 
     def showEvent(self, event) -> None:
         super().showEvent(event)
@@ -912,9 +937,7 @@ class MainWindow(QMainWindow):
     def new_server(self) -> None:
         online = self._owned_online()
         if not online:
-            QMessageBox.information(self, tr("Sin equipos"), tr("No hay ningún equipo tuyo conectado. "
-                                    "Usa este PC o añade otro equipo primero.\n\n(En los equipos de un amigo "
-                                    "solo puedes usar los servidores que te haya dejado.)"))
+            self._offer_without_computers()
             return
         dialog = CreateServerDialog(self, online, self._selected()[0])
         ok = dialog.exec()
@@ -927,6 +950,53 @@ class MainWindow(QMainWindow):
             state["servers"] = state.get("servers", []) + [dialog.created]
             self._refresh_host_item(host_id)
             self._select((host_id, dialog.created["id"]))
+
+    def _offer_without_computers(self) -> None:
+        """No computer of yours is on: offer to start this PC's agent (or switch on another computer) and create
+        the server there as soon as it is up."""
+        box = QMessageBox(self)
+        box.setWindowTitle(tr("Sin equipos encendidos"))
+        box.setIcon(QMessageBox.Icon.Information)
+        box.setText(tr("No hay ningún equipo tuyo encendido. ¿Dónde quieres crear el servidor?"))
+        box.setInformativeText(tr("En cuanto el equipo esté listo se abrirá la ventana para crearlo. (En los equipos "
+                                  "de un amigo solo puedes usar los servidores que te haya dejado.)"))
+        choices: dict = {}
+        local = next((h for h in self.hosts if h.is_local), None)
+        label = tr("Iniciar el agente de este PC") if local else tr("Usar este PC como servidor")
+        choices[box.addButton(label, QMessageBox.ButtonRole.AcceptRole)] = ("local", local)
+        for h in self.hosts:
+            if not h.is_local and h.mac:
+                choices[box.addButton(tr("Encender «{name}»", name=h.name), QMessageBox.ButtonRole.ActionRole)] = ("wake", h)
+        box.addButton(tr("Cancelar"), QMessageBox.ButtonRole.RejectRole)
+        box.exec()
+        action = choices.get(box.clickedButton())
+        if not action:
+            return
+        kind, host = action
+        if kind == "wake":
+            self._wake_host(host.id)
+        elif host:
+            self._start_local_agent()
+        else:
+            self.setup_local_agent()
+        self.create_when_online_until = time.time() + 240
+
+    def _wake_host(self, host_id: str | None) -> None:
+        host = self._host(host_id) if host_id else None
+        if not host or not host.mac:
+            return
+        try:
+            sent = wol.send(host.mac)
+        except ValueError:
+            sent = 0
+        self.statusBar().showMessage(
+            tr("Orden de encendido enviada a {name}. Puede tardar un minuto en arrancar.", name=host.name) if sent
+            else tr("No se pudo enviar la orden de encendido: ¿hay conexión a la red?"), 10000)
+
+    def _computer_settings(self) -> None:
+        host = self._host(self._selected()[0])
+        if host:
+            ComputerSettingsDialog(self, self.clients[host.id], host.name).exec()
 
     def _move_targets(self) -> list[tuple[Host, AgentClient]]:
         return self._owned_online(exclude=self._selected()[0])

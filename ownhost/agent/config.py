@@ -16,6 +16,9 @@ class AgentConfig:
     bind: str = "0.0.0.0"
     # Tailscale devices of the same account can manage this computer without a token.
     trust_tailscale: bool = True
+    # The user lets other computers of their network switch this one on (Wake-on-LAN): only then does the agent
+    # tell its network card's MAC address to the apps that manage it.
+    allow_wake: bool = False
     # Language of the console lines and notices ("es" or "en"); None = the system's.
     language: str | None = None
 

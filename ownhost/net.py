@@ -41,6 +41,16 @@ def is_reachable(address: str) -> bool:
         return False
 
 
+def lan_mac() -> str | None:
+    """MAC address ("aa:bb:cc:dd:ee:ff") of the network card that has this computer's home-network IP."""
+    ip = lan_ip()
+    for addrs in psutil.net_if_addrs().values():
+        if any(a.family == socket.AF_INET and a.address == ip for a in addrs):
+            mac = next((a.address for a in addrs if a.family == psutil.AF_LINK), None)
+            return mac.lower().replace("-", ":") if mac else None
+    return None
+
+
 def ping_system(address: str) -> tuple[bool, str | None]:
     """(does it answer ping?, a guess of its system from the reply's TTL: "linux" or "windows", or None).
 

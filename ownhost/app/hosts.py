@@ -8,6 +8,7 @@ import uuid
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
+from ownhost import autostart
 from ownhost.agent import DEFAULT_PORT
 from ownhost.paths import app_config_dir, default_data_dir
 from ownhost.sysenv import clean_env
@@ -22,6 +23,8 @@ class Host:
     token: str
     port: int = DEFAULT_PORT
     id: str = field(default_factory=lambda: uuid.uuid4().hex[:8])
+    # Its network card's MAC address, known only if its owner allowed switching it on from the network.
+    mac: str = ""
 
     @property
     def is_local(self) -> bool:
@@ -91,21 +94,7 @@ def launch_local_agent() -> None:
     data_dir = default_data_dir()
     data_dir.mkdir(parents=True, exist_ok=True)
     log = open(data_dir / "agent.log", "ab")
-    if os.environ.get("APPIMAGE"):
-        # Inside an AppImage: relaunch the .AppImage itself, because this window's mounted folder
-        # disappears when it closes and the agent would be left without its files.
-        cmd = [os.environ["APPIMAGE"], "--agent"]
-    elif getattr(sys, "frozen", False):
-        # Packaged as an .exe: the executable itself acts as the agent.
-        cmd = [sys.executable, "--agent"]
-    else:
-        python = Path(sys.executable)
-        # With pythonw.exe no console window appears on Windows.
-        if sys.platform == "win32" and python.name.lower() == "python.exe":
-            pythonw = python.with_name("pythonw.exe")
-            if pythonw.exists():
-                python = pythonw
-        cmd = [str(python), "-m", "ownhost.agent"]
+    cmd = autostart.agent_command()
     # Without this, the agent would reuse the packaged (onefile) app's temp folder, which is
     # deleted when the window closes: the agent would stay alive but without its internal files.
     # Also, the system environment without this app's libraries (on Linux, /bin/sh would fail).
